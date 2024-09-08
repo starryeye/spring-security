@@ -18,6 +18,14 @@ public class SecurityConfiguration {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
 
+        /**
+         * HttpSecurity 에 아래와 같은 formLogin 인증 설정을 하고 SecurityFilterChain 을 build 하면,
+         * 빌드 과정에서 HttpSecurity 내부 configurers 안에 FormLoginConfigurer 가 만들어지고
+         * FormLoginConfigurer 는 UsernamePasswordAuthenticationFilter 가 만들어진다. (AbstractAuthenticationProcessingFilter 를 상속)
+         *
+         * UsernamePasswordAuthenticationFilter 는 인증 요청이 오면 인증 처리를 수행하는 Filter 이다.
+         */
+
         httpSecurity
                 .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
                 .formLogin(httpSecurityFormLoginConfigurer -> httpSecurityFormLoginConfigurer
