@@ -34,7 +34,7 @@ public class SecurityConfig {
          *      UsernamePasswordAuthenticationToken 타입이라 가능함
          */
 
-        // HttpSecurity 로 부터 AuthenticationManagerBuilder 를 참조 (AuthenticationManagerBuilder 는 자동 구성에 의한 스프링 빈이라 주입 받을 수도 있음)
+        // HttpSecurity 로 부터 AuthenticationManagerBuilder 를 참조 (AuthenticationManagerBuilder 는 자동 구성에 의한 스프링 빈이라 주입 받을 수도 있음 -> 주의, custom-authenticate-authentication-provider case_2 참고)
         AuthenticationManagerBuilder authenticationManagerBuilder = http.getSharedObject(AuthenticationManagerBuilder.class);
         // AuthenticationManager 생성
         AuthenticationManager authenticationManager = authenticationManagerBuilder.build();
