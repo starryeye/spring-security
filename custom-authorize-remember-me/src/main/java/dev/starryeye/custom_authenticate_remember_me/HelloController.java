@@ -1,4 +1,4 @@
-package dev.starryeye.custom_authorize_remember_me;
+package dev.starryeye.custom_authenticate_remember_me;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;

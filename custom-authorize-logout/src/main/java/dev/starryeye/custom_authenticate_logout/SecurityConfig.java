@@ -1,4 +1,4 @@
-package dev.starryeye.custom_authorize_logout;
+package dev.starryeye.custom_authenticate_logout;
 
 import jakarta.servlet.http.HttpSession;
 import org.springframework.context.annotation.Bean;

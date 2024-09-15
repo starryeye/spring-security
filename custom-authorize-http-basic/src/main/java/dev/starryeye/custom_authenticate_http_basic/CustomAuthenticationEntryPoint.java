@@ -1,4 +1,4 @@
-package dev.starryeye.custom_authorize_http_basic;
+package dev.starryeye.custom_authenticate_http_basic;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

@@ -1,13 +1,13 @@
-package dev.starryeye.custom_authorize_logout;
+package dev.starryeye.custom_authenticate_anonymous;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class CustomAuthorizeLogoutApplication {
+public class CustomAuthenticateAnonymousApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(CustomAuthorizeLogoutApplication.class, args);
+		SpringApplication.run(CustomAuthenticateAnonymousApplication.class, args);
 	}
 
 }

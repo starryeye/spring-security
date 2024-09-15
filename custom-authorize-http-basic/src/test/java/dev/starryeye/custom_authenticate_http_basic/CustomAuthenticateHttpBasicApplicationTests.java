@@ -1,10 +1,10 @@
-package dev.starryeye.custom_authorize_anonymous;
+package dev.starryeye.custom_authenticate_http_basic;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class CustomAuthorizeAnonymousApplicationTests {
+class CustomAuthenticateHttpBasicApplicationTests {
 
 	@Test
 	void contextLoads() {

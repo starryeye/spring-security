@@ -1,4 +1,4 @@
-package dev.starryeye.custom_authorize_anonymous;
+package dev.starryeye.custom_authenticate_anonymous;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

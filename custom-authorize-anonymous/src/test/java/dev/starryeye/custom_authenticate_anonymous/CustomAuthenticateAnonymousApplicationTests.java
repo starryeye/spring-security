@@ -1,10 +1,10 @@
-package dev.starryeye.custom_authorize_logout;
+package dev.starryeye.custom_authenticate_anonymous;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class CustomAuthorizeLogoutApplicationTests {
+class CustomAuthenticateAnonymousApplicationTests {
 
 	@Test
 	void contextLoads() {
