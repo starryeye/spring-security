@@ -12,7 +12,7 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-//@Configuration
+@Configuration
 public class SecurityConfig {
 
     /**
@@ -24,10 +24,14 @@ public class SecurityConfig {
 
         /**
          * 참고,
-         * AuthenticationManager 를 생성하는 단계에서는 AuthenticationProvider 가 등록되지 않고..
-         * HttpSecurity 를 build 할때, 내부 configurer 에 의해 생성되는듯 (기본은 Anonymous 와 dao 가 생성된다. -> case_2 에서 설정한 것과 동일하게 생성됨, CustomAuthenticationProvider 는 제외)
+         * AuthenticationManagerBuilder 를 HttpSecurity 를 통해 참조하면 이미 parent 에 dao AuthenticationProvider 가 존재함
+         *      InitializeUserDetailsBeanManagerConfigurer::InitializeUserDetailsManagerConfigurer::configure 에 의함..
+         * anonymous 는 HttpSecurity 를 build 할때, 내부 configurer 에 의해 생성된다.
+         *      provider 를 따로 설정하지 않아도 기본은 Anonymous 와 dao 가 생성된다. -> case_2 에서 설정한 것과 동일함, CustomAuthenticationProvider 는 제외)
          *
          * 실제 인증을 수행하는 provider 는 dao 가 될 것이다.
+         *      Filter::attemptAuthentication 에서 AuthenticationManager 로 넘겨준 Authentication 객체가
+         *      UsernamePasswordAuthenticationToken 타입이라 가능함
          */
 
         // HttpSecurity 로 부터 AuthenticationManagerBuilder 를 참조 (AuthenticationManagerBuilder 는 자동 구성에 의한 스프링 빈이라 주입 받을 수도 있음)
