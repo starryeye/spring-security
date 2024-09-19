@@ -28,3 +28,5 @@
     - AuthenticationProvider
   - custom-authenticate-user-details-service
     - UserDetails, UserDetailsService
+  - custom-authenticate-security-context
+    - SecurityContextHolderFilter, SecurityContextRepository
