@@ -7,6 +7,12 @@ Content-Type: application/json
   "password": "1111"
 }
 
-### home, 인텔리제이 http 클라이언트에서 cookie 를 자동으로 설정해주지 않는 것같다.. 아래와 같이 직접 설정해주자.
+> {%
+    client.global.set("My-Cookie", response.headers.valueOf("Set-Cookie"));
+    client.log("쿠키: "+client.global.get("My-Cookie"));
+%}
+
+### home, 인텔리제이 http 클라이언트에서 cookie 를 자동으로 설정해주지 않는 것같다.. 아래 주석과 같이 직접 설정해주던가 js 스크립트로 자동화 하던가..
 GET http://localhost:8080
-Cookie: JSESSIONID=3769C8C458916FA0755F6E47518E7920;
+Cookie: {{My-Cookie}}
+#Cookie: JSESSIONID=3769C8C458916FA0755F6E47518E7920;
