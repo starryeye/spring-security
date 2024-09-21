@@ -27,6 +27,13 @@ public class SecurityConfig {
 
     @Bean
     public SecurityContextRepository securityContextRepository(HttpSecurity http) {
+
+        /**
+         * 이와 같이 하지 않고 그냥 return new HttpSessionSecurityContextRepository(); 만 해주어도 동작한다..
+         * -> 런타임 디버깅 시, SecurityContextHolderFilter 에서 보는 SecurityContextRepository 와 해당 bean 의 인스턴스가 다름..
+         * -> SecurityContextRepository 단위로 공유되는게 아니라.. SecurityContextRepository 내부에 싱글톤으로 어떤 객체가 공유되는듯 ?
+         *
+         */
         SecurityContextRepository securityContextRepository = http.getSharedObject(SecurityContextRepository.class);
 
         if (securityContextRepository == null) {
