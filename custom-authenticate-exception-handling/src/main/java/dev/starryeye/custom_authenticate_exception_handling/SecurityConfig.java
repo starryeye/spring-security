@@ -20,12 +20,12 @@ public class SecurityConfig {
         /**
          * 예외를 처리하는 필터는 ExceptionTranslationFilter 이다.
          * ExceptionTranslationFilter..
-         *      인증 예외가 발생하면..
+         *      인증 예외가 발생하면.. ( -> ExceptionTranslationFilter::handleAuthenticationException, sendStartAuthentication)
          *          - SecurityContext 에서 현재 인증이 문제있다고 판단하여 인증 객체(Authentication)를 초기화한다.
          *          - AuthenticationEntryPoint 를 호출한다. (보통 인증을 시도할 수 있는 로그인 페이지로 redirect 시킨다.)
          *          - 현재 요청(인증 예외를 발생하게한 요청) 정보를 세션에 저장 (다음 인증 성공 시 인증 이전 페이지로 redirect)
          *              RequestCache, SavedRequest 관련..
-         *      인가 예외가 발생하면..
+         *      인가 예외가 발생하면.. ( -> ExceptionTranslationFilter::handleAccessDeniedException)
          *          - 현재 인증 상태가 익명 사용자(인증하지 않은 상태)라면 인증 예외가 발생한 것처럼 수행(위 3 가지 동작)
          *          - 현재 인증 상태가 사용자(인증한 상태)이지만 권한 문제라면 AccessDeniedHandler 를 호출한다. (보통 403 리턴)
          *
