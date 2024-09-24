@@ -53,13 +53,13 @@ public class SecurityConfig {
          *      그리고, 익명 사용자 + 인가 예외 이므로 인증 예외의 3 가지 동작을 수행하여 authenticationEntryPoint 로 설정한 객체가 호출되는 것을 볼 수 있다.
          *      또한, authenticationEntryPoint 를 사용하였으므로 formLogin 설정 여부와 상관없이 기본 제공되는 "/login" 페이지 생성이 안되고 LoginController 로 매핑됨
          * 2. authenticationEntryPoint 설정은 주석처리하고.. formLogin 의 login 페이지를 활용하여 로그인 인증을 수행후 "/admin" 접근 시..
-         *      익명 사용자가 아님 + 인가 예외 이므로 accessDeniedHandler 로 설정한 객체가 호출되는 것을 볼 수 있다.
+         *      익명 사용자가 아님(인증 사용자) + 인가 예외 이므로 accessDeniedHandler 로 설정한 객체가 호출되는 것을 볼 수 있다.
          */
 
         http.authorizeHttpRequests(auth ->
                         auth
                                 .requestMatchers("/login").permitAll()
-                                .requestMatchers("/denied").hasRole("ADMIN")
+                                .requestMatchers("/admin").hasRole("ADMIN") // "/admin" 은 ADMIN 권한이 필요하다. 인증 사용자이지만 권한이 없으면 AccessDeniedException 발생
                                 .anyRequest().authenticated()
                 )
                 .formLogin(Customizer.withDefaults())
