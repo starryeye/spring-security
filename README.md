@@ -30,3 +30,13 @@
     - UserDetails, UserDetailsService
   - custom-authenticate-security-context
     - SecurityContextHolderFilter, SecurityContextRepository
+  - custom-authenticate-session-management
+    - Session 관리 및 제어
+  - custom-authenticate-session-registry
+    - SessionRegistry, SecurityContextRepository
+- 공통 아키텍처
+  - custom-authenticate-exception-handling
+    - 인증/인가 예외 처리, ExceptionTranslationFilter
+- 기타
+  - custom-authenticate-login-controller
+    - MVC controller 에서 인증을 처리해보기
