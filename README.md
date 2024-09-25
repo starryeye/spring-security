@@ -39,4 +39,4 @@
     - 인증/인가 예외 처리, ExceptionTranslationFilter
 - 기타
   - custom-authenticate-login-controller
-    - MVC controller 에서 인증을 처리해보기
+    - MVC controller 에서 인증을 처리해보기, like formLogin
