@@ -8,7 +8,7 @@
         function corsTest() {
             fetch("http://localhost:8081/api/users", {
                 method: "GET",
-                headers: {
+                headers: { // 헤더를 주석 처리하면 preflight request 가 아닌 simple request 로 CORS 가 동작한다.
                     "Content-Type": "text/xml",
                 }
             })
