@@ -1,0 +1,18 @@
+### GET 메서드는 CSRF 보안에 포함되지 않아서 응답이 정상적으로 리턴된다.
+GET http://localhost:8080/api/articles
+
+### POST 메서드는 CSRF 보안 대상이므로 막힘, 응답 데이터에 "_csrf" 토큰을 준다. 해당 토큰을 포함시키면 성공됨
+POST http://localhost:8080/api/articles/new
+Content-Type: application/json
+
+{
+  "title": "good article"
+}
+
+### _csrf 토큰을 포함시키면 통과됨
+POST http://localhost:8080/api/articles/new?_csrf=5jdvmJQszRSTi17YgAyTCn__glA60hnwEaEF9Im4qGT1Q2NN0QEN-aYZ-CC-6mvqsCGnbEzOr2hctnjddcJnkLGJzVSTdVN9
+Content-Type: application/json
+
+{
+  "title": "good article"
+}
