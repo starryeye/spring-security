@@ -24,18 +24,23 @@ public class SecurityConfig {
          */
 
         http.authorizeHttpRequests(auth ->
-                auth
-                        .requestMatchers("/api/articles", "/api/articles/new").permitAll()
-                        .anyRequest().authenticated()
-        )
+                        auth
+                                .requestMatchers("/api/articles", "/api/articles/new").permitAll()
+                                .anyRequest().authenticated()
+                )
+//                .csrf(httpSecurityCsrfConfigurer ->
+//                        httpSecurityCsrfConfigurer
+//                                .ignoringRequestMatchers("/api/articles", "/api/articles/new") // 부분 비활성화
+//                                .disable() // 모든 요청에 대해 비활성화
+//                )
                 .formLogin(Customizer.withDefaults());
 
         return http.build();
     }
 
     @Bean
-    public UserDetailsService userDetailsService(){
+    public UserDetailsService userDetailsService() {
         UserDetails user = User.withUsername("user").password("{noop}1111").roles("USER").build();
-        return  new InMemoryUserDetailsManager(user);
+        return new InMemoryUserDetailsManager(user);
     }
 }
