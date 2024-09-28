@@ -10,7 +10,7 @@ Content-Type: application/json
 }
 
 ### csrf 토큰을 포함시키면 통과됨
-POST http://localhost:8080/api/articles/new?_csrf=WMrYVWj41ljzmTF5v5PwDjTIPWNZfvvhFq9kB5df0LqNwOHobazoZwya4mneqldNjb7EbQT-EFtoHMjMd8xWNPY9sY_p9YeN
+POST http://localhost:8080/api/articles/new?_csrf=ma6V5Uf2czZzd_x7X2ZwHmMOSsdrBKRMnQI2SsBEWvUgX-Z5r8ig3XfPRQJeFc5DZ0tEK1M_Z_5ZM5Rh_DBScqN0a5MZZ4IY
 Content-Type: application/json
 
 {
@@ -20,8 +20,12 @@ Content-Type: application/json
 ### csrf 토큰을 포함시키면 통과됨 2
 POST http://localhost:8080/api/articles/new
 Content-Type: application/json
-X-Csrf-Token: WMrYVWj41ljzmTF5v5PwDjTIPWNZfvvhFq9kB5df0LqNwOHobazoZwya4mneqldNjb7EbQT-EFtoHMjMd8xWNPY9sY_p9YeN
+X-Csrf-Token: ma6V5Uf2czZzd_x7X2ZwHmMOSsdrBKRMnQI2SsBEWvUgX-Z5r8ig3XfPRQJeFc5DZ0tEK1M_Z_5ZM5Rh_DBScqN0a5MZZ4IY
 
 {
   "title": "good article"
 }
+
+
+### 현재 csrf 토큰 조회
+GET http://localhost:8080/csrf
