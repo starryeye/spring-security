@@ -21,6 +21,7 @@ public class SecurityConfig {
          *
          * 기본으로 설정되는 기능
          * - POST, PUT, DELETE 의 요청에 한해서 HTTP 요청 Body 에 "_csrf" 토큰이 포함 되어야 요청을 허가한다. (없으면 인증을 수행할 수 있는 페이지로 보낸다..)
+         * - csrf 토큰은 session 에 저장된다.
          */
 
         http.authorizeHttpRequests(auth ->
