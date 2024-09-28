@@ -20,7 +20,10 @@ public class SecurityConfig {
          * CSRF 는 Spring Security 에서 아무런 설정하지 않아도 기본적으로 설정된다.
          *
          * 기본으로 설정되는 기능
-         * - POST, PUT, DELETE 의 요청에 한해서 HTTP 요청 Body 에 "_csrf" 토큰이 포함 되어야 요청을 허가한다. (없으면 인증을 수행할 수 있는 페이지로 보낸다..)
+         * - POST, PUT, DELETE 의 요청에 한해서
+         *      - HTTP 요청 Parameter 에 "_csrf" 토큰이 포함 되어야 요청을 허가한다. (없으면 인증을 수행할 수 있는 페이지로 보낸다..)
+         *      - HTTP 요청 Header "X-Csrf-Token" 에 토큰을 넣어주면 요청을 허가한다. (없으면 인증을 수행할 수 있는 페이지로 보낸다..)
+         *      http/api.http 참조..
          * - csrf 토큰은 session 에 저장된다.
          */
 
