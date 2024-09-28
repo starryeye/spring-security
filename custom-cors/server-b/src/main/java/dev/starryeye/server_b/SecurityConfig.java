@@ -23,6 +23,13 @@ public class SecurityConfig {
          * - simple request, preflight request 방법 모두에 대해.. isValid 를 수행해보는데..
          *      웹 브라우저가 수행할 일을 서버에서 수행해버리는 듯..
          *          요청의 orgin 헤더 값 과 해당 B 서버의 CORS 셋팅을 비교해서 일치되지 않으면 다음 필터로 넘기지 않는듯..
+         *
+         * 참고
+         * 웹브라우저가 아닌 Intellij client 에서 요청을 할 경우..
+         * Origin 헤더는 자동으로 생성되어 요청되지 않고..
+         * Spring Security CorsFilter 는 Origin 이 없으면 그냥 Cors 필터에서 아무것도 안하고 그냥 다음 필터로 넘긴다.
+         * 만약, Origin 헤더를 수동으로 설정하여 요청을 하면 CORS 가 정상 동작한다.
+         * -> server-b/http/api.http 참고..
          */
 
         http.authorizeHttpRequests(auth ->

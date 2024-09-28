@@ -1,0 +1,10 @@
+### Origin 이 없으면 차단되지 않음..
+GET localhost:8081/api/users
+
+### CORS 기능에 의해 허용됨
+GET localhost:8081/api/users
+Origin: http://localhost:8080
+
+### CORS 기능에 의해 차단됨
+GET localhost:8081/api/users
+Origin: http://localhost:8082
