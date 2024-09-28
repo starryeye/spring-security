@@ -25,6 +25,7 @@ public class SecurityConfig {
          *      - HTTP 요청 Header "X-Csrf-Token" 에 토큰을 넣어주면 요청을 허가한다. (없으면 인증을 수행할 수 있는 페이지로 보낸다..)
          *      http/api.http 참조..
          * - csrf 토큰은 session 에 저장된다.
+         * - CSRF 는 CsrfFilter 에 의해 동작된다.
          */
 
         http.authorizeHttpRequests(auth ->
