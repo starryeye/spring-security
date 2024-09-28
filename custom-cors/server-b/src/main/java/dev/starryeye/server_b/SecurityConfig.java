@@ -26,7 +26,7 @@ public class SecurityConfig {
          *
          * 참고
          * 웹브라우저가 아닌 Intellij client 에서 요청을 할 경우..
-         * Origin 헤더는 자동으로 생성되어 요청되지 않고..
+         * Origin 헤더는 자동으로 생성되어 요청되지 않고.. (요청에 포함되지 않음)
          * Spring Security CorsFilter 는 Origin 이 없으면 그냥 Cors 필터에서 아무것도 안하고 그냥 다음 필터로 넘긴다.
          * 만약, Origin 헤더를 수동으로 설정하여 요청을 하면 CORS 가 정상 동작한다.
          * -> server-b/http/api.http 참고..
