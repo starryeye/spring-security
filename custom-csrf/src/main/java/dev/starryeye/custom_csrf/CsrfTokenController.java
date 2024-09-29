@@ -12,11 +12,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class CsrfTokenController {
 
     @GetMapping("/csrf")
-    public String getCsrfToken(HttpServletRequest request, HttpSession session) {
+    public String getCsrfToken(HttpServletRequest request, HttpSession session, CsrfToken csrfToken) {
 
         /**
          * CsrfFilter 에서 requestHandler.handle 과정을 통해 request attribute 에 csrf 토큰(지연로딩)을 넣어준걸 꺼내쓸 수 있음
          * -> CsrfTokenRequestAttributeHandler::handle
+         *
+         * 참고
+         * 아래 tokenByControllerParameter, tokenInRequestAttribute, tokenInSession 모두 동일함.
+         * 같은 인스턴스를 얻기위한 다양한 방법을 보여준다.
          *
          * 참고
          * csrfToken1 는 csrfToken2 와 동일함
@@ -30,6 +34,8 @@ public class CsrfTokenController {
          *      해당 요청은 GET 이므로 application 최초 부팅 및 최초 요청이면 위와 같이 될것이고
          *      세션에 csrf 토큰이 존재한다면 존재하는 토큰이 조회 될것이다..
          */
+
+        String tokenByControllerParameter = csrfToken.getToken();
 
         // request attribute 에 저장된..
         CsrfToken csrfToken1 = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
@@ -45,6 +51,7 @@ public class CsrfTokenController {
          * 하지만, tokenInRequestAttribute 은 매 요청 시, tokenInSession 에 난수를 인코딩하여 변경한 값이라.. 매번 다르다.
          * -> 근데.. 과거에 생성했던 tokenInRequestAttribute 로 요청해도 되네..?
          */
+        log.info("tokenByControllerParameter: {}", tokenByControllerParameter);
         log.info("tokenInRequestAttribute: {}", tokenInRequestAttribute);
         log.info("tokenInSession: {}", tokenInSession);
         return tokenInRequestAttribute;
