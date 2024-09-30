@@ -1,7 +1,7 @@
 ### GET 메서드는 CSRF 보안에 포함되지 않아서 응답이 정상적으로 리턴된다.
 GET http://localhost:8080/api/articles
 
-### POST 메서드는 CSRF 보안 대상이므로 막힘, 응답 데이터에 "_csrf" 토큰을 준다. 해당 토큰을 포함시키면 성공됨
+### POST 메서드는 CSRF 보안 대상이므로 막힘, 응답 데이터에 "_csrf" 토큰을 준다 (쿠키 방식의 경우 쿠키 값으로 줌). 해당 토큰을 포함시키면 통과됨
 POST http://localhost:8080/api/articles/new
 Content-Type: application/json
 
@@ -10,21 +10,30 @@ Content-Type: application/json
 }
 
 ### csrf 토큰을 포함시키면 통과됨
-POST http://localhost:8080/api/articles/new?_csrf=ma6V5Uf2czZzd_x7X2ZwHmMOSsdrBKRMnQI2SsBEWvUgX-Z5r8ig3XfPRQJeFc5DZ0tEK1M_Z_5ZM5Rh_DBScqN0a5MZZ4IY
+POST http://localhost:8080/api/articles/new?_csrf=qBZRnR8oFPN_8RO1De2f6Z-uf8Us4wAi6LYDyC72nM4Ti3qum3BmqCwfcZJSlyCEacCri_mYUvxK0DYPiocxrh3Frqglu02a
 Content-Type: application/json
 
 {
   "title": "good article"
 }
 
-### csrf 토큰을 포함시키면 통과됨 2
+### HttpSessionCsrfTokenRepository (기본 값) 을 사용하면 헤더로 전달 시 X-Csrf-Token 을 사용해야하며, 암호화된 토큰이 필요
 POST http://localhost:8080/api/articles/new
 Content-Type: application/json
-X-Csrf-Token: ma6V5Uf2czZzd_x7X2ZwHmMOSsdrBKRMnQI2SsBEWvUgX-Z5r8ig3XfPRQJeFc5DZ0tEK1M_Z_5ZM5Rh_DBScqN0a5MZZ4IY
+X-Csrf-Token: RfPeTfebg1krmIT8PCxiUfkBQVTzur_wCN-neUm_aqtXb5n3fZe8fZKrsT0GobPOXQFWN85gbGyR3t7dO-iXTHHdWM0yVq7O
 
 {
   "title": "good article"
 }
+
+
+
+### CookieCsrfTokenRepository 를 사용하면 헤더로 전달 시 X-Xsrf-Token 을 사용해야하며, 원본 토큰이 필요
+POST http://localhost:8080/api/articles/new
+Content-Type: application/json
+Cookie: XSRF-TOKEN=b4576462-af01-4e15-a39c-72422273296f
+X-XSRF-TOKEN: b4576462-af01-4e15-a39c-72422273296f
+
 
 
 ### 현재 csrf 토큰 조회

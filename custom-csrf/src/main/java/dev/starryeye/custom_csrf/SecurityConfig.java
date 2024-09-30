@@ -9,6 +9,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 
 @Configuration
 public class SecurityConfig {
@@ -39,7 +41,13 @@ public class SecurityConfig {
 //                                .ignoringRequestMatchers("/api/articles", "/api/articles/new") // 부분 비활성화
 //                                .disable() // 모든 요청에 대해 비활성화
 //                )
-                .formLogin(Customizer.withDefaults());
+                .formLogin(Customizer.withDefaults())
+//                .csrf(httpSecurityCsrfConfigurer -> //todo, api.http (CookieCsrfTokenRepository 를 사용하면 헤더로 전달 시 X-Xsrf-Token 을 사용해야하며, 원본 토큰이 필요) 동작이 성공하지 못함.. 이유 찾기
+//                        httpSecurityCsrfConfigurer
+////                                .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
+//                                .csrfTokenRepository(new CookieCsrfTokenRepository()) // csrf Token 발행을 세션 방식이 아닌 쿠키 방식으로 변경한다.
+//                )
+        ;
 
         return http.build();
     }
