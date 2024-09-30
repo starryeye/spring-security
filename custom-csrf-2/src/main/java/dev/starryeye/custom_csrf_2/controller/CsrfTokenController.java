@@ -10,15 +10,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class CsrfTokenController {
 
-    @PostMapping("/cookieCsrf")
+    @PostMapping("/script/csrfToken")
     public CsrfToken cookieCsrf(CsrfToken csrfToken) {
         return csrfToken;
     }
 
-    @PostMapping("/formCsrf")
-    public CsrfToken formCsrf(@ModelAttribute FormRequest formRequest) {
+    @PostMapping("/form/csrfToken")
+    public CsrfToken formCsrf(@ModelAttribute FormRequest formRequest, CsrfToken csrfToken) {
         log.info("CsrfToken: {}, username: {}, password: {}",
-                formRequest.csrfToken(), formRequest.username(), formRequest.password());
-        return formRequest.csrfToken();
+                csrfToken, formRequest.username(), formRequest.password());
+        return csrfToken;
     }
 }

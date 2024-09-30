@@ -9,7 +9,7 @@
     <script>
         // fetch 요청을 실행하는 함수
         function sendRequest() {
-            fetch('/cookieCsrf', {
+            fetch('/script/csrfToken', {
                 method: 'POST', // 요청 메소드
                 headers: {
                     'Content-Type': 'application/json', // 컨텐츠 타입 지정
