@@ -27,6 +27,20 @@ public class SessionConfig {
         /**
          * 쿠키를 만들 때 참고되는 설정 객체
          * Http Session Cookie 를 의미하며 다른 쿠키를 만들땐 해당되지 않음
+         *
+         * Same Site 설정
+         * - CSRF 공격 방어 방법 중 하나이다.
+         * - Cross site 간 쿠키 전송에 대한 제어를 핸들링한다.
+         *
+         * Same Site 설정 3가지
+         * - Lax 설정이면, cross site 간 쿠키 전송 시, 읽기 전용 요청인 경우 쿠키가 전송되며 쓰기 요청인 경우 쿠키가 포함되지 않고 전송된다.
+         * - Strict 설정이면, cross site 간 쿠키 전송 시, 모든 요청에 대해 쿠키가 전송되지 않음
+         * - None 설정이면, cross site 간 쿠키 전송 시, 모든 요청에 대해 쿠키가 전송됨
+         * 
+         * CSRF 와 비교
+         * CSRF 는 cross site 간 쿠키 전송 시, csrf 토큰을 포함시켜 전송해야 허가를 해주는데..
+         * Same site 의 경우엔 cross site 간 쿠키 전송 시, 설정에 따라 브라우저에서 쿠키를 포함시키지 않아서 인증에 실패하게됨
+         *
          */
 
         DefaultCookieSerializer cookieSerializer = new DefaultCookieSerializer();
