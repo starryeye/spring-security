@@ -5,12 +5,14 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.session.MapSession;
 import org.springframework.session.MapSessionRepository;
 import org.springframework.session.SessionRepository;
+import org.springframework.session.config.annotation.web.http.EnableSpringHttpSession;
 import org.springframework.session.web.http.CookieSerializer;
 import org.springframework.session.web.http.DefaultCookieSerializer;
 
 import java.util.concurrent.ConcurrentHashMap;
 
 @Configuration
+@EnableSpringHttpSession // 설정을 해줘야 Spring Session 에서 Session 을 관리 적용됨.
 public class SessionConfig {
 
     /**
