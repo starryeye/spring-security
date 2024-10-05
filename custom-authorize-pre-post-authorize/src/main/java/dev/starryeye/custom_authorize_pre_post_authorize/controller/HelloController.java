@@ -45,7 +45,7 @@ public class HelloController {
         return "isAuthenticated";
     }
 
-    @GetMapping("/user/{id}")
+    @GetMapping("/users/{id}")
     @PreAuthorize("#id == authentication.name") // 인증객체의 name 과 동일한 path variable 이어야 접근
     public String authentication(@PathVariable(value = "id") String id) {
         return "Hello " + id;
