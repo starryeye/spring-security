@@ -67,4 +67,10 @@ public class HelloController {
     ) {
         return new Account(authentication.getName(), "Y".equals(isSecure));
     }
+
+    @GetMapping("/custom-pre-authorize")
+    @PreAuthorize("@myAuthorizer.isUser(#root)") // 커스텀 권한 검사기 구현, "root" 말고 다른 이름은 왜 안되지..
+    public String customPreAuthorize() {
+        return "custom-pre-authorize";
+    }
 }

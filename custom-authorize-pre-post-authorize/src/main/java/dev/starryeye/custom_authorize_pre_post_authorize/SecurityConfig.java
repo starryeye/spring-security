@@ -12,14 +12,14 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
-@EnableMethodSecurity(prePostEnabled = true) // @PreAuthorize, @PostAuthorize 활성화 (기본)
+@EnableMethodSecurity(prePostEnabled = true) // @PreAuthorize, @PostAuthorize, @PreFilter, @PostFilter 활성화 (기본)
 public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http.authorizeHttpRequests(authorization ->
-                authorization.anyRequest().authenticated()
+                authorization.anyRequest().authenticated() // 참고, 요청 기반 권한과 메서드(어노테이션) 기반 권한은 별개로 각각 검사됨
         )
                 .formLogin(Customizer.withDefaults());
 
