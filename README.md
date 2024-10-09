@@ -39,6 +39,8 @@
     - 인증/인가 예외 처리, ExceptionTranslationFilter
 - 인가 처리
   - custom-authorize
+- 인가 아키텍처
+  - custom-authorize-granted-authority
 - 기타
   - custom-authenticate-login-controller
     - MVC controller 에서 인증을 처리해보기, like formLogin
