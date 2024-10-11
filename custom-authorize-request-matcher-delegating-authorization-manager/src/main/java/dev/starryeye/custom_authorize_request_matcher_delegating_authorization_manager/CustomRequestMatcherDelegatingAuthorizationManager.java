@@ -15,6 +15,13 @@ public class CustomRequestMatcherDelegatingAuthorizationManager implements Autho
     private final RequestMatcherDelegatingAuthorizationManager requestMatcherDelegatingAuthorizationManager;
 
     public CustomRequestMatcherDelegatingAuthorizationManager(List<RequestMatcherEntry<AuthorizationManager<RequestAuthorizationContext>>> mappings) {
+        /**
+         * CustomRequestMatcherDelegatingAuthorizationManager 는 RequestMatcherDelegatingAuthorizationManager 를 내부 필드로 가지며
+         * check, verify 메서드는 바로 위임만 한다.
+         *
+         * 내부 RequestMatcherDelegatingAuthorizationManager 필드 인스턴스는 생성자에서 직접 생성하며
+         * 외부에서 requestMatcherEntries 를 주입한 것을 사용한다.
+         */
         this.requestMatcherDelegatingAuthorizationManager = RequestMatcherDelegatingAuthorizationManager.builder()
                 .mappings(requestMatcherEntries ->
                         requestMatcherEntries.addAll(mappings)
