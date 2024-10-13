@@ -27,6 +27,7 @@ public class CustomPreAuthorizationManager implements AuthorizationManager<Metho
             return new AuthorizationDecision(false);
         }
 
+
         return new AuthorizationDecision(true);
     }
 }

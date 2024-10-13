@@ -20,7 +20,7 @@ public class SecurityConfig {
 
         http.authorizeHttpRequests(authorization ->
                 authorization
-                        .anyRequest().authenticated()
+                        .anyRequest().permitAll() // 요청 기반 권한 심사는 하지 않고 메서드 기반 권한 심사를 진행
         )
                 .formLogin(Customizer.withDefaults());
 
