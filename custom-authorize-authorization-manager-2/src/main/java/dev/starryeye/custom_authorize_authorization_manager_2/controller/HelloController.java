@@ -21,7 +21,7 @@ public class HelloController {
     public Account account(String name){
         return helloService.getAccount(name);
     }
-    
+
     @GetMapping("/display")
     public String display(){
         return helloService.display();
