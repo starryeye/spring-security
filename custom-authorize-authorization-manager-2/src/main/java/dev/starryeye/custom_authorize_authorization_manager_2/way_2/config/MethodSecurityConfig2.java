@@ -23,7 +23,7 @@ public class MethodSecurityConfig2 {
         /**
          * 포인트컷에 해당하는 메서드를 AuthorityAuthorizationManager 를 이용해서 심사한다.
          * -> HelloService2 의 동적 프록시 객체를 빈으로 등록시키고
-         *      해당 빈이 실행될 때 포인트 컷에 해당되면, AuthorityAuthorizationManager 를 이용한 Advisor 가 수행된다.
+         *      해당 빈이 실행될 때 포인트 컷에 해당되면, AuthorityAuthorizationManager 를 이용한 Advice(AuthorizationManagerBeforeMethodInterceptor) 가 수행된다.
          */
 
         return new AuthorizationManagerBeforeMethodInterceptor( // 원본객체의 메서드를 호출하기 전에 권한 심사
