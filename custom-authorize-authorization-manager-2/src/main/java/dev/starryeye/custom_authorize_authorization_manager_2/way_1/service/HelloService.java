@@ -1,5 +1,6 @@
-package dev.starryeye.custom_authorize_authorization_manager_2.service;
+package dev.starryeye.custom_authorize_authorization_manager_2.way_1.service;
 
+import dev.starryeye.custom_authorize_authorization_manager_2.Account;
 import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;

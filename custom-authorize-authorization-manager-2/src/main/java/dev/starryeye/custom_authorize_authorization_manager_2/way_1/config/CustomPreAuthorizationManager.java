@@ -1,4 +1,4 @@
-package dev.starryeye.custom_authorize_authorization_manager_2.config;
+package dev.starryeye.custom_authorize_authorization_manager_2.way_1.config;
 
 import org.aopalliance.intercept.MethodInvocation;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;

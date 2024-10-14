@@ -1,6 +1,6 @@
-package dev.starryeye.custom_authorize_authorization_manager_2.config;
+package dev.starryeye.custom_authorize_authorization_manager_2.way_1.config;
 
-import dev.starryeye.custom_authorize_authorization_manager_2.service.Account;
+import dev.starryeye.custom_authorize_authorization_manager_2.Account;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;

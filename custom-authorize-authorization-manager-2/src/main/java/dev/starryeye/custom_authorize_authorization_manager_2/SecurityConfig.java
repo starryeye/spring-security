@@ -1,4 +1,4 @@
-package dev.starryeye.custom_authorize_authorization_manager_2.config;
+package dev.starryeye.custom_authorize_authorization_manager_2;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

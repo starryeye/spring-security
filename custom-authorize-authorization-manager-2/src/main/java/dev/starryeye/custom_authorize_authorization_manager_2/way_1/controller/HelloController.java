@@ -1,7 +1,7 @@
-package dev.starryeye.custom_authorize_authorization_manager_2.controller;
+package dev.starryeye.custom_authorize_authorization_manager_2.way_1.controller;
 
-import dev.starryeye.custom_authorize_authorization_manager_2.service.Account;
-import dev.starryeye.custom_authorize_authorization_manager_2.service.HelloService;
+import dev.starryeye.custom_authorize_authorization_manager_2.Account;
+import dev.starryeye.custom_authorize_authorization_manager_2.way_1.service.HelloService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
