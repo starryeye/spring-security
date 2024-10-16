@@ -37,8 +37,10 @@
 - 공통 아키텍처
   - custom-authenticate-exception-handling
     - 인증/인가 예외 처리, ExceptionTranslationFilter
+  - custom-security-matcher
 - 인가 처리
-  - custom-authorize
+  - custom-authorize-authorize-http-requests
+  - custom-authorize-request-matcher
 - 인가 아키텍처
   - custom-authorize-granted-authority
     - GrantedAuthority, Authentication
