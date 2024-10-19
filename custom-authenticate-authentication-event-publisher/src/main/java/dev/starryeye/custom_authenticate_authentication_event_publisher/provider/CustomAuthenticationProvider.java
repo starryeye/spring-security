@@ -41,7 +41,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 
         }else if(authentication.getName().equals("db")){
             /**
-             * 인증 객체 이름이 db 이면, AuthenticationEventPublisher 에 IllegalState 를 전달한다.
+             * 인증 객체 이름이 db 이면, AuthenticationEventPublisher 에 CustomNoMappingAuthenticationException 를 전달한다.
              * AuthenticationEventPublisher 는 내부적으로 CustomNoMappingAuthenticationException 이 들어오면
              *      어떤 이벤트와 매핑될지 설정된게 없으므로 기본 예외 이벤트(CustomDefaultAuthenticationFailureEvent) 발행하도록 설정되어 있다. (-> SecurityConfig)
              * 따라서, CustomDefaultAuthenticationFailureEvent 이벤트가 발행된다.
