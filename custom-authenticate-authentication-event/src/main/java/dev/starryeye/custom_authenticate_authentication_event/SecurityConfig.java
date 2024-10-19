@@ -1,6 +1,7 @@
 package dev.starryeye.custom_authenticate_authentication_event;
 
 import dev.starryeye.custom_authenticate_authentication_event.event.CustomAuthenticationSuccessEvent;
+import dev.starryeye.custom_authenticate_authentication_event.provider.CustomAuthenticationProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;

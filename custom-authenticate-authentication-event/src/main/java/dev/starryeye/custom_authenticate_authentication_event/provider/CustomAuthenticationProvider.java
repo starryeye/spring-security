@@ -1,4 +1,4 @@
-package dev.starryeye.custom_authenticate_authentication_event;
+package dev.starryeye.custom_authenticate_authentication_event.provider;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationEventPublisher;
@@ -34,7 +34,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
                     authentication
             );
 
-            throw new BadCredentialsException("BadCredentialsException");
+            throw new BadCredentialsException("BadCredentialsException"); // 참고로 이 코드에 의해서도 결국 이벤트가 발생된다.
         }
         UserDetails user = User.withUsername("user").password("{noop}1111").roles("USER").build();
         return new UsernamePasswordAuthenticationToken(user, user.getPassword(), user.getAuthorities());
