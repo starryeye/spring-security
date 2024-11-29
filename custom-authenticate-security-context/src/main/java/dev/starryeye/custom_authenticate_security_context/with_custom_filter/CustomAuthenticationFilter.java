@@ -69,7 +69,9 @@ public class CustomAuthenticationFilter extends AbstractAuthenticationProcessing
         String password = request.getParameter("password");
         // test 시, http://localhost:8080/api/login?username=user&password=1111 로 테스트하면, 여기로 와서 인증에 성공할 수 있다.
         // todo..
-        //      인증 성공 시.. continue 도 안붙고.. localhost:8080/ 주소로 리다이렉트 됨.. why?
+        //      1. 인증 성공 시.. continue 도 안붙고.. localhost:8080/ 주소로 리다이렉트 됨.. why?
+        //      2. 인증 한번 성공하고 http://localhost:8080/api/login?username=user&password=1111 를 한번더 호출하면..
+        //          SecurityContextHolderFilter 에서 SecurityContext 를 찾았기 때문에 여기를 안타야하는 것 아닌가..
 
         UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(username,password);
 
