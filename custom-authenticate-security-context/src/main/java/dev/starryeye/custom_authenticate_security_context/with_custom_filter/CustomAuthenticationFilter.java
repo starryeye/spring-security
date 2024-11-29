@@ -40,6 +40,16 @@ public class CustomAuthenticationFilter extends AbstractAuthenticationProcessing
         /**
          * Custom AuthenticationFilter 는 추후 사용자의 다음 요청에 인증을 유지 시키기 위해서는
          * 인증 성공 시, SecurityContextRepository 에 Security Context 를 적재 시켜줘야한다.
+         *
+         * 참고
+         * AbstractAuthenticationProcessingFilter 를 상속한다면..
+         * AbstractAuthenticationProcessingFilter::doFilter 에서 attemptAuthentication(request, response) 를 호출하면
+         * CustomAuthenticationFilter::attemptAuthentication 를 호출하게 되는 것이고..
+         * 인증이 성공하면,
+         *      AbstractAuthenticationProcessingFilter::doFilter 에서 AbstractAuthenticationProcessingFilter::successfulAuthentication 를 호출하고
+         *          여기서 securityContextRepository.saveContext 를 호출한다. (여기서의 securityContextRepository 는 이 메서드에서 생성한 DelegatingSecurityContextRepository 이다.
+         * 따라서.. Custom AuthenticationFilter 를 만드는데 AbstractAuthenticationProcessingFilter 를 상속하면
+         *      SecurityContextRepository 에 Security Context 를 적재하는 코드는 따로 작성할 필요 없는듯..
          */
 
         SecurityContextRepository securityContextRepository = http.getSharedObject(SecurityContextRepository.class);
@@ -57,6 +67,7 @@ public class CustomAuthenticationFilter extends AbstractAuthenticationProcessing
 
         String username = request.getParameter("username");
         String password = request.getParameter("password");
+        // test 시, http://localhost:8080/api/login?username=user&password=1111 로 테스트하면, 여기로 와서 인증에 성공할 수 있다.
 
         UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(username,password);
 
