@@ -68,6 +68,8 @@ public class CustomAuthenticationFilter extends AbstractAuthenticationProcessing
         String username = request.getParameter("username");
         String password = request.getParameter("password");
         // test 시, http://localhost:8080/api/login?username=user&password=1111 로 테스트하면, 여기로 와서 인증에 성공할 수 있다.
+        // todo..
+        //      인증 성공 시.. continue 도 안붙고.. localhost:8080/ 주소로 리다이렉트 됨.. why?
 
         UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(username,password);
 
