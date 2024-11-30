@@ -53,3 +53,5 @@
     - CsrfFilter, CsrfTokenRepository, CsrfTokenRequestHandler, CSRF 보안 설정
   - custom-csrf-2
     - HTML form/JavaScript 에 CSRF 적용해보기, CsrfFilter, CsrfTokenRepository, CsrfTokenRequestHandler
+  - custom-session-same-site
+    - Spring-session 을 통해 SameSite 기술 이용
