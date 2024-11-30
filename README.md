@@ -52,3 +52,4 @@
   - custom-csrf
     - CsrfFilter, CsrfTokenRepository, CsrfTokenRequestHandler, CSRF 보안 설정
   - custom-csrf-2
+    - HTML form/JavaScript 에 CSRF 적용해보기, CsrfFilter, CsrfTokenRepository, CsrfTokenRequestHandler
