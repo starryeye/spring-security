@@ -40,6 +40,7 @@
   - custom-security-matcher
 - 인가 처리
   - custom-authorize-authorize-http-requests
+    - authorizeHttpRequests 설정
   - custom-authorize-request-matcher
 - 인가 아키텍처
   - custom-authorize-granted-authority
