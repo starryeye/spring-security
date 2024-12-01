@@ -38,6 +38,7 @@
   - custom-authenticate-exception-handling
     - 인증/인가 예외 처리, ExceptionTranslationFilter
   - custom-security-matcher
+    - securityMatchers, FilterChainProxy, SecurityFilterChain
 - 인가 처리
   - custom-authorize-authorize-http-requests
     - authorizeHttpRequests 설정 (요청기반권한설정)
