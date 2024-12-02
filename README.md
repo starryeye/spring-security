@@ -40,12 +40,13 @@
   - custom-security-matcher
     - securityMatchers, FilterChainProxy, SecurityFilterChain
 - 인가 처리
-  - custom-authorize-authorize-http-requests
-    - authorizeHttpRequests 설정 (요청기반권한설정)
-  - custom-authorize-access
-    - authorizeHttpRequests 설정 (요청기반권한설정), 표현식이용, access, AuthorizationManager, ExpressionHandler
-  - custom-authorize-request-matcher
-    - authorizeHttpRequests 설정 (요청기반권한설정), requestMatchers, RequestMatcher
+  - 요청 기반 권한설정
+    - custom-authorize-authorize-http-requests
+      - authorizeHttpRequests 설정
+    - custom-authorize-access
+      - authorizeHttpRequests 설정, 표현식이용, access, AuthorizationManager, ExpressionHandler
+    - custom-authorize-request-matcher
+      - authorizeHttpRequests 설정, requestMatchers, RequestMatcher
 
 - 인가 아키텍처
   - custom-authorize-granted-authority
