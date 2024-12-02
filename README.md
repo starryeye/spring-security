@@ -47,6 +47,7 @@
       - authorizeHttpRequests 설정, 표현식이용, access, AuthorizationManager, ExpressionHandler
     - custom-authorize-request-matcher
       - authorizeHttpRequests 설정, requestMatchers, RequestMatcher
+  - 메서드 기반 권한설정(AOP 기반)
 
 - 인가 아키텍처
   - custom-authorize-granted-authority
