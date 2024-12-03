@@ -47,6 +47,8 @@
       - authorizeHttpRequests 설정, 표현식이용, access, AuthorizationManager, ExpressionHandler
     - custom-authorize-request-matcher
       - authorizeHttpRequests 설정, requestMatchers, RequestMatcher
+    - custom-authorize-ignoring-and-permit-all
+      - 정적자원은 모두 보안 검사하지 않도록 해보기, WebSecurityCustomizer, ignoring, requestMatcher, permitAll
   - 메서드 기반 권한설정(AOP 기반)
     - custom-authorize-pre-post-authorize
       - @EnableMethodSecurity, @PreAuthorize, @PostAuthorize
