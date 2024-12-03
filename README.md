@@ -50,6 +50,8 @@
   - 메서드 기반 권한설정(AOP 기반)
     - custom-authorize-pre-post-authorize
       - @EnableMethodSecurity, @PreAuthorize, @PostAuthorize
+    - custom-authorize-pre-post-filter
+      - @EnableMethodSecurity, @PreFilter, @PostFilter
 
 - 인가 아키텍처
   - custom-authorize-granted-authority
