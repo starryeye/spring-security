@@ -25,7 +25,8 @@ public class SecurityConfig {
          * WebSecurityCustomizer 를 만들면..
          * SecurityFilterChain 이 만들어지게된다..
          * 따라서, FilterChainProxy 는 두개의 SecurityFilterChain 을 가지게되고
-         * ignoring 옵션을 설정한 SecurityFilterChain 은 .. 내부에 필터가 하나도 없어서 Security filter 수행을 안하게 되는 것이다.
+         * ignoring 옵션을 설정한 SecurityFilterChain 에서는..
+         *      만약, Path 가 ignoring 에 매핑되면 Security filter 수행 자체를 안함..
          */
         return webSecurity -> webSecurity.ignoring()
                 .requestMatchers(PathRequest.toStaticResources().atCommonLocations());
