@@ -54,6 +54,8 @@
       - @EnableMethodSecurity, @PreAuthorize, @PostAuthorize
     - custom-authorize-pre-post-filter
       - @EnableMethodSecurity, @PreFilter, @PostFilter
+  - cusom-authorize-role-hierarchy
+    - RoleHierarchy
 
 - 인가 아키텍처
   - custom-authorize-granted-authority
