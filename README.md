@@ -57,9 +57,13 @@
   - cusom-authorize-role-hierarchy
     - RoleHierarchy
 
-- 인가 아키텍처
+- 인가 공통 아키텍처
   - custom-authorize-granted-authority
     - GrantedAuthority, Authentication
+   
+- 보안
+  - 
+
 - 기타
   - custom-authenticate-login-controller
     - MVC controller 에서 인증을 처리해보기, like formLogin
