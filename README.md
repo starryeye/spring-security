@@ -10,6 +10,7 @@
     - spring security 라이브러리와 기본 설정
   - custom-filter
     - SecurityFilterChain 등록
+
 - 인증 방법 및 인증 처리
   - custom-authenticate-form-login
     - 폼인증과 설정
@@ -21,6 +22,7 @@
     - anonymous 설정
   - custom-authenticate-logout
     - logout 설정
+
 - 인증 공통 아키텍처
   - custom-authenticate-authentication-manager
     - AuthenticationManager, ProviderManager
@@ -34,11 +36,27 @@
     - Session 관리 및 제어
   - custom-authenticate-session-registry
     - SessionRegistry, SecurityContextRepository
+
+- 인증 기타
+  - custom-authenticate-login-controller
+    - MVC controller 에서 인증을 처리해보기, like formLogin
+
 - 공통 아키텍처
   - custom-authenticate-exception-handling
     - 인증/인가 예외 처리, ExceptionTranslationFilter
   - custom-security-matcher
     - securityMatchers, FilterChainProxy, SecurityFilterChain
+
+- 보안 처리
+  - custom-cors
+    - CorsFilter, CORS 보안 설정
+  - custom-csrf
+    - CsrfFilter, CsrfTokenRepository, CsrfTokenRequestHandler, CSRF 보안 설정
+  - custom-csrf-2
+    - HTML form/JavaScript 에 CSRF 적용해보기, CsrfFilter, CsrfTokenRepository, CsrfTokenRequestHandler
+  - custom-session-same-site
+    - Spring-session 을 통해 SameSite 기술 이용
+
 - 인가 처리
   - 요청 기반 권한설정
     - custom-authorize-authorize-http-requests
@@ -61,17 +79,3 @@
   - custom-authorize-granted-authority
     - GrantedAuthority, Authentication
    
-- 보안
-  - 
-
-- 기타
-  - custom-authenticate-login-controller
-    - MVC controller 에서 인증을 처리해보기, like formLogin
-  - custom-cors
-    - CorsFilter, CORS 보안 설정
-  - custom-csrf
-    - CsrfFilter, CsrfTokenRepository, CsrfTokenRequestHandler, CSRF 보안 설정
-  - custom-csrf-2
-    - HTML form/JavaScript 에 CSRF 적용해보기, CsrfFilter, CsrfTokenRepository, CsrfTokenRequestHandler
-  - custom-session-same-site
-    - Spring-session 을 통해 SameSite 기술 이용
