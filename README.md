@@ -82,5 +82,7 @@
     - AuthorizationManager, RequestMatcherDelegatingAuthorizationManager
     - AuthenticatedAuthorizationManager, AuthorityAuthorizationManager, WebExpressionAuthorizationManager
     - custom AuthorizationManager
+  - custom-authorize-request-matcher-delegating-authorization-manager
+    - custom RequestMatcherDelegatingAuthorizationManager
   - custom-authorize-authorization-manager-2
    
