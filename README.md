@@ -78,4 +78,6 @@
 - 인가 공통 아키텍처
   - custom-authorize-granted-authority
     - GrantedAuthority, Authentication
+  - custom-authorize-authorization-manager
+  - custom-authorize-authorization-manager-2
    
