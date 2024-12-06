@@ -78,10 +78,11 @@
 - 인가 공통 아키텍처
   - custom-authorize-granted-authority
     - GrantedAuthority, Authentication
-  - custom-authorize-authorization-manager
-    - AuthorizationManager, RequestMatcherDelegatingAuthorizationManager
-    - AuthenticatedAuthorizationManager, AuthorityAuthorizationManager, WebExpressionAuthorizationManager
-    - custom AuthorizationManager
+  - 요청 기반 권한
+    - custom-authorize-authorization-manager
+      - AuthorizationFilter, AuthorizationManager, RequestMatcherDelegatingAuthorizationManager
+      - AuthenticatedAuthorizationManager, AuthorityAuthorizationManager, WebExpressionAuthorizationManager
+      - custom AuthorizationManager
   - custom-authorize-request-matcher-delegating-authorization-manager
     - custom RequestMatcherDelegatingAuthorizationManager
   - custom-authorize-authorization-manager-2
