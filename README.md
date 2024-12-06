@@ -79,5 +79,7 @@
   - custom-authorize-granted-authority
     - GrantedAuthority, Authentication
   - custom-authorize-authorization-manager
+    - AuthorizationManager, RequestMatcherDelegatingAuthorizationManager
+    - AuthenticatedAuthorizationManager, AuthorityAuthorizationManager, WebExpressionAuthorizationManager, custom AuthorizationManager
   - custom-authorize-authorization-manager-2
    
