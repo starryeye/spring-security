@@ -83,7 +83,8 @@
       - AuthorizationFilter, AuthorizationManager, RequestMatcherDelegatingAuthorizationManager
       - AuthenticatedAuthorizationManager, AuthorityAuthorizationManager, WebExpressionAuthorizationManager
       - custom AuthorizationManager
-  - custom-authorize-request-matcher-delegating-authorization-manager
-    - custom RequestMatcherDelegatingAuthorizationManager
-  - custom-authorize-authorization-manager-2
+    - custom-authorize-request-matcher-delegating-authorization-manager
+      - custom RequestMatcherDelegatingAuthorizationManager
+  - 메서드 기반 권한(AOP 기반)
+    - custom-authorize-authorization-manager-2
    
