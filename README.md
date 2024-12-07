@@ -90,6 +90,6 @@
       - Advisor, MethodInterceptor, AuthorizationAdvisor
         - AuthorizationManager(Before/After)MethodInterceptor, (Pre/Post)AuthorizationMethodInterceptor
       - AuthorizationManager
-        - (Pre/Post)AuthorizeAuthorizationManager, SecuredAuthorizationManager, Jsr250AuthorizationManager
+        - (Pre/Post)AuthorizeAuthorizationManager, SecuredAuthorizationManager, Jsr250AuthorizationManager, AuthenticatedAuthorizationManager
     - custom-authorize-authorization-manager-2
    
