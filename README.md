@@ -41,12 +41,6 @@
   - custom-authenticate-login-controller
     - MVC controller 에서 인증을 처리해보기, like formLogin
 
-- 공통 아키텍처
-  - custom-authenticate-exception-handling
-    - 인증/인가 예외 처리, ExceptionTranslationFilter
-  - custom-security-matcher
-    - securityMatchers, FilterChainProxy, SecurityFilterChain
-
 - 보안 처리
   - custom-cors
     - CorsFilter, CORS 보안 설정
@@ -96,3 +90,8 @@
       - AuthorizationManager
         - (Pre/Post)AuthorizeAuthorizationManager, SecuredAuthorizationManager, Jsr250AuthorizationManager, AuthenticatedAuthorizationManager
 
+- 인증/인가 공통 아키텍처
+  - custom-authenticate-exception-handling
+    - 인증/인가 예외 처리, ExceptionTranslationFilter
+  - custom-security-matcher
+    - securityMatchers, FilterChainProxy, SecurityFilterChain
