@@ -91,5 +91,6 @@
         - AuthorizationManager(Before/After)MethodInterceptor, (Pre/Post)AuthorizationMethodInterceptor
       - AuthorizationManager
         - (Pre/Post)AuthorizeAuthorizationManager, SecuredAuthorizationManager, Jsr250AuthorizationManager, AuthenticatedAuthorizationManager
+      - custom MethodInterceptor
     - custom-authorize-authorization-manager-2
-   
+      - custom AuthorizationManager
