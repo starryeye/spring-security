@@ -86,11 +86,13 @@
     - custom-authorize-request-matcher-delegating-authorization-manager
       - custom RequestMatcherDelegatingAuthorizationManager
   - 메서드 기반 권한(AOP 기반)
+    - custom-authorize-authorization-manager-2
+      - custom AuthorizationManager
+      - custom Pointcut
     - custom-authorize-method-interceptor
+      - custom MethodInterceptor
       - Advisor, MethodInterceptor, AuthorizationAdvisor
         - AuthorizationManager(Before/After)MethodInterceptor, (Pre/Post)AuthorizationMethodInterceptor
       - AuthorizationManager
         - (Pre/Post)AuthorizeAuthorizationManager, SecuredAuthorizationManager, Jsr250AuthorizationManager, AuthenticatedAuthorizationManager
-      - custom MethodInterceptor
-    - custom-authorize-authorization-manager-2
-      - custom AuthorizationManager
+
