@@ -102,3 +102,5 @@
     - ApplicationEventPublisher, AuthenticationEventPublisher
     - @EventListener
     - custom AbstractAuthenticationEvent
+  - custom-authenticate-authentication-event-publisher
+    - custom AuthenticationEventPublisher 만들어보기
