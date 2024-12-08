@@ -98,6 +98,7 @@
 
 - 인증/인가 이벤트
   - custom-authenticate-authentication-event
-    - AbstractAuthenticationEvent, AbstractAuthenticationFailureEvent, AuthenticationSuccessEvent
+    - ApplicationEvent, AbstractAuthenticationEvent, AbstractAuthenticationFailureEvent, AuthenticationSuccessEvent
     - ApplicationEventPublisher, AuthenticationEventPublisher
+    - @EventListener
     - custom AbstractAuthenticationEvent
