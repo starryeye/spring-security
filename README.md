@@ -104,3 +104,7 @@
     - custom AbstractAuthenticationEvent
   - custom-authenticate-authentication-event-publisher
     - custom AuthenticationEventPublisher 만들어보기
+  - custom-authorize-authorization-event
+    - AuthorizationEvent, AuthorizationDeniedEvent, AuthorizationGrantedEvent
+    - AuthorizationEventPublisher, SpringAuthorizationEventPublisher
+    - custom AuthorizationEventPublisher 만들어보기
