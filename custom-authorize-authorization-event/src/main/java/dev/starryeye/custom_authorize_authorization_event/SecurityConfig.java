@@ -1,5 +1,6 @@
 package dev.starryeye.custom_authorize_authorization_event;
 
+import dev.starryeye.custom_authorize_authorization_event.publisher.CustomAuthorizationEventPublisher;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -34,11 +35,20 @@ public class SecurityConfig {
         return http.build();
     }
 
+    // Case 1
+//    @Bean
+//    public AuthorizationEventPublisher authorizationEventPublisher(ApplicationEventPublisher applicationEventPublisher) {
+//        return new SpringAuthorizationEventPublisher(applicationEventPublisher);
+//        // 인가 실패 이벤트만 발행하는 AuthorizationEventPublisher 이다.
+//        // AuthorizationFilter 에 보면 AuthorizationEventPublisher 를 이용하여 이벤트를 발행하는 코드를 찾을 수 있음.
+//    }
+
+    // Case 2
     @Bean
-    public AuthorizationEventPublisher authorizationEventPublisher(ApplicationEventPublisher applicationEventPublisher) {
-        return new SpringAuthorizationEventPublisher(applicationEventPublisher);
-        // 인가 실패 이벤트만 발행하는 AuthorizationEventPublisher 이다.
-        // AuthorizationFilter 에 보면 AuthorizationEventPublisher 를 이용하여 이벤트를 발행하는 코드를 찾을 수 있음.
+    public AuthorizationEventPublisher authorizationEventPublisher(ApplicationEventPublisher eventPublisher) {
+        SpringAuthorizationEventPublisher springAuthorizationEventPublisher = new SpringAuthorizationEventPublisher(eventPublisher);
+        return new CustomAuthorizationEventPublisher(springAuthorizationEventPublisher, eventPublisher);
+        // 특정 조건에서 인가 성공 이벤트도 발행하도록 하는 custom AuthorizationEventPublisher
     }
 
     @Bean
