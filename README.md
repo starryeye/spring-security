@@ -40,6 +40,9 @@
 - 인증 기타
   - custom-authenticate-login-controller
     - MVC controller 에서 인증을 처리해보기, like formLogin
+  - custom-authenticate-servlet-integration
+    - 서블릿과 통합하여 서블릿에서 다양한 인증 작업을 처리할 수 있다.
+    - SecurityContextHolderAwareRequestFilter, HttpServlet3RequestFactory, Servelt3SecurityContextHolderAwareRequestWrapper
 
 - 보안 처리
   - custom-cors
