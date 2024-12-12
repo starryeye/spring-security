@@ -24,10 +24,11 @@ public class SecurityConfig {
      *
      * Servlet3SecurityContextHolderAwareRequestWrapper
      *      SecurityContextHolderAwareRequestWrapper 를 상속한 객체이다.
+     *      개발자는 해당 객체의 API 로 다양한 시큐리티 작업을 Servlet 에서 수행할 수 있다.
      *
      * HttpServlet3RequestFactory
      *      요청이 들어오면, 요청 객체(HttpServletRequest)로 Servlet3SecurityContextHolderAwareRequestWrapper 를 실제로 생성하는 객체이다.
-     *      SecurityContextHolderAwareRequestFilter 는 HttpServlet3RequestFactory 를 생성한다.
+     *      시큐리티 초기화 과정시점에 SecurityContextHolderAwareRequestFilter 는 HttpServlet3RequestFactory 를 생성한다.
      */
 
     @Bean
@@ -39,7 +40,7 @@ public class SecurityConfig {
                                 .requestMatchers("/user/**").hasRole("USER")
                                 .requestMatchers("/admin/**").hasRole("ADMIN")
                                 .requestMatchers("/db/**").hasRole("DB")
-                                .anyRequest().authenticated()
+                                .anyRequest().permitAll()
                 )
 //                .formLogin(Customizer.withDefaults()) // servlet 과 통합하여 인증 기능을 수행할 것이다.
         ;

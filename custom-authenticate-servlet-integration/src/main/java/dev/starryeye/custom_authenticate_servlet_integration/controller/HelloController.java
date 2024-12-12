@@ -46,6 +46,17 @@ public class HelloController {
         return "login";
     }
 
+    @GetMapping("/logout")
+    public String logout(
+            HttpServletRequest request
+    ) throws ServletException {
+
+        // LogoutHandler 를 사용하여 사용자가 로그아웃 할 수 있도록 한다.
+        request.logout();
+
+        return "logout";
+    }
+
     @GetMapping("/is-authenticated")
     public String isAuthenticated(
             HttpServletRequest request,
@@ -62,6 +73,6 @@ public class HelloController {
         }
 
         log.info("isAuthenticated failed");
-        return "Not authenticated";
+        return "Not authenticated"; // 해당 String 응답은 보내지지 않는다.. 로그인 페이지가 현재 설정되어있지 않아서 에러 페이지 전달되는듯.
     }
 }
