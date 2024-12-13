@@ -46,6 +46,7 @@
   - custom-authenticate-mvc-integration
     - @CurrentSecurityContext, @AuthenticationPrincipal, AuthenticationPrincipalArgumentResolver
     - SecurityContextHolder, SecurityContext, Authentication, Principal, UserDetails, User
+    - AuthenticationTrustResolver
 
 - 보안 처리
   - custom-cors
