@@ -43,6 +43,9 @@
   - custom-authenticate-servlet-integration
     - 서블릿과 통합하여 서블릿에서 다양한 인증 작업을 처리할 수 있다.
     - SecurityContextHolderAwareRequestFilter, HttpServlet3RequestFactory, Servelt3SecurityContextHolderAwareRequestWrapper
+  - custom-authenticate-mvc-integration
+    - @CurrentSecurityContext, @AuthenticationPrincipal, AuthenticationPrincipalArgumentResolver
+    - SecurityContextHolder, SecurityContext, Authentication, Principal, UserDetails, User
 
 - 보안 처리
   - custom-cors
