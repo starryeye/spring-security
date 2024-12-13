@@ -92,6 +92,7 @@ public class HelloController {
     ) {
         /**
          * @AuthenticationPrincipal 을 통해서 Authentication(인증 객체)의 principal 로 바로 접근할 수 있다.
+         * 해당 어노테이션은 AuthenticationPrincipalArgumentResolver 가 처리해줌.
          */
         return user;
     }
