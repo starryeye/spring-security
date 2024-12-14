@@ -50,6 +50,7 @@
   - custom-authenticate-mvc-integration-2
     - WebAsyncManagerIntegrationFilter, WebAsyncManager, SecurityContextCallableProcessionInterceptor, SecurityContext
     - Callable, @Async, CompletableFuture, ThreadLocal
+    - SecurityContextHolder.MODE_INHERITABLETHREADLOCAL
 
 - 보안 처리
   - custom-cors
