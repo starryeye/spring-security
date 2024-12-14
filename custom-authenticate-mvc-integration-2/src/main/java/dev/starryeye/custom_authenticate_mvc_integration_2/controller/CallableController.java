@@ -22,7 +22,7 @@ public class CallableController {
          * Callable 로 리턴할 경우 ..
          *      요청 스레드가 아닌 다른 스레드로 Callable 내부 작업이 수행되는데..
          *      WebAsyncManagerIntegrationFilter, WebAsyncManager, SecurityContextCallableProcessionInterceptor 등을 통해
-         *      기존 스레드의 ThreadLocal 에 존재하던 SecurityContext 가 다른스레드에서 연동되게 지원한다.
+         *      기존 스레드의 ThreadLocal 에 존재하던 SecurityContext 가 다른스레드에서 접근 및 연동되게 지원한다.
          */
 
         // Spring Web MVC 의 Controller 에서 Callable 을 리턴하면 요청 스레드에서 수행하지 않고 ..

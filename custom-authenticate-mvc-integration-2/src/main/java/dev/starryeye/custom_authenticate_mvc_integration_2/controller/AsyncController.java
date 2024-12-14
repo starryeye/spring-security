@@ -23,6 +23,12 @@ public class AsyncController {
         /**
          * CompletableFutureController 와 마찬가지로
          *      CallableController 처럼 ThreadLocal SecurityContext 가 연동 되지 않음에 주의하자.
+         *
+         * -> SecurityConfig 에서..
+         *      SecurityContextHolder.setStrategyName(SecurityContextHolder.MODE_INHERITABLETHREADLOCAL); 를 적용해주면..
+         *      ThreadLocal 연동이 된다..
+         *          다른 스레드에서 SecurityContextHolder.getContext() 접근 시 동일 객체 접근됨.
+         *      대신.. @CurrentSecurityContext 가 동작안된다...(todo)
          */
 
         log.info("[Async-Controller] request thread : {}, security context : {}",
