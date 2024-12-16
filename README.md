@@ -106,6 +106,9 @@
     - 인증/인가 예외 처리, ExceptionTranslationFilter
   - custom-security-matcher
     - securityMatchers, FilterChainProxy, SecurityFilterChain
+  - custom-multiple-security-filter-chain
+    - WebSecurity, FilterChainProxy, SecurityFilterChain
+    - securityMatchers
 
 - 인증/인가 이벤트
   - custom-authenticate-authentication-event
