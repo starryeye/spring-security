@@ -109,6 +109,9 @@
   - custom-multiple-security-filter-chain
     - WebSecurity, FilterChainProxy, SecurityFilterChain
     - securityMatchers
+  - custom-redis-session
+    - spring-session-data-redis, spring-data-redis
+    - HttpSessionSecurityContextRepository, HttpSessionRequestCache, RedisConnectionFactory
 
 - 인증/인가 이벤트
   - custom-authenticate-authentication-event
