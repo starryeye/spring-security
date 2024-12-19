@@ -22,9 +22,8 @@ public class UserService {
         String encodedPassword = passwordEncoder.encode(request.getPassword());
 
         User entity = User.create(
-                request.getIdentifier(),
-                encodedPassword,
                 request.getUsername(),
+                encodedPassword,
                 request.getAge(),
                 request.getRoles()
         );

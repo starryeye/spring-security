@@ -28,21 +28,19 @@ public class User extends BaseEntity {
     private String roles;
 
     @Builder
-    private User(Long id, String identifier, String password, String username, Integer age, String roles) {
+    private User(Long id, String username, String password, Integer age, String roles) {
         this.id = id;
-        this.identifier = identifier;
         this.password = password;
         this.username = username;
         this.age = age;
         this.roles = roles;
     }
 
-    public static User create(String identifier, String password, String username, Integer age, String roles) {
+    public static User create(String username, String password, Integer age, String roles) {
         return User.builder()
                 .id(null)
-                .identifier(identifier)
-                .password(password)
                 .username(username)
+                .password(password)
                 .age(age)
                 .roles(roles)
                 .build();
