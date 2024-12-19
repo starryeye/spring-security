@@ -1,8 +1,8 @@
 package dev.starryeye.auth_service.web.api.service;
 
 import dev.starryeye.auth_service.web.api.service.request.RegisterUserServiceRequest;
-import dev.starryeye.auth_service.domain.User;
-import dev.starryeye.auth_service.domain.UserRepository;
+import dev.starryeye.auth_service.domain.MyUser;
+import dev.starryeye.auth_service.domain.MyUserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -15,19 +15,19 @@ public class UserService {
 
     private final PasswordEncoder passwordEncoder;
 
-    private final UserRepository userRepository;
+    private final MyUserRepository myUserRepository;
 
     public void registerUser(RegisterUserServiceRequest request) {
 
         String encodedPassword = passwordEncoder.encode(request.getPassword());
 
-        User entity = User.create(
+        MyUser entity = MyUser.create(
                 request.getUsername(),
                 encodedPassword,
                 request.getAge(),
                 request.getRoles()
         );
 
-        userRepository.save(entity);
+        myUserRepository.save(entity);
     }
 }
