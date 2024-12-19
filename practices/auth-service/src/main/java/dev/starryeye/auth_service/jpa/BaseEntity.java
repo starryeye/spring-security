@@ -1,4 +1,4 @@
-package dev.starryeye.auth_service.common;
+package dev.starryeye.auth_service.jpa;
 
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.MappedSuperclass;

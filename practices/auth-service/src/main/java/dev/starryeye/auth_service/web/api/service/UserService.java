@@ -1,6 +1,6 @@
-package dev.starryeye.auth_service.api.service;
+package dev.starryeye.auth_service.web.api.service;
 
-import dev.starryeye.auth_service.api.service.request.RegisterUserServiceRequest;
+import dev.starryeye.auth_service.web.api.service.request.RegisterUserServiceRequest;
 import dev.starryeye.auth_service.domain.User;
 import dev.starryeye.auth_service.domain.UserRepository;
 import jakarta.transaction.Transactional;

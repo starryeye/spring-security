@@ -1,4 +1,4 @@
-package dev.starryeye.auth_service.config;
+package dev.starryeye.auth_service.security.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -1,4 +1,4 @@
-package dev.starryeye.auth_service.api.service.request;
+package dev.starryeye.auth_service.web.api.service.request;
 
 import lombok.Builder;
 import lombok.Getter;

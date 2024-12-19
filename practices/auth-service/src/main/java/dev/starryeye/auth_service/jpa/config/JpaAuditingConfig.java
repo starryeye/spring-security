@@ -1,4 +1,4 @@
-package dev.starryeye.auth_service.config;
+package dev.starryeye.auth_service.jpa.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
