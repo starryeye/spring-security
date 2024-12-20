@@ -35,7 +35,8 @@ public class MyUserDetailsService implements UserDetailsService {
         return new MyUserDetails(
                 myUser.getUsername(),
                 myUser.getPassword(),
-                grantedAuthorities
+                grantedAuthorities,
+                MyPrincipal.of(myUser)
         );
     }
 }
