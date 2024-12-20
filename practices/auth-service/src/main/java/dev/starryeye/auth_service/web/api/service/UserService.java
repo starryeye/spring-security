@@ -1,8 +1,8 @@
 package dev.starryeye.auth_service.web.api.service;
 
-import dev.starryeye.auth_service.web.api.service.request.RegisterUserServiceRequest;
 import dev.starryeye.auth_service.domain.MyUser;
 import dev.starryeye.auth_service.domain.MyUserRepository;
+import dev.starryeye.auth_service.web.api.service.request.RegisterUserServiceRequest;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
