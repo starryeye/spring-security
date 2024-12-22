@@ -1,17 +1,21 @@
 package dev.starryeye.auth_service.security.config;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.WebAuthenticationDetails;
 
 @Configuration
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final AuthenticationProvider myAuthenticationProvider;
+    private final AuthenticationDetailsSource<HttpServletRequest, WebAuthenticationDetails> myAuthenticationDetailsSource;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -25,7 +29,9 @@ public class SecurityConfig {
                                 .anyRequest().authenticated()
                 )
                 .formLogin(formLoginConfigurer ->
-                        formLoginConfigurer.loginPage("/login").permitAll()
+                        formLoginConfigurer
+                                .loginPage("/login").permitAll()
+                                .authenticationDetailsSource(myAuthenticationDetailsSource)
                 )
                 .authenticationProvider(myAuthenticationProvider)
         ;

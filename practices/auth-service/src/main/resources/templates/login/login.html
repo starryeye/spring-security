@@ -119,6 +119,7 @@
                         <label for="password">Password</label>
                         <input type="password" class="form-control" id="password" name="password" required>
                     </div>
+                    <input type="hidden" th:value="secret" th:name="secret_key"/>
                     <button type="submit" class="btn btn-primary">Login</button>
                 </form>
             </div>
