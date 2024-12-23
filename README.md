@@ -3,7 +3,7 @@
 - [spring security milestones](https://github.com/spring-projects/spring-security/milestones)
 - 
 
-## projects
+## practice projects
 - practices/auth-service
 
 ## theory projects
