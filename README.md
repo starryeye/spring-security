@@ -3,8 +3,10 @@
 - [spring security milestones](https://github.com/spring-projects/spring-security/milestones)
 - 
 
-
 ## projects
+- practices/auth-service
+
+## theory projects
 - basic
   - default-security
     - spring security 라이브러리와 기본 설정
