@@ -8,6 +8,7 @@ import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.WebAuthenticationDetails;
 
 @Configuration
@@ -16,6 +17,7 @@ public class SecurityConfig {
 
     private final AuthenticationProvider myAuthenticationProvider;
     private final AuthenticationDetailsSource<HttpServletRequest, WebAuthenticationDetails> myAuthenticationDetailsSource;
+    private final AuthenticationSuccessHandler myAuthenticationSuccessHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -32,6 +34,7 @@ public class SecurityConfig {
                         formLoginConfigurer
                                 .loginPage("/login").permitAll()
                                 .authenticationDetailsSource(myAuthenticationDetailsSource)
+                                .successHandler(myAuthenticationSuccessHandler)
                 )
                 .authenticationProvider(myAuthenticationProvider)
         ;
