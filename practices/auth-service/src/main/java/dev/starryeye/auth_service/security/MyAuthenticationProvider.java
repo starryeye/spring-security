@@ -29,13 +29,13 @@ public class MyAuthenticationProvider implements AuthenticationProvider {
 
         // 인증 요청된 password(loginRequestPassword) 가 실제 DB 에 적재된 Password 와 일치하는지 확인
         if (!passwordEncoder.matches(loginRequestPassword, userDetails.getPassword())) {
-            throw new BadCredentialsException("Bad credentials, Invalid password");
+            throw new BadCredentialsException("Invalid password");
         }
 
         // AuthenticationDetails 를 활용하여 추가 인증
         String secretKey = ((MyWebAuthenticationDetails) authentication.getDetails()).getSecretKey();
         if (!"secret".equals(secretKey)) {
-            throw new MySecretAuthenticationException("My exception, Invalid secret key");
+            throw new MySecretAuthenticationException("Invalid secret key");
         }
 
         return new UsernamePasswordAuthenticationToken(
