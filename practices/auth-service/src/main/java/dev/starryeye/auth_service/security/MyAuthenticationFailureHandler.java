@@ -19,7 +19,7 @@ public class MyAuthenticationFailureHandler extends SimpleUrlAuthenticationFailu
     public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) throws IOException, ServletException {
 
         /**
-         * 인증 예외가 발생할 경우 호출되는 메서드이다.
+         * form 로그인 인증 예외가 발생할 경우 호출되는 메서드이다.
          *      AuthenticationException(인증 예외) 가 파라미터로 전달된다.
          */
 
