@@ -1,4 +1,4 @@
-package dev.starryeye.auth_service.security;
+package dev.starryeye.auth_service.security.handler;
 
 import dev.starryeye.auth_service.security.exception.MySecretAuthenticationException;
 import jakarta.servlet.ServletException;

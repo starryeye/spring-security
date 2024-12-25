@@ -8,6 +8,7 @@ import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.WebAuthenticationDetails;
@@ -20,6 +21,7 @@ public class SecurityConfig {
     private final AuthenticationDetailsSource<HttpServletRequest, WebAuthenticationDetails> myAuthenticationDetailsSource;
     private final AuthenticationSuccessHandler myAuthenticationSuccessHandler;
     private final AuthenticationFailureHandler myAuthenticationFailureHandler;
+    private final AccessDeniedHandler myAccessDeniedHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -28,9 +30,15 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorizeRequestMatcherRegistry ->
                         authorizeRequestMatcherRegistry
                                 .requestMatchers("/css/**", "/images/**", "/js/**", "/favicon/**", "/*/icon-*").permitAll()
+
                                 .requestMatchers("/").permitAll()
                                 .requestMatchers("/users/signup").permitAll()
                                 .requestMatchers("/login*").permitAll() // 주의.. "/login" 과 "/login?error=aaa" 는 다르게 볼 때가 있다.
+
+                                .requestMatchers("/user").hasRole("USER")
+                                .requestMatchers("/manager").hasRole("MANAGER")
+                                .requestMatchers("/admin").hasRole("ADMIN")
+
                                 .anyRequest().authenticated()
                 )
                 .formLogin(formLoginConfigurer ->
@@ -41,6 +49,10 @@ public class SecurityConfig {
                                 .failureHandler(myAuthenticationFailureHandler)
                 )
                 .authenticationProvider(myAuthenticationProvider)
+                .exceptionHandling(exceptionHandlingConfigurer ->
+                        exceptionHandlingConfigurer
+                                .accessDeniedHandler(myAccessDeniedHandler)
+                )
         ;
 
         return http.build();
