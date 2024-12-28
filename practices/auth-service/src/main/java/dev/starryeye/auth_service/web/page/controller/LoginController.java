@@ -14,9 +14,22 @@ public class LoginController {
             @RequestParam(value = "exception", required = false) String exception,
             Model model
     ) {
+        /**
+         * 해당 페이지에서 비롯된 로그인은 POST /login 으로
+         * form 로그인이다. (formSecurityFilterChain)
+         */
         model.addAttribute("error", error);
         model.addAttribute("exception", exception);
 
         return "/login/login";
+    }
+
+    @GetMapping("/api/login")
+    public String apiLogin() {
+        /**
+         * 해당 페이지에서 비롯된 로그인은 POST /api/login 으로
+         * rest 방식의 로그인이다. (restSecurityFilterChain)
+         */
+        return "/rest/login";
     }
 }

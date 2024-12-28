@@ -4,9 +4,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
@@ -17,6 +19,8 @@ import org.springframework.security.web.authentication.WebAuthenticationDetails;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+    private static final String[] STATIC_RESOURCES_PATH_PATTERNS = {"/css/**", "/images/**", "/js/**", "/favicon/**", "/*/icon-*"};
+
     private final AuthenticationProvider myAuthenticationProvider;
     private final AuthenticationDetailsSource<HttpServletRequest, WebAuthenticationDetails> myAuthenticationDetailsSource;
     private final AuthenticationSuccessHandler myAuthenticationSuccessHandler;
@@ -24,12 +28,12 @@ public class SecurityConfig {
     private final AccessDeniedHandler myAccessDeniedHandler;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain formSecurityFilterChain(HttpSecurity http) throws Exception {
 
         http
                 .authorizeHttpRequests(authorizeRequestMatcherRegistry ->
                         authorizeRequestMatcherRegistry
-                                .requestMatchers("/css/**", "/images/**", "/js/**", "/favicon/**", "/*/icon-*").permitAll()
+                                .requestMatchers(STATIC_RESOURCES_PATH_PATTERNS).permitAll()
 
                                 .requestMatchers("/").permitAll()
                                 .requestMatchers("/users/signup").permitAll()
@@ -53,6 +57,23 @@ public class SecurityConfig {
                         exceptionHandlingConfigurer
                                 .accessDeniedHandler(myAccessDeniedHandler)
                 )
+        ;
+
+        return http.build();
+    }
+
+    @Bean
+    @Order(1)
+    public SecurityFilterChain restSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/api/**")
+                .authorizeHttpRequests(authorizeRequestMatcherRegistry ->
+                        authorizeRequestMatcherRegistry
+                                .requestMatchers(STATIC_RESOURCES_PATH_PATTERNS).permitAll()
+
+                                .anyRequest().permitAll()
+                )
+                .csrf(AbstractHttpConfigurer::disable)
         ;
 
         return http.build();
