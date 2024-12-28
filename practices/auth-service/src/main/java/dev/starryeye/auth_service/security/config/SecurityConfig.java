@@ -1,7 +1,6 @@
 package dev.starryeye.auth_service.security.config;
 
 import dev.starryeye.auth_service.security.rest.RestMyAuthenticationFilter;
-import jakarta.servlet.Filter;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -28,6 +27,8 @@ public class SecurityConfig {
     private final AuthenticationSuccessHandler myAuthenticationSuccessHandler;
     private final AuthenticationFailureHandler myAuthenticationFailureHandler;
     private final AccessDeniedHandler myAccessDeniedHandler;
+
+    private final AuthenticationProvider restMyAuthenticationProvider;
 
     // todo, form 과 rest 를 패키지로 분리해보기
 
@@ -74,10 +75,11 @@ public class SecurityConfig {
          * 참고
          * 해당 restSecurityFilterChain 에서 사용되고 있는 AuthenticationManager(ProviderManager) 는
          *      formSecurityFilterChain 에서 사용되는 AuthenticationManager 와 다른 객체이다.
-         *      AuthenticationManager 내부에 AuthenticationProvider 는 동일 객체일 수 있다.
+         *      AuthenticationManager 내부에 AuthenticationProvider 는 동일한 객체가 있을 수 있다.
          */
 
         AuthenticationManagerBuilder authenticationManagerBuilder = http.getSharedObject(AuthenticationManagerBuilder.class);
+        authenticationManagerBuilder.authenticationProvider(restMyAuthenticationProvider);
         AuthenticationManager authenticationManager = authenticationManagerBuilder.build();
 
         http
