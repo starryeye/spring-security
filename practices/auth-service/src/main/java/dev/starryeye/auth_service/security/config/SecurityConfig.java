@@ -1,19 +1,21 @@
 package dev.starryeye.auth_service.security.config;
 
+import dev.starryeye.auth_service.security.rest.RestMyAuthenticationFilter;
+import jakarta.servlet.Filter;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
-import org.springframework.security.web.authentication.WebAuthenticationDetails;
+import org.springframework.security.web.authentication.*;
 
 @Configuration
 @RequiredArgsConstructor
@@ -26,6 +28,8 @@ public class SecurityConfig {
     private final AuthenticationSuccessHandler myAuthenticationSuccessHandler;
     private final AuthenticationFailureHandler myAuthenticationFailureHandler;
     private final AccessDeniedHandler myAccessDeniedHandler;
+
+    // todo, form 과 rest 를 패키지로 분리해보기
 
     @Bean
     public SecurityFilterChain formSecurityFilterChain(HttpSecurity http) throws Exception {
@@ -65,6 +69,17 @@ public class SecurityConfig {
     @Bean
     @Order(1)
     public SecurityFilterChain restSecurityFilterChain(HttpSecurity http) throws Exception {
+
+        /**
+         * 참고
+         * 해당 restSecurityFilterChain 에서 사용되고 있는 AuthenticationManager(ProviderManager) 는
+         *      formSecurityFilterChain 에서 사용되는 AuthenticationManager 와 다른 객체이다.
+         *      AuthenticationManager 내부에 AuthenticationProvider 는 동일 객체일 수 있다.
+         */
+
+        AuthenticationManagerBuilder authenticationManagerBuilder = http.getSharedObject(AuthenticationManagerBuilder.class);
+        AuthenticationManager authenticationManager = authenticationManagerBuilder.build();
+
         http
                 .securityMatcher("/api/**")
                 .authorizeHttpRequests(authorizeRequestMatcherRegistry ->
@@ -74,8 +89,18 @@ public class SecurityConfig {
                                 .anyRequest().permitAll()
                 )
                 .csrf(AbstractHttpConfigurer::disable)
+                .authenticationManager(authenticationManager)
+                .addFilterBefore(restMyAuthenticationFilter(authenticationManager), UsernamePasswordAuthenticationFilter.class)
         ;
 
         return http.build();
+    }
+
+    private RestMyAuthenticationFilter restMyAuthenticationFilter(AuthenticationManager authenticationManager) {
+
+        RestMyAuthenticationFilter restMyAuthenticationFilter = new RestMyAuthenticationFilter();
+        restMyAuthenticationFilter.setAuthenticationManager(authenticationManager);
+
+        return restMyAuthenticationFilter;
     }
 }
