@@ -29,6 +29,8 @@ public class SecurityConfig {
     private final AccessDeniedHandler myAccessDeniedHandler;
 
     private final AuthenticationProvider restMyAuthenticationProvider;
+    private final AuthenticationSuccessHandler restMyAuthenticationSuccessHandler;
+    private final AuthenticationFailureHandler restMyAuthenticationFailureHandler;
 
     // todo, form 과 rest 를 패키지로 분리해보기
 
@@ -102,6 +104,8 @@ public class SecurityConfig {
 
         RestMyAuthenticationFilter restMyAuthenticationFilter = new RestMyAuthenticationFilter();
         restMyAuthenticationFilter.setAuthenticationManager(authenticationManager);
+        restMyAuthenticationFilter.setAuthenticationSuccessHandler(restMyAuthenticationSuccessHandler);
+        restMyAuthenticationFilter.setAuthenticationFailureHandler(restMyAuthenticationFailureHandler);
 
         return restMyAuthenticationFilter;
     }
