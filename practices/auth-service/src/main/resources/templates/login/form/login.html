@@ -110,7 +110,7 @@
                 <div th:if="${param.error}" class="form-group"> <!--쿼리파라미터로 error 가 있으면 페이지 자체적으로 아래 알람이 보임-->
                     <span th:text="${exception}?: '잘못된 아이디나 암호입니다'" class="alert alert-danger"></span>
                 </div>
-                <form th:action="@{/login}" method="post"> <!--thymeleaf 태그를 사용하여 csrf 자동 포함되어 응답됨-->
+                <form th:action="@{/templates/login}" method="post"> <!--thymeleaf 태그를 사용하여 csrf 자동 포함되어 응답됨-->
                     <div class="form-group">
                         <label for="username">Username</label>
                         <input type="text" class="form-control" id="username" name="username" required>

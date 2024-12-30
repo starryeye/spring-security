@@ -21,7 +21,7 @@ public class LoginController {
         model.addAttribute("error", error);
         model.addAttribute("exception", exception);
 
-        return "/login/login";
+        return "/login/form/login";
     }
 
     @GetMapping("/api/login")
@@ -30,6 +30,6 @@ public class LoginController {
          * 해당 페이지에서 비롯된 로그인은 POST /api/login 으로
          * rest 방식의 로그인이다. (restSecurityFilterChain)
          */
-        return "/rest/login";
+        return "/login/rest/login";
     }
 }
