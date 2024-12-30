@@ -94,15 +94,15 @@ public class SecurityConfig {
                 )
                 .csrf(AbstractHttpConfigurer::disable)
                 .authenticationManager(authenticationManager)
-                .addFilterBefore(restMyAuthenticationFilter(authenticationManager), UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(restMyAuthenticationFilter(http, authenticationManager), UsernamePasswordAuthenticationFilter.class)
         ;
 
         return http.build();
     }
 
-    private RestMyAuthenticationFilter restMyAuthenticationFilter(AuthenticationManager authenticationManager) {
+    private RestMyAuthenticationFilter restMyAuthenticationFilter(HttpSecurity http, AuthenticationManager authenticationManager) {
 
-        RestMyAuthenticationFilter restMyAuthenticationFilter = new RestMyAuthenticationFilter();
+        RestMyAuthenticationFilter restMyAuthenticationFilter = new RestMyAuthenticationFilter(http);
         restMyAuthenticationFilter.setAuthenticationManager(authenticationManager);
         restMyAuthenticationFilter.setAuthenticationSuccessHandler(restMyAuthenticationSuccessHandler);
         restMyAuthenticationFilter.setAuthenticationFailureHandler(restMyAuthenticationFailureHandler);
