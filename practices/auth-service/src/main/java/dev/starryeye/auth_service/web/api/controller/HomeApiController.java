@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 @RequestMapping("/api")
 public class HomeApiController {
 
-    @GetMapping()
+    @GetMapping
     public String home() {
         return "/api/home";
     }
