@@ -102,7 +102,7 @@ public class SecurityConfig {
 
                                 .anyRequest().authenticated()
                 )
-                .csrf(AbstractHttpConfigurer::disable)
+//                .csrf(AbstractHttpConfigurer::disable)
                 .authenticationManager(authenticationManager)
                 .addFilterBefore(restMyAuthenticationFilter(http, authenticationManager), UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(httpSecurityExceptionHandlingConfigurer ->
