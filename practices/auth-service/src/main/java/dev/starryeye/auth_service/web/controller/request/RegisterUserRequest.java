@@ -1,6 +1,6 @@
-package dev.starryeye.auth_service.web.api.controller.request;
+package dev.starryeye.auth_service.web.controller.request;
 
-import dev.starryeye.auth_service.web.api.service.request.RegisterUserServiceRequest;
+import dev.starryeye.auth_service.web.service.request.RegisterUserServiceRequest;
 
 public record RegisterUserRequest(
         String username,

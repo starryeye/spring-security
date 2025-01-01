@@ -1,4 +1,4 @@
-package dev.starryeye.auth_service.web.page.controller;
+package dev.starryeye.auth_service.web.controller;
 
 import dev.starryeye.auth_service.security.MyPrincipal;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

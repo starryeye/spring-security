@@ -12,6 +12,7 @@ import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.*;
@@ -31,6 +32,8 @@ public class SecurityConfig {
     private final AuthenticationProvider restMyAuthenticationProvider;
     private final AuthenticationSuccessHandler restMyAuthenticationSuccessHandler;
     private final AuthenticationFailureHandler restMyAuthenticationFailureHandler;
+    private final AuthenticationEntryPoint restMyAuthenticationEntryPoint;
+    private final AccessDeniedHandler restMyAccessDeniedHandler;
 
     // todo, form 과 rest 를 패키지로 분리해보기
 
@@ -90,11 +93,23 @@ public class SecurityConfig {
                         authorizeRequestMatcherRegistry
                                 .requestMatchers(STATIC_RESOURCES_PATH_PATTERNS).permitAll()
 
-                                .anyRequest().permitAll()
+                                .requestMatchers("/api").permitAll()
+                                .requestMatchers("/api/login").permitAll()
+
+                                .requestMatchers("/api/user").hasRole("USER")
+                                .requestMatchers("/api/manager").hasRole("MANAGER")
+                                .requestMatchers("/api/admin").hasRole("ADMIN")
+
+                                .anyRequest().authenticated()
                 )
                 .csrf(AbstractHttpConfigurer::disable)
                 .authenticationManager(authenticationManager)
                 .addFilterBefore(restMyAuthenticationFilter(http, authenticationManager), UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(httpSecurityExceptionHandlingConfigurer ->
+                        httpSecurityExceptionHandlingConfigurer
+                                .authenticationEntryPoint(restMyAuthenticationEntryPoint)
+                                .accessDeniedHandler(restMyAccessDeniedHandler)
+                )
         ;
 
         return http.build();

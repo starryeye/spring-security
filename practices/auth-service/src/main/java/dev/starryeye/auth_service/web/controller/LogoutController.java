@@ -1,4 +1,4 @@
-package dev.starryeye.auth_service.web.api.controller;
+package dev.starryeye.auth_service.web.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

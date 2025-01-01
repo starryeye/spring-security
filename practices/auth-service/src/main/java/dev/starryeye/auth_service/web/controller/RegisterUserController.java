@@ -1,7 +1,7 @@
-package dev.starryeye.auth_service.web.api.controller;
+package dev.starryeye.auth_service.web.controller;
 
-import dev.starryeye.auth_service.web.api.controller.request.RegisterUserRequest;
-import dev.starryeye.auth_service.web.api.service.UserService;
+import dev.starryeye.auth_service.web.controller.request.RegisterUserRequest;
+import dev.starryeye.auth_service.web.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.ModelAttribute;
