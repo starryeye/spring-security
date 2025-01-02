@@ -10,3 +10,6 @@
     - ajax 기반
     - home
       - localhost:8080/api
+     
+## TODO
+- auth-service 에서 admin 분리
