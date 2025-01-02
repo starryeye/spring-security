@@ -70,71 +70,19 @@
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
-    <script>
-        function restCall(url) {
-
-            fetch(url, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-                .then(response => {
-                    if (response.ok) {
-                        response.json().then(function (data) {
-                            console.log(data);
-                            document.querySelector("#content").textContent = JSON.stringify(data, null, 2);
-                        })
-                    } else if (response.status === 401) {
-                        console.log(response.statusText)
-                        document.querySelector("#content").textContent = response.status;
-                    } else if (response.status === 403) {
-                        console.log(response.statusText)
-                        document.querySelector("#content").textContent = response.status;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error during login:', error);
-                });
-        }
-
-        function logout() {
-
-            fetch('/api/logout', {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-                .then(response => {
-                    console.log(response);
-                    if(response.ok){
-                        window.location.replace('/api');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error during login:', error);
-                });
-        }
-    </script>
 </head>
 <body>
-<div th:replace="~{ajax/layout/header::header}"></div>
+<div th:replace="~{admin/layout/header::header}"></div>
 <div class="container-fluid">
     <div class="row">
         <div class="col-md-2 sidebar">
-            <div th:replace="~{ajax/layout/sidebar::sidebar}"></div>
+            <div th:replace="~{admin/layout/sidebar::sidebar}"></div>
         </div>
         <div class="col-md-10 content">
-            <div>
-                <h2>AJAX Home</h2>
-                <p id="content">Hello Spring Security!</p>
-            </div>
+            <div th:insert="~{admin/content/homecontent}"></div>
         </div>
     </div>
 </div>
-<div class="footer" th:replace="~{ajax/layout/footer::footer}"></div>
+<div class="footer" th:replace="~{admin/layout/footer::footer}"></div>
 </body>
 </html>
