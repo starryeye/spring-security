@@ -1,6 +1,6 @@
 package dev.starryeye.auth_service.security.config;
 
-import dev.starryeye.auth_service.security.rest.RestMyAuthenticationFilter;
+import dev.starryeye.auth_service.security.ajax_api.ApiMyAuthenticationFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -11,7 +11,6 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
@@ -29,16 +28,14 @@ public class SecurityConfig {
     private final AuthenticationFailureHandler myAuthenticationFailureHandler;
     private final AccessDeniedHandler myAccessDeniedHandler;
 
-    private final AuthenticationProvider restMyAuthenticationProvider;
-    private final AuthenticationSuccessHandler restMyAuthenticationSuccessHandler;
-    private final AuthenticationFailureHandler restMyAuthenticationFailureHandler;
-    private final AuthenticationEntryPoint restMyAuthenticationEntryPoint;
-    private final AccessDeniedHandler restMyAccessDeniedHandler;
-
-    // todo, form 과 rest 를 패키지로 분리해보기
+    private final AuthenticationProvider apiMyAuthenticationProvider;
+    private final AuthenticationSuccessHandler apiMyAuthenticationSuccessHandler;
+    private final AuthenticationFailureHandler apiMyAuthenticationFailureHandler;
+    private final AuthenticationEntryPoint apiMyAuthenticationEntryPoint;
+    private final AccessDeniedHandler apiMyAccessDeniedHandler;
 
     @Bean
-    public SecurityFilterChain formSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain baseSecurityFilterChain(HttpSecurity http) throws Exception {
 
         http
                 .authorizeHttpRequests(authorizeRequestMatcherRegistry ->
@@ -84,7 +81,7 @@ public class SecurityConfig {
          */
 
         AuthenticationManagerBuilder authenticationManagerBuilder = http.getSharedObject(AuthenticationManagerBuilder.class);
-        authenticationManagerBuilder.authenticationProvider(restMyAuthenticationProvider);
+        authenticationManagerBuilder.authenticationProvider(apiMyAuthenticationProvider);
         AuthenticationManager authenticationManager = authenticationManagerBuilder.build();
 
         http
@@ -107,21 +104,21 @@ public class SecurityConfig {
                 .addFilterBefore(restMyAuthenticationFilter(http, authenticationManager), UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(httpSecurityExceptionHandlingConfigurer ->
                         httpSecurityExceptionHandlingConfigurer
-                                .authenticationEntryPoint(restMyAuthenticationEntryPoint)
-                                .accessDeniedHandler(restMyAccessDeniedHandler)
+                                .authenticationEntryPoint(apiMyAuthenticationEntryPoint)
+                                .accessDeniedHandler(apiMyAccessDeniedHandler)
                 )
         ;
 
         return http.build();
     }
 
-    private RestMyAuthenticationFilter restMyAuthenticationFilter(HttpSecurity http, AuthenticationManager authenticationManager) {
+    private ApiMyAuthenticationFilter restMyAuthenticationFilter(HttpSecurity http, AuthenticationManager authenticationManager) {
 
-        RestMyAuthenticationFilter restMyAuthenticationFilter = new RestMyAuthenticationFilter(http);
-        restMyAuthenticationFilter.setAuthenticationManager(authenticationManager);
-        restMyAuthenticationFilter.setAuthenticationSuccessHandler(restMyAuthenticationSuccessHandler);
-        restMyAuthenticationFilter.setAuthenticationFailureHandler(restMyAuthenticationFailureHandler);
+        ApiMyAuthenticationFilter apiMyAuthenticationFilter = new ApiMyAuthenticationFilter(http);
+        apiMyAuthenticationFilter.setAuthenticationManager(authenticationManager);
+        apiMyAuthenticationFilter.setAuthenticationSuccessHandler(apiMyAuthenticationSuccessHandler);
+        apiMyAuthenticationFilter.setAuthenticationFailureHandler(apiMyAuthenticationFailureHandler);
 
-        return restMyAuthenticationFilter;
+        return apiMyAuthenticationFilter;
     }
 }
