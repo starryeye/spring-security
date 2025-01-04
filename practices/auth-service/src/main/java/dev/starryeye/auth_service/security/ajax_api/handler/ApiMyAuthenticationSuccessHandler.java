@@ -15,6 +15,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.List;
 
 @Component
 public class ApiMyAuthenticationSuccessHandler implements AuthenticationSuccessHandler {
@@ -56,9 +57,9 @@ public class ApiMyAuthenticationSuccessHandler implements AuthenticationSuccessH
 
         private final String username;
         private final Integer age;
-        private final String roles;
+        private final List<String> roles;
 
-        public LoginResponse(String username, Integer age, String roles) {
+        public LoginResponse(String username, Integer age, List<String> roles) {
             this.username = username;
             this.age = age;
             this.roles = roles;

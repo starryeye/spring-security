@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -29,8 +30,10 @@ public class MyUserDetailsService implements UserDetailsService {
         MyUser myUser = myUserRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found, username: " + username));
 
-        SimpleGrantedAuthority grantedAuthority = new SimpleGrantedAuthority(myUser.getRoles());
-        Collection<SimpleGrantedAuthority> grantedAuthorities = Collections.singletonList(grantedAuthority);
+        Collection<SimpleGrantedAuthority> grantedAuthorities = myUser.getRoles().stream()
+                .map(myUserRole -> myUserRole.getMyRole().getName().name())
+                .map(SimpleGrantedAuthority::new)
+                .toList();
 
         return new MyUserDetails(
                 myUser.getUsername(),

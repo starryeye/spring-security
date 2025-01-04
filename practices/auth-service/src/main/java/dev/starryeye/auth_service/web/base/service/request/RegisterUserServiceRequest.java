@@ -11,13 +11,12 @@ public class RegisterUserServiceRequest {
 
     private final Integer age;
 
-    private final String roles;
+//    private final String roles;
 
     @Builder
-    private RegisterUserServiceRequest(String username, String password, Integer age, String roles) {
+    private RegisterUserServiceRequest(String username, String password, Integer age) {
         this.username = username;
         this.password = password;
         this.age = age;
-        this.roles = roles;
     }
 }

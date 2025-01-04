@@ -6,9 +6,8 @@ public record RegisterUserRequest(
         String username,
         String password,
 
-        Integer age,
+        Integer age
 
-        String roles
 ) {
 
     public RegisterUserServiceRequest toServiceRequest() {
@@ -16,7 +15,7 @@ public record RegisterUserRequest(
                 .username(username)
                 .password(password)
                 .age(age)
-                .roles(roles)
+//                .roles(roles)
                 .build();
     }
 }

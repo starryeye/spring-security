@@ -1,5 +1,6 @@
 package dev.starryeye.auth_service.domain;
 
+import dev.starryeye.auth_service.domain.type.MyRoleName;
 import dev.starryeye.auth_service.jpa.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -22,7 +23,10 @@ public class MyRole extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String name;
+    @Column(unique = true, nullable = false)
+    @Enumerated(EnumType.STRING)
+    private MyRoleName name;
+
     private String description;
 
     private Boolean isExpression;
@@ -34,7 +38,7 @@ public class MyRole extends BaseEntity {
     private Set<MyRoleResource> resources = new HashSet<>();
 
     @Builder
-    private MyRole(Long id, String name, String description, Boolean isExpression, Set<MyUserRole> users, Set<MyRoleResource> resources) {
+    private MyRole(Long id, MyRoleName name, String description, Boolean isExpression, Set<MyUserRole> users, Set<MyRoleResource> resources) {
         this.id = id;
         this.name = name;
         this.description = description;
@@ -43,7 +47,7 @@ public class MyRole extends BaseEntity {
         this.resources = resources;
     }
 
-    public static MyRole create(String name, String description, Boolean isExpression, Set<MyUserRole> users, Set<MyRoleResource> resources) {
+    public static MyRole create(MyRoleName name, String description, Boolean isExpression, Set<MyUserRole> users, Set<MyRoleResource> resources) {
         return MyRole.builder()
                 .id(null)
                 .name(name)

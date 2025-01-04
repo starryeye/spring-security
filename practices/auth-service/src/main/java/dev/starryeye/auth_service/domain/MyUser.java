@@ -22,7 +22,9 @@ public class MyUser extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(unique = true, nullable = false)
     private String username;
+
     private String password;
 
     private Integer age;
@@ -39,7 +41,16 @@ public class MyUser extends BaseEntity {
         this.roles = roles;
     }
 
-    public static MyUser create(String username, String password, Integer age, Set<MyUserRole> roles) {
+    public static MyUser create(String username, String password, Integer age) {
+        return MyUser.builder()
+                .id(null)
+                .username(username)
+                .password(password)
+                .age(age)
+                .build();
+    }
+
+    public static MyUser createWithRoles(String username, String password, Integer age, Set<MyUserRole> roles) {
         return MyUser.builder()
                 .id(null)
                 .username(username)
