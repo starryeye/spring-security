@@ -8,6 +8,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @Getter
 @Entity
 @Table(name = "users")
@@ -24,10 +27,11 @@ public class MyUser extends BaseEntity {
 
     private Integer age;
 
-    private String roles;
+    @OneToMany(mappedBy = "myUser", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<MyUserRole> roles = new HashSet<>();
 
     @Builder
-    private MyUser(Long id, String username, String password, Integer age, String roles) {
+    private MyUser(Long id, String username, String password, Integer age, Set<MyUserRole> roles) {
         this.id = id;
         this.password = password;
         this.username = username;
@@ -35,7 +39,7 @@ public class MyUser extends BaseEntity {
         this.roles = roles;
     }
 
-    public static MyUser create(String username, String password, Integer age, String roles) {
+    public static MyUser create(String username, String password, Integer age, Set<MyUserRole> roles) {
         return MyUser.builder()
                 .id(null)
                 .username(username)

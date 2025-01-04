@@ -21,6 +21,10 @@ public class UserService {
 
         String encodedPassword = passwordEncoder.encode(request.getPassword());
 
+        /**
+         * TODO
+         *  Role 을 찾아서 있는 경우에만 유저를 등록한다.(없으면 에러처리)
+         */
         MyUser entity = MyUser.create(
                 request.getUsername(),
                 encodedPassword,
