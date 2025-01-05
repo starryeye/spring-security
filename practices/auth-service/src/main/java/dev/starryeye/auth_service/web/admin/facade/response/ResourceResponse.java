@@ -12,7 +12,7 @@ public record ResourceResponse(
     public static ResourceResponse of(MyResource myResource) {
         return new ResourceResponse(
                 myResource.getName(),
-                myResource.getType(),
+                myResource.getType().name(),
                 myResource.getHttpMethod(),
                 myResource.getOrderNumber()
         );
