@@ -1,4 +1,4 @@
-package dev.starryeye.auth_service.web.base.service.response;
+package dev.starryeye.auth_service.web.admin.facade.response;
 
 import dev.starryeye.auth_service.domain.MyResource;
 
