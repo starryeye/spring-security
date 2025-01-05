@@ -1,5 +1,6 @@
 package dev.starryeye.auth_service.domain;
 
+import dev.starryeye.auth_service.domain.type.MyResourceType;
 import dev.starryeye.auth_service.jpa.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -22,7 +23,9 @@ public class MyResource extends BaseEntity {
     private Long id;
 
     private String name;
-    private String type;
+
+    @Enumerated(EnumType.STRING)
+    private MyResourceType type;
 
     private String httpMethod;
 
@@ -32,7 +35,7 @@ public class MyResource extends BaseEntity {
     private Set<MyRoleResource> roles;
 
     @Builder
-    private MyResource(Long id, String name, String type, String httpMethod, String orderNumber, Set<MyRoleResource> roles) {
+    private MyResource(Long id, String name, MyResourceType type, String httpMethod, String orderNumber, Set<MyRoleResource> roles) {
         this.id = id;
         this.name = name;
         this.type = type;
@@ -41,7 +44,7 @@ public class MyResource extends BaseEntity {
         this.roles = roles;
     }
 
-    public static MyResource create(String name, String type, String httpMethod, String orderNumber, Set<MyRoleResource> roles) {
+    public static MyResource create(String name, MyResourceType type, String httpMethod, String orderNumber, Set<MyRoleResource> roles) {
         return MyResource.builder()
                 .id(null)
                 .name(name)
