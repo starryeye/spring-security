@@ -1,9 +1,12 @@
 package dev.starryeye.auth_service.web.admin.facade;
 
+import dev.starryeye.auth_service.domain.MyResource;
 import dev.starryeye.auth_service.domain.MyRole;
+import dev.starryeye.auth_service.web.admin.facade.response.ResourceDetailsResponse;
 import dev.starryeye.auth_service.web.admin.facade.response.ResourceResponse;
+import dev.starryeye.auth_service.web.admin.facade.response.RoleResponse;
 import dev.starryeye.auth_service.web.admin.service.ResourceQueryService;
-import dev.starryeye.auth_service.web.admin.service.RoleService;
+import dev.starryeye.auth_service.web.admin.service.RoleQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,18 +19,30 @@ import java.util.List;
 public class GetResourcesUseCase {
 
     private final ResourceQueryService resourceQueryService;
-    private final RoleService roleService;
+    private final RoleQueryService roleQueryService;
 
     public List<ResourceResponse> getResources() {
         return resourceQueryService.getUrlResourcesDesc().stream()
-                .map(ResourceResponse::of)
+                .map(ResourceResponse::from)
                 .toList();
     }
 
-    public ResourceResponse getResourceBy(Long id) {
+    public ResourceDetailsResponse getResourceBy(Long id) {
 
-        List<MyRole> allRoles = roleService.getAllRoles();
+        List<RoleResponse> allRoles = roleQueryService.getAllRoles().stream()
+                .map(RoleResponse::from)
+                .toList();
 
-        return ResourceResponse.of(resourceQueryService.getResource(id));
+        MyResource myResource = resourceQueryService.getResourceWithRole(id);
+
+        List<String> roleNamesOfResource = myResource.getRoles().stream()
+                .map(roleResource -> roleResource.getMyRole().getName().name())
+                .toList();
+
+        return new ResourceDetailsResponse(
+                allRoles,
+                roleNamesOfResource,
+                ResourceResponse.from(myResource)
+        );
     }
 }

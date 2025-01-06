@@ -1,6 +1,7 @@
 package dev.starryeye.auth_service.web.admin.controller;
 
 import dev.starryeye.auth_service.web.admin.facade.GetResourcesUseCase;
+import dev.starryeye.auth_service.web.admin.facade.response.ResourceDetailsResponse;
 import dev.starryeye.auth_service.web.admin.facade.response.ResourceResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -28,7 +29,14 @@ public class ResourceController {
     }
 
     @GetMapping("/{id}")
-    public String getResource(Model model, @PathVariable("id") String id) {
+    public String getResource(Model model, @PathVariable("id") Long id) {
 
+        ResourceDetailsResponse resourceDetails = getResourcesUseCase.getResourceBy(id);
+
+        model.addAttribute("roleList", resourceDetails.allRoles());
+        model.addAttribute("myRoles", resourceDetails.roleNamesOfResource());
+        model.addAttribute("resources", resourceDetails.resource());
+
+        return "/admin/resourcesdetails";
     }
 }

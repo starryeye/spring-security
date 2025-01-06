@@ -3,14 +3,16 @@ package dev.starryeye.auth_service.web.admin.facade.response;
 import dev.starryeye.auth_service.domain.MyResource;
 
 public record ResourceResponse(
-        String name,
-        String type,
+        String id,
+        String resourceName,
+        String resourceType,
         String httpMethod,
-        String orderNumber
+        String orderNum
 ) {
 
-    public static ResourceResponse of(MyResource myResource) {
+    public static ResourceResponse from(MyResource myResource) {
         return new ResourceResponse(
+                myResource.getId().toString(),
                 myResource.getName(),
                 myResource.getType().name(),
                 myResource.getHttpMethod(),

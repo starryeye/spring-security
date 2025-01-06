@@ -15,9 +15,9 @@ public class ResourceQueryService {
 
     private final MyResourceRepository myResourceRepository;
 
-    public MyResource getResource(Long resourceId) {
+    public MyResource getResourceWithRole(Long resourceId) {
 
-        return myResourceRepository.findById(resourceId)
+        return myResourceRepository.findOneWithRolesById(resourceId)
                 .orElseGet(() -> MyResource.builder().build());
     }
 
@@ -25,6 +25,6 @@ public class ResourceQueryService {
 
         MyResourceType type = MyResourceType.URL;
         Sort sort = Sort.by(Sort.Direction.DESC, "orderNumber");
-        return myResourceRepository.findResourcesByType(type, sort);
+        return myResourceRepository.findAllByType(type, sort);
     }
 }

@@ -9,9 +9,14 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class RoleService {
+public class RoleQueryService {
 
     private final MyRoleRepository myRoleRepository;
+
+    public MyRole getRole(Long id) {
+        return this.myRoleRepository.findById(id)
+                .orElseGet(() -> MyRole.builder().build());
+    }
 
     public List<MyRole> getAllRoles() {
         return this.myRoleRepository.findAll();

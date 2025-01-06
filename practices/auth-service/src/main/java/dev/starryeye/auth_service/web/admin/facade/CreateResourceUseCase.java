@@ -1,7 +1,7 @@
 package dev.starryeye.auth_service.web.admin.facade;
 
 import dev.starryeye.auth_service.web.admin.service.ResourceQueryService;
-import dev.starryeye.auth_service.web.admin.service.RoleService;
+import dev.starryeye.auth_service.web.admin.service.RoleQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CreateResourceUseCase {
 
     private final ResourceQueryService resourceQueryService;
-    private final RoleService roleService;
+    private final RoleQueryService roleQueryService;
 
     public void process() {
 
