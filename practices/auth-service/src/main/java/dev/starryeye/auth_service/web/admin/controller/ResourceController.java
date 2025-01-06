@@ -1,5 +1,6 @@
 package dev.starryeye.auth_service.web.admin.controller;
 
+import dev.starryeye.auth_service.web.admin.facade.DeleteResourceUseCase;
 import dev.starryeye.auth_service.web.admin.facade.GetResourcesUseCase;
 import dev.starryeye.auth_service.web.admin.facade.response.ResourceDetailsResponse;
 import dev.starryeye.auth_service.web.admin.facade.response.ResourceResponse;
@@ -18,6 +19,7 @@ import java.util.List;
 public class ResourceController {
 
     private final GetResourcesUseCase getResourcesUseCase;
+    private final DeleteResourceUseCase deleteResourceUseCase;
 
     @GetMapping
     public String getResources(Model model) {
@@ -38,5 +40,18 @@ public class ResourceController {
         model.addAttribute("resources", resourceDetails.resource());
 
         return "/admin/resourcesdetails";
+    }
+
+    @GetMapping("/register")
+    public String registerResource(Model model) {
+        return null;
+    }
+
+    @GetMapping("/delete/{id}")
+    public String deleteResource(@PathVariable("id") Long id) {
+
+        deleteResourceUseCase.process(id);
+
+        return "redirect:/admin/resources";
     }
 }
