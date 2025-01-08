@@ -1,7 +1,6 @@
-package dev.starryeye.auth_service.web.admin.facade;
+package dev.starryeye.auth_service.web.admin.facade.usecase.resource;
 
 import dev.starryeye.auth_service.domain.MyResource;
-import dev.starryeye.auth_service.domain.MyRole;
 import dev.starryeye.auth_service.web.admin.facade.response.ResourceDetailsResponse;
 import dev.starryeye.auth_service.web.admin.facade.response.ResourceResponse;
 import dev.starryeye.auth_service.web.admin.facade.response.RoleResponse;

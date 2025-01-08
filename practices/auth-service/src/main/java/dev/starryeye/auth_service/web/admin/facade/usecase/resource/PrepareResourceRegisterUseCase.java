@@ -1,6 +1,5 @@
-package dev.starryeye.auth_service.web.admin.facade;
+package dev.starryeye.auth_service.web.admin.facade.usecase.resource;
 
-import dev.starryeye.auth_service.domain.MyRole;
 import dev.starryeye.auth_service.web.admin.facade.response.ResourceDetailsResponse;
 import dev.starryeye.auth_service.web.admin.facade.response.ResourceResponse;
 import dev.starryeye.auth_service.web.admin.facade.response.RoleResponse;
@@ -9,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 
 @Component

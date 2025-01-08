@@ -1,8 +1,8 @@
 package dev.starryeye.auth_service.web.admin.controller;
 
-import dev.starryeye.auth_service.web.admin.facade.DeleteResourceUseCase;
-import dev.starryeye.auth_service.web.admin.facade.GetResourcesUseCase;
-import dev.starryeye.auth_service.web.admin.facade.PrepareResourceRegisterUseCase;
+import dev.starryeye.auth_service.web.admin.facade.usecase.resource.DeleteResourceUseCase;
+import dev.starryeye.auth_service.web.admin.facade.usecase.resource.GetResourcesUseCase;
+import dev.starryeye.auth_service.web.admin.facade.usecase.resource.PrepareResourceRegisterUseCase;
 import dev.starryeye.auth_service.web.admin.facade.response.ResourceDetailsResponse;
 import dev.starryeye.auth_service.web.admin.facade.response.ResourceResponse;
 import lombok.RequiredArgsConstructor;

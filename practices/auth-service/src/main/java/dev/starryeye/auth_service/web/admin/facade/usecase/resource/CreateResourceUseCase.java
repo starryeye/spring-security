@@ -1,4 +1,4 @@
-package dev.starryeye.auth_service.web.admin.facade;
+package dev.starryeye.auth_service.web.admin.facade.usecase.resource;
 
 import dev.starryeye.auth_service.web.admin.service.ResourceQueryService;
 import dev.starryeye.auth_service.web.admin.service.RoleQueryService;
