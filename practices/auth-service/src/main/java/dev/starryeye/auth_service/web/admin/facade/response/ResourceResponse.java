@@ -19,4 +19,8 @@ public record ResourceResponse(
                 myResource.getOrderNumber()
         );
     }
+
+    public static ResourceResponse empty() {
+        return new ResourceResponse(null, null, null, null, null);
+    }
 }

@@ -2,6 +2,7 @@ package dev.starryeye.auth_service.web.admin.controller;
 
 import dev.starryeye.auth_service.web.admin.facade.DeleteResourceUseCase;
 import dev.starryeye.auth_service.web.admin.facade.GetResourcesUseCase;
+import dev.starryeye.auth_service.web.admin.facade.PrepareResourceRegisterUseCase;
 import dev.starryeye.auth_service.web.admin.facade.response.ResourceDetailsResponse;
 import dev.starryeye.auth_service.web.admin.facade.response.ResourceResponse;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ public class ResourceController {
 
     private final GetResourcesUseCase getResourcesUseCase;
     private final DeleteResourceUseCase deleteResourceUseCase;
+    private final PrepareResourceRegisterUseCase prepareResourceRegisterUseCase;
 
     @GetMapping
     public String getResources(Model model) {
@@ -44,7 +46,14 @@ public class ResourceController {
 
     @GetMapping("/register")
     public String registerResource(Model model) {
-        return null;
+
+        ResourceDetailsResponse resourceDetails = prepareResourceRegisterUseCase.process();
+
+        model.addAttribute("roleList", resourceDetails.allRoles());
+        model.addAttribute("myRoles", resourceDetails.roleNamesOfResource());
+        model.addAttribute("resources", resourceDetails.resource());
+
+        return "/admin/resourcesdetails";
     }
 
     @GetMapping("/delete/{id}")
