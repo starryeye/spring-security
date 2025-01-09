@@ -18,4 +18,7 @@ public interface MyUserRepository extends JpaRepository<MyUser, Long> {
 //    """)
     @EntityGraph(attributePaths = {"roles", "roles.myRole"})
     Optional<MyUser> findByUsername(@Param("username") String username);
+
+    @EntityGraph(attributePaths = {"roles", "roles.myRole"})
+    Optional<MyUser> findOneWithRolesById(Long id);
 }

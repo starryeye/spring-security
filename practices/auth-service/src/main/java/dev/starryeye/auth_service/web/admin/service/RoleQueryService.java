@@ -22,4 +22,8 @@ public class RoleQueryService {
     public List<MyRole> getAllRoles() {
         return this.myRoleRepository.findAll();
     }
+
+    public List<MyRole> getAllRolesByIsExpression(boolean isExpression) {
+        return myRoleRepository.findAllByIsExpression(isExpression);
+    }
 }

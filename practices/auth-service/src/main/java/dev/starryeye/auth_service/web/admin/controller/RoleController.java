@@ -50,9 +50,7 @@ public class RoleController {
 
     @GetMapping("/delete/{id}")
     public String deleteRole(@PathVariable("id") Long id) {
-                deleteRoleUseCase.process(id);
-
-
+        deleteRoleUseCase.process(id);
         return "redirect:/admin/roles";
     }
 
