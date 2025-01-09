@@ -23,6 +23,18 @@ public class ResourceController {
     private final DeleteResourceUseCase deleteResourceUseCase;
     private final PrepareResourceRegisterUseCase prepareResourceRegisterUseCase;
 
+    @GetMapping("/register")
+    public String registerResource(Model model) {
+
+        ResourceDetailsResponse resourceDetails = prepareResourceRegisterUseCase.process();
+
+        model.addAttribute("roleList", resourceDetails.allRoles());
+        model.addAttribute("myRoles", resourceDetails.roleNamesOfResource());
+        model.addAttribute("resources", resourceDetails.resource());
+
+        return "/admin/resourcesdetails";
+    }
+
     @GetMapping
     public String getResources(Model model) {
 
@@ -36,18 +48,6 @@ public class ResourceController {
     public String getResource(Model model, @PathVariable("id") Long id) {
 
         ResourceDetailsResponse resourceDetails = getResourcesUseCase.getResourceBy(id);
-
-        model.addAttribute("roleList", resourceDetails.allRoles());
-        model.addAttribute("myRoles", resourceDetails.roleNamesOfResource());
-        model.addAttribute("resources", resourceDetails.resource());
-
-        return "/admin/resourcesdetails";
-    }
-
-    @GetMapping("/register")
-    public String registerResource(Model model) {
-
-        ResourceDetailsResponse resourceDetails = prepareResourceRegisterUseCase.process();
 
         model.addAttribute("roleList", resourceDetails.allRoles());
         model.addAttribute("myRoles", resourceDetails.roleNamesOfResource());

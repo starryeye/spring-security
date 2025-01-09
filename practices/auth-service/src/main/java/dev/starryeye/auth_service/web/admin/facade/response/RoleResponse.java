@@ -18,4 +18,8 @@ public record RoleResponse(
                 myRole.getIsExpression().toString()
         );
     }
+
+    public static RoleResponse empty() {
+        return new RoleResponse(null, null, null, null);
+    }
 }
