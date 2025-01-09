@@ -5,6 +5,8 @@ import dev.starryeye.auth_service.domain.MyUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class UserManagementQueryService {
@@ -15,5 +17,9 @@ public class UserManagementQueryService {
 
         return myUserRepository.findOneWithRolesById(userId)
                 .orElseGet(() -> MyUser.builder().build());
+    }
+
+    public List<MyUser> getAllUsers() {
+        return myUserRepository.findAll();
     }
 }

@@ -12,7 +12,7 @@ public class DeleteRoleUseCase {
 
     private final RoleService roleService;
 
-    public void process(Long roleId) {
+    public void by(Long roleId) {
         roleService.deleteRole(roleId);
     }
 }

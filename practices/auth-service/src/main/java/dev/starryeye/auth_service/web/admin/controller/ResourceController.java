@@ -59,7 +59,7 @@ public class ResourceController {
     @GetMapping("/delete/{id}")
     public String deleteResource(@PathVariable("id") Long id) {
 
-        deleteResourceUseCase.process(id);
+        deleteResourceUseCase.by(id);
 
         return "redirect:/admin/resources";
     }

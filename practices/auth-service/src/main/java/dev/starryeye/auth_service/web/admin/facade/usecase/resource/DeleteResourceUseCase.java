@@ -12,7 +12,7 @@ public class DeleteResourceUseCase {
 
     private final ResourceService resourceService;
 
-    public void process(Long resourceId) {
+    public void by(Long resourceId) {
         resourceService.deleteResource(resourceId);
     }
 }
