@@ -57,4 +57,13 @@ public class MyRole extends BaseEntity {
                 .resources(resources)
                 .build();
     }
+
+    public static MyRole createWithoutRelationship(MyRoleName name, String description, Boolean isExpression) {
+        return MyRole.builder()
+                .id(null)
+                .name(name)
+                .description(description)
+                .isExpression(isExpression)
+                .build();
+    }
 }

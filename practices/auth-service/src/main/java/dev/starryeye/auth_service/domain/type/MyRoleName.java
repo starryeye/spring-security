@@ -13,4 +13,15 @@ public enum MyRoleName {
     ;
 
     private final String roleName;
+
+    public static MyRoleName fromString(String roleName) {
+
+        for (MyRoleName myRoleName : MyRoleName.values()) {
+            if (myRoleName.name().equalsIgnoreCase(roleName)) {
+                return myRoleName;
+            }
+        }
+
+        throw new IllegalArgumentException("해당 권한이 존재하지 않습니다: " + roleName);
+    }
 }
