@@ -47,6 +47,7 @@ public class MyUser extends BaseEntity {
                 .username(username)
                 .password(password)
                 .age(age)
+                .roles(new HashSet<>())
                 .build();
     }
 

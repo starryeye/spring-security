@@ -1,5 +1,7 @@
 package dev.starryeye.auth_service.web.admin.controller;
 
+import dev.starryeye.auth_service.web.admin.controller.request.CreateResourceRequest;
+import dev.starryeye.auth_service.web.admin.facade.usecase.resource.CreateResourceUseCase;
 import dev.starryeye.auth_service.web.admin.facade.usecase.resource.DeleteResourceUseCase;
 import dev.starryeye.auth_service.web.admin.facade.usecase.resource.GetResourcesUseCase;
 import dev.starryeye.auth_service.web.admin.facade.usecase.resource.PrepareResourceRegisterUseCase;
@@ -8,9 +10,7 @@ import dev.starryeye.auth_service.web.admin.facade.response.ResourceResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -19,9 +19,10 @@ import java.util.List;
 @RequestMapping("/admin/resources")
 public class ResourceController {
 
+    private final PrepareResourceRegisterUseCase prepareResourceRegisterUseCase;
     private final GetResourcesUseCase getResourcesUseCase;
     private final DeleteResourceUseCase deleteResourceUseCase;
-    private final PrepareResourceRegisterUseCase prepareResourceRegisterUseCase;
+    private final CreateResourceUseCase createResourceUseCase;
 
     @GetMapping("/register")
     public String registerResource(Model model) {
@@ -54,6 +55,14 @@ public class ResourceController {
         model.addAttribute("resources", resourceDetails.resource());
 
         return "/admin/resourcesdetails";
+    }
+
+    @PostMapping
+    public String createResource(@ModelAttribute CreateResourceRequest request) {
+
+        createResourceUseCase.process(request.toUseCase());
+
+        return "redirect:/admin/resources";
     }
 
     @GetMapping("/delete/{id}")

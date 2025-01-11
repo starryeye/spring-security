@@ -17,8 +17,8 @@ public class CreateRoleUseCase {
 
     public void process(CreateRoleUseCaseRequest request) {
 
-        MyRole role = MyRole.createWithoutRelationship(
-                MyRoleName.fromString(request.roleName()),
+        MyRole role = MyRole.create(
+                MyRoleName.fromString(request.roleName()), // todo, 권한명은 동적으로 생성될 수 있으므로 enum 으로 관리 X
                 request.roleDesc(),
                 toBoolean(request.isExpression())
         );

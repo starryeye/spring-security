@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.util.HashSet;
 import java.util.Set;
 
 @Getter
@@ -44,14 +45,14 @@ public class MyResource extends BaseEntity {
         this.roles = roles;
     }
 
-    public static MyResource create(String name, MyResourceType type, String httpMethod, String orderNumber, Set<MyRoleResource> roles) {
+    public static MyResource create(String name, MyResourceType type, String httpMethod, String orderNumber) {
         return MyResource.builder()
                 .id(null)
                 .name(name)
                 .type(type)
                 .httpMethod(httpMethod)
                 .orderNumber(orderNumber)
-                .roles(roles)
+                .roles(new HashSet<>())
                 .build();
     }
 }
