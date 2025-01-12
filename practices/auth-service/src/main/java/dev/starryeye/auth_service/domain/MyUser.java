@@ -60,4 +60,16 @@ public class MyUser extends BaseEntity {
                 .roles(roles)
                 .build();
     }
+
+    public void changePassword(String newPassword) {
+        this.password = newPassword;
+    }
+
+    public void changeAge(Integer newAge) {
+        this.age = newAge;
+    }
+
+    public void changeRoles(Set<MyUserRole> newRoles) {
+        this.roles = newRoles;
+    }
 }

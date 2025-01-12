@@ -8,6 +8,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Getter
 @Entity
 @Table(name = "user_role")
@@ -40,5 +43,13 @@ public class MyUserRole extends BaseEntity {
                 .myUser(myUser)
                 .myRole(myRole)
                 .build();
+    }
+
+    public static List<MyUserRole> createUserRoles(MyUser myUser, List<MyRole> myRoles) {
+        List<MyUserRole> myUserRoles = new ArrayList<>();
+        for (MyRole myRole : myRoles) {
+            myUserRoles.add(create(myUser, myRole));
+        }
+        return myUserRoles;
     }
 }
