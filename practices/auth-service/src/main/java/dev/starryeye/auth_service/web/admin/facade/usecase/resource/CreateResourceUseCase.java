@@ -1,10 +1,13 @@
 package dev.starryeye.auth_service.web.admin.facade.usecase.resource;
 
 import dev.starryeye.auth_service.domain.MyResource;
+import dev.starryeye.auth_service.domain.MyRole;
+import dev.starryeye.auth_service.domain.MyRoleResource;
 import dev.starryeye.auth_service.domain.type.MyResourceType;
 import dev.starryeye.auth_service.domain.type.MyRoleName;
 import dev.starryeye.auth_service.web.admin.facade.request.CreateResourceUseCaseRequest;
-import dev.starryeye.auth_service.web.admin.service.ResourceQueryService;
+import dev.starryeye.auth_service.web.admin.service.ResourceRoleService;
+import dev.starryeye.auth_service.web.admin.service.ResourceService;
 import dev.starryeye.auth_service.web.admin.service.RoleQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -15,7 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class CreateResourceUseCase {
 
-    private final ResourceQueryService resourceQueryService;
+    private final ResourceService resourceService;
+    private final ResourceRoleService resourceRoleService;
     private final RoleQueryService roleQueryService;
 
     public void process(CreateResourceUseCaseRequest request) {
@@ -29,15 +33,21 @@ public class CreateResourceUseCase {
          */
 
         String resourceRoleName = request.roleName();
-        roleQueryService.getRoleByName(MyRoleName.fromString(resourceRoleName));
+        MyRole role = roleQueryService.getRoleByName(MyRoleName.fromString(resourceRoleName));
 
-        MyResource.create(
+        MyResource resource = MyResource.create(
                 request.resourceName(),
                 MyResourceType.fromString(request.resourceType()),
                 request.httpMethod(),
                 request.orderNum()
         );
+        resourceService.createResource(resource);
 
-        //todo
+        resourceRoleService.createResourceWithRole(
+                MyRoleResource.create(
+                        role,
+                        resource
+                )
+        );
     }
 }
