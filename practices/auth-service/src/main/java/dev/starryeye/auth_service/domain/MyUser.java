@@ -29,7 +29,7 @@ public class MyUser extends BaseEntity {
 
     private Integer age;
 
-    @OneToMany(mappedBy = "myUser", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "myUser", cascade = CascadeType.ALL)
     private Set<MyUserRole> roles = new HashSet<>();
 
     @Builder

@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
 
 @Component
@@ -31,7 +32,9 @@ public class ModifyUserUseCase {
 
         /**
          * todo,
-         *      cascade..
+         *      all entity..
+         *          cascade..
+         *          orphanRemoval..
          *
          */
 
@@ -40,11 +43,17 @@ public class ModifyUserUseCase {
         user.changeAge(request.age());
         user.changePassword(passwordEncoder.encode(request.password()));
 
-        userRoleService.deleteUserWithRoles(user.getRoles().stream().toList()); // todo, 삭제가 아니라 업데이트 느낌으로 해보기
+//        userRoleService.deleteUserWithRoles(user.getRoles().stream().toList()); // todo, 삭제가 아니라 업데이트 느낌으로 해보기
+//        List<MyRole> newRoles = roleQueryService.getAllRoles().stream()
+//                .filter(role -> request.roles().contains(role.getName().name()))
+//                .toList();
+//        List<MyUserRole> userRoles = MyUserRole.createUserRoles(user, newRoles);
+//        userRoleService.createUserWithRoles(userRoles);
+
         List<MyRole> newRoles = roleQueryService.getAllRoles().stream()
                 .filter(role -> request.roles().contains(role.getName().name()))
                 .toList();
-        List<MyUserRole> userRoles = MyUserRole.createUserRoles(user, newRoles);
-        userRoleService.createUserWithRoles(userRoles);
+        List<MyUserRole> newUserRoles = MyUserRole.createUserRoles(user, newRoles);
+        user.changeRoles(new HashSet<>(newUserRoles));
     }
 }
