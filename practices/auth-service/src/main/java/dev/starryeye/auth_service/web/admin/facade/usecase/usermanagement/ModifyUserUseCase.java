@@ -29,31 +29,16 @@ public class ModifyUserUseCase {
     private final PasswordEncoder passwordEncoder;
 
     public void process(UpdateUserUseCaseRequest request) {
-
-        /**
-         * todo,
-         *      all entity..
-         *          cascade..
-         *          orphanRemoval..
-         *
-         */
-
+        
         MyUser user = userManagementQueryService.getUserWithRole(Long.parseLong(request.id()));
-
-        user.changeAge(request.age());
-        user.changePassword(passwordEncoder.encode(request.password()));
-
-//        userRoleService.deleteUserWithRoles(user.getRoles().stream().toList()); // todo, 삭제가 아니라 업데이트 느낌으로 해보기
-//        List<MyRole> newRoles = roleQueryService.getAllRoles().stream()
-//                .filter(role -> request.roles().contains(role.getName().name()))
-//                .toList();
-//        List<MyUserRole> userRoles = MyUserRole.createUserRoles(user, newRoles);
-//        userRoleService.createUserWithRoles(userRoles);
 
         List<MyRole> newRoles = roleQueryService.getAllRoles().stream()
                 .filter(role -> request.roles().contains(role.getName().name()))
                 .toList();
         List<MyUserRole> newUserRoles = MyUserRole.createUserRoles(user, newRoles);
+
+        user.changeAge(request.age());
+        user.changePassword(passwordEncoder.encode(request.password()));
         user.changeRoles(new HashSet<>(newUserRoles));
     }
 }
