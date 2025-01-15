@@ -29,7 +29,7 @@ public class ModifyUserUseCase {
     private final PasswordEncoder passwordEncoder;
 
     public void process(UpdateUserUseCaseRequest request) {
-        
+
         MyUser user = userManagementQueryService.getUserWithRole(Long.parseLong(request.id()));
 
         List<MyRole> newRoles = roleQueryService.getAllRoles().stream()
