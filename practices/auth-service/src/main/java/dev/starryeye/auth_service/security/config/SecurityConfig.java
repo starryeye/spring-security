@@ -1,6 +1,10 @@
 package dev.starryeye.auth_service.security.config;
 
 import dev.starryeye.auth_service.security.ajax_api.ApiMyAuthenticationFilter;
+import dev.starryeye.auth_service.security.base.MyDynamicAuthorizationManager;
+import dev.starryeye.auth_service.security.base.MyDynamicAuthorizationService;
+import dev.starryeye.auth_service.security.base.MyMapBasedUrlRoleMapper;
+import dev.starryeye.auth_service.security.base.MyUrlRoleMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -9,12 +13,15 @@ import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.authentication.*;
+import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
 
 @Configuration
 @RequiredArgsConstructor
@@ -28,6 +35,8 @@ public class SecurityConfig {
     private final AuthenticationFailureHandler myAuthenticationFailureHandler;
     private final AccessDeniedHandler myAccessDeniedHandler;
 
+    private final HandlerMappingIntrospector introspector;
+
     private final AuthenticationProvider apiMyAuthenticationProvider;
     private final AuthenticationSuccessHandler apiMyAuthenticationSuccessHandler;
     private final AuthenticationFailureHandler apiMyAuthenticationFailureHandler;
@@ -40,17 +49,7 @@ public class SecurityConfig {
         http
                 .authorizeHttpRequests(authorizeRequestMatcherRegistry ->
                         authorizeRequestMatcherRegistry
-                                .requestMatchers(STATIC_RESOURCES_PATH_PATTERNS).permitAll()
-
-                                .requestMatchers("/").permitAll()
-                                .requestMatchers("/users/signup").permitAll()
-                                .requestMatchers("/login*").permitAll() // 주의.. "/login" 과 "/login?error=aaa" 는 다르게 볼 때가 있다.
-
-                                .requestMatchers("/user").hasRole("USER")
-                                .requestMatchers("/manager").hasRole("MANAGER")
-                                .requestMatchers("/admin").hasRole("ADMIN")
-
-                                .anyRequest().authenticated()
+                                .anyRequest().access(myDynamicAuthorizationManager())
                 )
                 .formLogin(formLoginConfigurer ->
                         formLoginConfigurer
@@ -67,6 +66,21 @@ public class SecurityConfig {
         ;
 
         return http.build();
+    }
+
+    @Bean
+    public AuthorizationManager<RequestAuthorizationContext> myDynamicAuthorizationManager() {
+        return new MyDynamicAuthorizationManager(introspector, myDynamicAuthorizationService());
+    }
+
+    @Bean
+    public MyDynamicAuthorizationService myDynamicAuthorizationService() {
+        return new MyDynamicAuthorizationService(myUrlRoleMapper());
+    }
+
+    @Bean
+    public MyUrlRoleMapper myUrlRoleMapper() {
+        return new MyMapBasedUrlRoleMapper();
     }
 
     @Bean

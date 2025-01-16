@@ -25,8 +25,8 @@ public class MyMapBasedUrlRoleMapper implements MyUrlRoleMapper {
         this.mappings.put("/*/icon-*", "permitAll");
 
         this.mappings.put("/", "permitAll");
-        this.mappings.put("/signup", "permitAll");
-        this.mappings.put("/login", "permitAll");
+        this.mappings.put("/users/signup", "permitAll");
+        this.mappings.put("/login*", "permitAll");
         this.mappings.put("/logout", "permitAll");
 
         this.mappings.put("/denied", "authenticated");
