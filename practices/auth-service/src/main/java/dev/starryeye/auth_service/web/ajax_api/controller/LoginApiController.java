@@ -12,7 +12,7 @@ public class LoginApiController {
     public String login() {
         /**
          * 해당 페이지에서 비롯된 로그인은 POST /api/login 으로
-         * rest 방식의 로그인이다. (restSecurityFilterChain)
+         * rest 방식의 로그인이다. (apiSecurityFilterChain)
          */
         return "/ajax/login";
     }
