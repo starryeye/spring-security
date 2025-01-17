@@ -14,4 +14,7 @@ public interface MyResourceRepository extends JpaRepository<MyResource, Long> {
 
     @EntityGraph(attributePaths = {"roles", "roles.myRole"})
     Optional<MyResource> findOneWithRolesById(Long id);
+
+    @EntityGraph(attributePaths = {"roles", "roles.myRole"})
+    List<MyResource> findAllWithRoles();
 }

@@ -1,5 +1,7 @@
 package dev.starryeye.auth_service.security.base;
 
+import org.springframework.security.authorization.AuthorizationDecision;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -40,5 +42,10 @@ public class MyMapBasedUrlRoleMapper implements MyUrlRoleMapper {
     @Override
     public Map<String, String> getMappings() {
         return this.mappings;
+    }
+
+    @Override
+    public AuthorizationDecision getDefaultDecision() {
+        return new AuthorizationDecision(false); // mappings 에 정의되어 있지 않으면 접근 권한을 허용하지 않는다.
     }
 }

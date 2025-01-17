@@ -1,9 +1,7 @@
 package dev.starryeye.auth_service.security.config;
 
-import dev.starryeye.auth_service.security.base.MyDynamicAuthorizationManager;
-import dev.starryeye.auth_service.security.base.MyDynamicAuthorizationService;
-import dev.starryeye.auth_service.security.base.MyMapBasedUrlRoleMapper;
-import dev.starryeye.auth_service.security.base.MyUrlRoleMapper;
+import dev.starryeye.auth_service.domain.MyResourceRepository;
+import dev.starryeye.auth_service.security.base.*;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -29,6 +27,8 @@ public class BaseSecurityConfig {
     private final AuthenticationSuccessHandler myAuthenticationSuccessHandler;
     private final AuthenticationFailureHandler myAuthenticationFailureHandler;
     private final AccessDeniedHandler myAccessDeniedHandler;
+
+    private final MyResourceRepository myResourceRepository;
 
     private final HandlerMappingIntrospector introspector;
 
@@ -69,6 +69,7 @@ public class BaseSecurityConfig {
 
     @Bean
     public MyUrlRoleMapper myUrlRoleMapper() {
-        return new MyMapBasedUrlRoleMapper();
+//        return new MyMapBasedUrlRoleMapper();
+        return new MyPersistenceUrlRoleMapper(myResourceRepository);
     }
 }

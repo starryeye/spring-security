@@ -1,6 +1,5 @@
 package dev.starryeye.auth_service.security.base;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.authorization.AuthorityAuthorizationManager;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
@@ -10,7 +9,6 @@ import org.springframework.security.web.access.intercept.RequestAuthorizationCon
 import org.springframework.security.web.servlet.util.matcher.MvcRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcherEntry;
-import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
 
@@ -30,11 +28,13 @@ public class MyDynamicAuthorizationManager implements AuthorizationManager<Reque
      *          SecurityConfig 에서 어떠한 요청이 오더라도 AuthorizationManager 를 하나(MyDynamicAuthorizationManager)만 쓰도록 하였음
      */
 
-    private static final AuthorizationDecision DEFAULT_AUTHORIZATION_DECISION_IS_DENY = new AuthorizationDecision(false);
+    private final AuthorizationDecision defaultAuthorizationDecision;
 
     private final List<RequestMatcherEntry<AuthorizationManager<RequestAuthorizationContext>>> matcherEntries;
 
     public MyDynamicAuthorizationManager(HandlerMappingIntrospector introspector, MyDynamicAuthorizationService authorizationService) {
+        defaultAuthorizationDecision = authorizationService.getDefaultDecision();
+
         Map<String, String> urlRoleMappings = authorizationService.getUrlRoleMappings();
         matcherEntries = urlRoleMappings.entrySet().stream()
                 .map(entry ->
@@ -67,7 +67,7 @@ public class MyDynamicAuthorizationManager implements AuthorizationManager<Reque
             }
         }
 
-        return DEFAULT_AUTHORIZATION_DECISION_IS_DENY;
+        return defaultAuthorizationDecision;
     }
 
     @Override
