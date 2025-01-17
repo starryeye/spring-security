@@ -12,9 +12,12 @@ public class MyPersistenceUrlRoleMapper implements MyUrlRoleMapper {
 
     private final MyResourceRepository myResourceRepository;
 
-    // todo, @Cacheable
     @Override
     public Map<String, String> getMappings() {
+        /**
+         * MyDynamicAuthorizationManager 의 생성자에서 최초 1회만 호출하므로..
+         * 권한 매핑 정보가 변경되면 껏다켜야함..
+         */
 
         Map<String, String> mappings = new LinkedHashMap<>();
 
