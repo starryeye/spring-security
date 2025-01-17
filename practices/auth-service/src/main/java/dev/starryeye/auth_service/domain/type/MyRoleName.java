@@ -7,6 +7,11 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum MyRoleName {
 
+    /**
+     * RoleName 은 동적으로 수정 및 생성, 삭제가 가능해야하므로 사용하지 못함.
+     * -> String 으로 변경
+     */
+
     ROLE_USER("회원"),
     ROLE_ADMIN("관리자"),
     ROLE_MANAGER("매니저"),

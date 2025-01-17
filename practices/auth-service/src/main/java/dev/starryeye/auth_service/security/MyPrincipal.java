@@ -22,7 +22,6 @@ public record MyPrincipal(
                 user.getRoles().stream()
                         .map(MyUserRole::getMyRole)
                         .map(MyRole::getName)
-                        .map(Enum::name)
                         .toList()
         );
     }

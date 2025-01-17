@@ -31,7 +31,7 @@ public class MyUserDetailsService implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException("User not found, username: " + username));
 
         Collection<SimpleGrantedAuthority> grantedAuthorities = myUser.getRoles().stream()
-                .map(myUserRole -> myUserRole.getMyRole().getName().name())
+                .map(myUserRole -> myUserRole.getMyRole().getName())
                 .map(SimpleGrantedAuthority::new)
                 .toList();
 

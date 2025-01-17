@@ -20,7 +20,7 @@ public class MyPersistenceUrlRoleMapper implements MyUrlRoleMapper {
 
         myResourceRepository.findAllWithRoles().forEach(
                 myResource -> myResource.getRoles().forEach(
-                        myRoleResource -> mappings.put(myResource.getName(), myRoleResource.getMyRole().getName().name())
+                        myRoleResource -> mappings.put(myResource.getName(), myRoleResource.getMyRole().getName())
                 )
         );
 

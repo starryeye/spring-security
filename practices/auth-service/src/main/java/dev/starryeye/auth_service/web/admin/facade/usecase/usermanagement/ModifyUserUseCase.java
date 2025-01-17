@@ -33,7 +33,7 @@ public class ModifyUserUseCase {
         MyUser user = userManagementQueryService.getUserWithRole(Long.parseLong(request.id()));
 
         List<MyRole> newRoles = roleQueryService.getAllRoles().stream()
-                .filter(role -> request.roles().contains(role.getName().name()))
+                .filter(role -> request.roles().contains(role.getName()))
                 .toList();
         List<MyUserRole> newUserRoles = MyUserRole.createUserRoles(user, newRoles);
 

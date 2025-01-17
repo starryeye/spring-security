@@ -13,7 +13,7 @@ public record RoleResponse(
 
         return new RoleResponse(
                 myRole.getId().toString(),
-                myRole.getName().name(),
+                myRole.getName(),
                 myRole.getDescription(),
                 myRole.getIsExpression().toString()
         );

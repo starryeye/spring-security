@@ -35,7 +35,7 @@ public class GetResourcesUseCase {
         MyResource myResource = resourceQueryService.getResourceWithRole(id);
 
         List<String> roleNamesOfResource = myResource.getRoles().stream()
-                .map(roleResource -> roleResource.getMyRole().getName().name())
+                .map(roleResource -> roleResource.getMyRole().getName())
                 .toList();
 
         return new ResourceDetailsResponse(

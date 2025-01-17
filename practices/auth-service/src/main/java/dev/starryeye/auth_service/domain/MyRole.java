@@ -24,8 +24,7 @@ public class MyRole extends BaseEntity {
     private Long id;
 
     @Column(unique = true, nullable = false)
-    @Enumerated(EnumType.STRING)
-    private MyRoleName name;
+    private String name;
 
     private String description;
 
@@ -38,7 +37,7 @@ public class MyRole extends BaseEntity {
     private Set<MyRoleResource> resources = new HashSet<>();
 
     @Builder
-    private MyRole(Long id, MyRoleName name, String description, Boolean isExpression, Set<MyUserRole> users, Set<MyRoleResource> resources) {
+    private MyRole(Long id, String name, String description, Boolean isExpression, Set<MyUserRole> users, Set<MyRoleResource> resources) {
         this.id = id;
         this.name = name;
         this.description = description;
@@ -47,7 +46,7 @@ public class MyRole extends BaseEntity {
         this.resources = resources;
     }
 
-    public static MyRole create(MyRoleName name, String description, Boolean isExpression) {
+    public static MyRole create(String name, String description, Boolean isExpression) {
         return MyRole.builder()
                 .id(null)
                 .name(name)

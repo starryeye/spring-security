@@ -19,7 +19,7 @@ public record UserResponse(
                 user.getAge(),
                 user.getPassword(),
                 user.getRoles().stream()
-                        .map(myUserRole -> myUserRole.getMyRole().getName().name())
+                        .map(myUserRole -> myUserRole.getMyRole().getName())
                         .toList()
         );
     }

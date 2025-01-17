@@ -96,9 +96,8 @@ public class MyUser extends BaseEntity {
                 !newRoles.stream()
                         .map(MyUserRole::getMyRole)
                         .map(MyRole::getName)
-                        .map(MyRoleName::getRoleName)
                         .toList()
-                        .contains(myUserRole.getMyRole().getName().name())
+                        .contains(myUserRole.getMyRole().getName())
         );
 
         // 2. 추가 대상 삽입
