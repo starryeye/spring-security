@@ -1,14 +1,11 @@
 package dev.starryeye.auth_service.web.base.service;
 
 import dev.starryeye.auth_service.domain.*;
-import dev.starryeye.auth_service.domain.type.MyRoleName;
 import dev.starryeye.auth_service.web.base.service.request.RegisterUserServiceRequest;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -33,8 +30,8 @@ public class UserService {
          *  3. cascade 를 이용해보자..
          */
 
-        MyRole role = myRoleRepository.findByName(MyRoleName.ROLE_USER)
-                .orElseThrow(() -> new RuntimeException("Role 존재하지 않음.. role : " + MyRoleName.ROLE_USER));
+        MyRole role = myRoleRepository.findByName("ROLE_USER")
+                .orElseThrow(() -> new RuntimeException("Role 존재하지 않음.. role : ROLE_USER"));
 
         MyUser user = MyUser.create(
                 request.getUsername(),

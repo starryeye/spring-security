@@ -3,7 +3,6 @@ package dev.starryeye.auth_service.security;
 import dev.starryeye.auth_service.domain.MyRole;
 import dev.starryeye.auth_service.domain.MyUser;
 import dev.starryeye.auth_service.domain.MyUserRole;
-import dev.starryeye.auth_service.domain.type.MyRoleName;
 
 import java.util.List;
 

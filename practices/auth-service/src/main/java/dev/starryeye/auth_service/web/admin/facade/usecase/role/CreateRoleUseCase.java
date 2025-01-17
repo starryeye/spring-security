@@ -1,7 +1,6 @@
 package dev.starryeye.auth_service.web.admin.facade.usecase.role;
 
 import dev.starryeye.auth_service.domain.MyRole;
-import dev.starryeye.auth_service.domain.type.MyRoleName;
 import dev.starryeye.auth_service.web.admin.facade.request.CreateRoleUseCaseRequest;
 import dev.starryeye.auth_service.web.admin.service.RoleService;
 import lombok.RequiredArgsConstructor;

@@ -2,7 +2,6 @@ package dev.starryeye.auth_service.web.admin.service;
 
 import dev.starryeye.auth_service.domain.MyRole;
 import dev.starryeye.auth_service.domain.MyRoleRepository;
-import dev.starryeye.auth_service.domain.type.MyRoleName;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -20,9 +19,9 @@ public class RoleQueryService {
                 .orElseGet(() -> MyRole.builder().build());
     }
 
-    public MyRole getRoleByName(MyRoleName name) {
+    public MyRole getRoleByName(String name) {
         return myRoleRepository.findByName(name)
-                .orElseThrow(() -> new RuntimeException("Role 존재하지 않음.. role : " + name.name()));
+                .orElseThrow(() -> new RuntimeException("Role 존재하지 않음.. role : " + name));
     }
 
     public List<MyRole> getAllRoles() {

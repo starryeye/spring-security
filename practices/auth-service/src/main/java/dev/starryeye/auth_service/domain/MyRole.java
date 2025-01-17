@@ -1,6 +1,5 @@
 package dev.starryeye.auth_service.domain;
 
-import dev.starryeye.auth_service.domain.type.MyRoleName;
 import dev.starryeye.auth_service.jpa.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
