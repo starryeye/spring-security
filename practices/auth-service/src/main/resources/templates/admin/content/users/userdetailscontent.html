@@ -1,5 +1,5 @@
 <div class="tbl_wrp">
-    <form class="form-horizontal form-custom" th:action="@{/admin/users}" method="post" th:object="${user}">
+    <form class="form-horizontal form-custom" th:action="@{/admin/users/update}" method="post" th:object="${user}">
         <input type="hidden" th:field="*{id}" />
 
         <div class="form-group">
@@ -35,7 +35,7 @@
 
         <div class="form-group">
             <div class="col-sm-offset-1 col-sm-10">
-                <button type="Submit" class="btn btn-dark btn-lg">등록</button>
+                <button type="Submit" class="btn btn-dark btn-lg">수정</button>
                 <a class="btn btn-dark btn-lg" th:href="@{/admin/users}">목록</a>
             </div>
         </div>

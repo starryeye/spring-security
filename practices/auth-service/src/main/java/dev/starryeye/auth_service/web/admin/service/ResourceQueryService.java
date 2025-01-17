@@ -18,7 +18,7 @@ public class ResourceQueryService {
     public MyResource getResourceWithRole(Long resourceId) {
 
         return myResourceRepository.findOneWithRolesById(resourceId)
-                .orElseGet(() -> MyResource.builder().build());
+                .orElseThrow(() -> new IllegalArgumentException("Resource not found with id " + resourceId));
     }
 
     public List<MyResource> getUrlResourcesDesc() {

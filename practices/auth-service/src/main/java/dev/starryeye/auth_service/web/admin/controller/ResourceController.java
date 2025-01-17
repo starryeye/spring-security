@@ -1,10 +1,8 @@
 package dev.starryeye.auth_service.web.admin.controller;
 
 import dev.starryeye.auth_service.web.admin.controller.request.CreateResourceRequest;
-import dev.starryeye.auth_service.web.admin.facade.usecase.resource.CreateResourceUseCase;
-import dev.starryeye.auth_service.web.admin.facade.usecase.resource.DeleteResourceUseCase;
-import dev.starryeye.auth_service.web.admin.facade.usecase.resource.GetResourcesUseCase;
-import dev.starryeye.auth_service.web.admin.facade.usecase.resource.PrepareResourceRegisterUseCase;
+import dev.starryeye.auth_service.web.admin.controller.request.UpdateResourceRequest;
+import dev.starryeye.auth_service.web.admin.facade.usecase.resource.*;
 import dev.starryeye.auth_service.web.admin.facade.response.ResourceDetailsResponse;
 import dev.starryeye.auth_service.web.admin.facade.response.ResourceResponse;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +21,7 @@ public class ResourceController {
     private final GetResourcesUseCase getResourcesUseCase;
     private final DeleteResourceUseCase deleteResourceUseCase;
     private final CreateResourceUseCase createResourceUseCase;
+    private final ModifyResourceUseCase modifyResourceUseCase;
 
     @GetMapping("/register")
     public String registerResource(Model model) {
@@ -61,6 +60,14 @@ public class ResourceController {
     public String createResource(@ModelAttribute CreateResourceRequest request) {
 
         createResourceUseCase.process(request.toUseCase());
+
+        return "redirect:/admin/resources";
+    }
+
+    @PostMapping("/update")
+    public String updateResource(@ModelAttribute UpdateResourceRequest request) {
+
+        modifyResourceUseCase.process(request.toUseCase());
 
         return "redirect:/admin/resources";
     }

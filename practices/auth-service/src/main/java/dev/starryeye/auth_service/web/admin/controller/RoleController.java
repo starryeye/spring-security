@@ -1,11 +1,9 @@
 package dev.starryeye.auth_service.web.admin.controller;
 
 import dev.starryeye.auth_service.web.admin.controller.request.CreateRoleRequest;
+import dev.starryeye.auth_service.web.admin.controller.request.UpdateRoleRequest;
 import dev.starryeye.auth_service.web.admin.facade.response.RoleResponse;
-import dev.starryeye.auth_service.web.admin.facade.usecase.role.CreateRoleUseCase;
-import dev.starryeye.auth_service.web.admin.facade.usecase.role.DeleteRoleUseCase;
-import dev.starryeye.auth_service.web.admin.facade.usecase.role.GetRolesUseCase;
-import dev.starryeye.auth_service.web.admin.facade.usecase.role.PrepareRoleRegisterUseCase;
+import dev.starryeye.auth_service.web.admin.facade.usecase.role.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -22,6 +20,7 @@ public class RoleController {
     private final GetRolesUseCase getRolesUseCase;
     private final DeleteRoleUseCase deleteRoleUseCase;
     private final CreateRoleUseCase createRoleUseCase;
+    private final ModifyRoleUseCase modifyRoleUseCase;
 
     @GetMapping("/register")
     public String registerRole(Model model) {
@@ -52,6 +51,14 @@ public class RoleController {
     public String createRole(@ModelAttribute CreateRoleRequest request) {
 
         createRoleUseCase.process(request.toUseCase());
+
+        return "redirect:/admin/roles";
+    }
+
+    @PostMapping("/update")
+    public String updateRole(@ModelAttribute UpdateRoleRequest request) {
+
+        modifyRoleUseCase.process(request.toUseCase());
 
         return "redirect:/admin/roles";
     }

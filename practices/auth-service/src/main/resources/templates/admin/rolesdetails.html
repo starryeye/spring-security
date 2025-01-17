@@ -79,7 +79,12 @@
             <div th:replace="~{admin/layout/sidebar::sidebar}"></div>
         </div>
         <div class="col-md-10 content">
-            <div th:insert="~{admin/content/roles/rolesdetailscontent}"></div>
+            <div th:if="*{not #strings.isEmpty(id)}">
+                <div th:insert="~{admin/content/resources/resourcesdetailscontent}"></div>
+            </div>
+            <div th:unless="*{not #strings.isEmpty(id)}">
+                <div th:insert="~{admin/register/resourceregister}"></div>
+            </div>
         </div>
     </div>
 </div>

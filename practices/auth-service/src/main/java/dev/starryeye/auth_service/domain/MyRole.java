@@ -55,4 +55,16 @@ public class MyRole extends BaseEntity {
                 .resources(new HashSet<>())
                 .build();
     }
+
+    public void changeName(String name) {
+        this.name = name;
+    }
+
+    public void changeDescription(String newDescription) {
+        this.description = newDescription;
+    }
+
+    public void changeIsExpression(boolean newIsExpression) {
+        this.isExpression = newIsExpression;
+    }
 }

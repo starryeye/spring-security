@@ -16,7 +16,7 @@ public class RoleQueryService {
 
     public MyRole getRole(Long id) {
         return myRoleRepository.findById(id)
-                .orElseGet(() -> MyRole.builder().build());
+                .orElseThrow(() -> new IllegalArgumentException("Role not found for id " + id));
     }
 
     public MyRole getRoleByName(String name) {

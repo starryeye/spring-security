@@ -1,6 +1,6 @@
 package dev.starryeye.auth_service.web.admin.controller.request;
 
-import dev.starryeye.auth_service.web.admin.facade.request.UpdateUserUseCaseRequest;
+import dev.starryeye.auth_service.web.admin.facade.request.ModifyUserUseCaseRequest;
 
 import java.util.List;
 
@@ -12,7 +12,7 @@ public record UpdateUserRequest(
         List<String> roles
 ) {
 
-    public UpdateUserUseCaseRequest toUseCase() {
-        return new UpdateUserUseCaseRequest(id, username, age, password, roles);
+    public ModifyUserUseCaseRequest toUseCase() {
+        return new ModifyUserUseCaseRequest(Long.parseLong(id), username, age, password, roles);
     }
 }

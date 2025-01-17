@@ -44,7 +44,7 @@ public class UserManagementController {
         return "/admin/userdetails";
     }
 
-    @PostMapping
+    @PostMapping("/update")
     public String updateUser(@ModelAttribute UpdateUserRequest request) {
 
         modifyUserUseCase.process(request.toUseCase());

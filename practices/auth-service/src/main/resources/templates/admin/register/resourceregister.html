@@ -1,6 +1,5 @@
 <div class="tbl_wrp">
-    <form class="form-horizontal form-custom" th:action="@{/admin/resources/update}" method="post" th:object="${resources}">
-        <input type="hidden" th:field="*{id}"/>
+    <form class="form-horizontal form-custom" th:action="@{/admin/resources}" method="post" th:object="${resources}">
 
         <div class="form-group">
             <label for="resourceName" class="col-sm-2 control-label">리소스명</label>
@@ -45,10 +44,8 @@
 
         <div class="form-group">
             <div class="col-sm-offset-1 col-sm-10">
-                <button type="Submit" class="btn btn-dark btn-lg">수정</button>
+                <button type="Submit" class="btn btn-dark btn-lg">등록</button>
                 <a class="btn btn-dark btn-lg" style="margin:10px;" th:href="@{/admin/resources}">목록</a>
-                <a class="btn btn-dark btn-lg" style="margin:10px;"
-                   th:href="@{'/admin/resources/delete/' + *{id}}">삭제</a>
             </div>
         </div>
     </form>
