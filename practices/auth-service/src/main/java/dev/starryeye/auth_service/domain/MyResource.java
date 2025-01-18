@@ -30,13 +30,13 @@ public class MyResource extends BaseEntity {
 
     private String httpMethod;
 
-    private String orderNumber;
+    private Integer orderNumber;
 
     @OneToMany(mappedBy = "myResource", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<MyRoleResource> roles;
 
     @Builder
-    private MyResource(Long id, String name, MyResourceType type, String httpMethod, String orderNumber, Set<MyRoleResource> roles) {
+    private MyResource(Long id, String name, MyResourceType type, String httpMethod, Integer orderNumber, Set<MyRoleResource> roles) {
         this.id = id;
         this.name = name;
         this.type = type;
@@ -45,7 +45,7 @@ public class MyResource extends BaseEntity {
         this.roles = roles;
     }
 
-    public static MyResource create(String name, MyResourceType type, String httpMethod, String orderNumber) {
+    public static MyResource create(String name, MyResourceType type, String httpMethod, Integer orderNumber) {
         return MyResource.builder()
                 .id(null)
                 .name(name)
@@ -54,5 +54,21 @@ public class MyResource extends BaseEntity {
                 .orderNumber(orderNumber)
                 .roles(new HashSet<>())
                 .build();
+    }
+
+    public void changeName(String newName) {
+        this.name = newName;
+    }
+
+    public void changeType(MyResourceType newType) {
+        this.type = newType;
+    }
+
+    public void changeHttpMethod(String newHttpMethod) {
+        this.httpMethod = newHttpMethod;
+    }
+
+    public void changeOrderNumber(Integer newOrderNumber) {
+        this.orderNumber = newOrderNumber;
     }
 }

@@ -4,7 +4,7 @@ public record CreateResourceUseCaseRequest(
         String resourceName,
         String resourceType,
         String httpMethod,
-        String orderNum,
+        Integer orderNum,
 
         String roleName
 ) {

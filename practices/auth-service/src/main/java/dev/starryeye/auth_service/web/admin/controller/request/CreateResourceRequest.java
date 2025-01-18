@@ -12,6 +12,6 @@ public record CreateResourceRequest(
 ) {
 
     public CreateResourceUseCaseRequest toUseCase() {
-        return new CreateResourceUseCaseRequest(resourceName, resourceType, httpMethod, orderNum, roleName);
+        return new CreateResourceUseCaseRequest(resourceName, resourceType, httpMethod, Integer.parseInt(orderNum), roleName);
     }
 }

@@ -16,7 +16,7 @@ public record ResourceResponse(
                 myResource.getName(),
                 myResource.getType().name(),
                 myResource.getHttpMethod(),
-                myResource.getOrderNumber()
+                myResource.getOrderNumber().toString()
         );
     }
 
