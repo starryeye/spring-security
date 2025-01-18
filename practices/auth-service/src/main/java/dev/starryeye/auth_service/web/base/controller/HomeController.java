@@ -25,4 +25,9 @@ public class HomeController {
     public String admin() {
         return "/default/admin";
     }
+
+    @GetMapping("/dba")
+    public String db() {
+        return "/default/dba";
+    }
 }
