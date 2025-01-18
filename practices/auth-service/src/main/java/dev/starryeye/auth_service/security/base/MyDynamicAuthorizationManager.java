@@ -27,16 +27,24 @@ public class MyDynamicAuthorizationManager implements AuthorizationManager<Reque
      *      RequestMatcherDelegatingAuthorizationManager 에 의해 호출되어 수행되는 AuthorizationManager 이다.
      *          SecurityConfig 에서 어떠한 요청이 오더라도 AuthorizationManager 를 하나(MyDynamicAuthorizationManager)만 쓰도록 하였음
      */
+    private final MyDynamicAuthorizationService authorizationService;
+    private final HandlerMappingIntrospector introspector;
 
     private final AuthorizationDecision defaultAuthorizationDecision;
 
     private final List<RequestMatcherEntry<AuthorizationManager<RequestAuthorizationContext>>> matcherEntries;
 
     public MyDynamicAuthorizationManager(HandlerMappingIntrospector introspector, MyDynamicAuthorizationService authorizationService) {
-        defaultAuthorizationDecision = authorizationService.getDefaultDecision();
 
+        this.defaultAuthorizationDecision = authorizationService.getDefaultDecision();
+        this.introspector = introspector;
+        this.authorizationService = authorizationService;
+        this.matcherEntries = loadMatcherEntries();
+    }
+
+    public List<RequestMatcherEntry<AuthorizationManager<RequestAuthorizationContext>>> loadMatcherEntries() {
         Map<String, String> urlRoleMappings = authorizationService.getUrlRoleMappings();
-        matcherEntries = urlRoleMappings.entrySet().stream()
+        return urlRoleMappings.entrySet().stream()
                 .map(entry ->
                         new RequestMatcherEntry<>(
                                 new MvcRequestMatcher(introspector, entry.getKey()), // resource path
