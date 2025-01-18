@@ -21,10 +21,10 @@ public class ResourceQueryService {
                 .orElseThrow(() -> new IllegalArgumentException("Resource not found with id " + resourceId));
     }
 
-    public List<MyResource> getUrlResourcesDesc() {
+    public List<MyResource> getUrlResourcesAsc() {
 
         MyResourceType type = MyResourceType.URL;
-        Sort sort = Sort.by(Sort.Direction.DESC, "orderNumber");
+        Sort sort = Sort.by(Sort.Direction.ASC, "orderNumber");
         return myResourceRepository.findAllByType(type, sort);
     }
 }

@@ -21,7 +21,7 @@ public class GetResourcesUseCase {
     private final RoleQueryService roleQueryService;
 
     public List<ResourceResponse> getResources() {
-        return resourceQueryService.getUrlResourcesDesc().stream()
+        return resourceQueryService.getUrlResourcesAsc().stream()
                 .map(ResourceResponse::from)
                 .toList();
     }

@@ -71,4 +71,9 @@ public class MyResource extends BaseEntity {
     public void changeOrderNumber(Integer newOrderNumber) {
         this.orderNumber = newOrderNumber;
     }
+
+    public void changeRoles(Set<MyRoleResource> newRoles) {
+        this.roles.clear();
+        this.roles.addAll(newRoles);
+    }
 }
