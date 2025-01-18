@@ -4,6 +4,7 @@ import dev.starryeye.auth_service.domain.MyResource;
 import dev.starryeye.auth_service.domain.MyRole;
 import dev.starryeye.auth_service.domain.MyRoleResource;
 import dev.starryeye.auth_service.domain.type.MyResourceType;
+import dev.starryeye.auth_service.security.base.MyDynamicAuthorizationManager;
 import dev.starryeye.auth_service.web.admin.facade.request.CreateResourceUseCaseRequest;
 import dev.starryeye.auth_service.web.admin.service.ResourceRoleService;
 import dev.starryeye.auth_service.web.admin.service.ResourceService;
@@ -20,6 +21,8 @@ public class CreateResourceUseCase {
     private final ResourceService resourceService;
     private final ResourceRoleService resourceRoleService;
     private final RoleQueryService roleQueryService;
+
+    private final MyDynamicAuthorizationManager authorizationManager;
 
     public void process(CreateResourceUseCaseRequest request) {
 
@@ -48,5 +51,7 @@ public class CreateResourceUseCase {
                         resource
                 )
         );
+
+        authorizationManager.refreshMatcherEntries(); //todo .. 따로 빼보기..
     }
 }

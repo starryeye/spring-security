@@ -15,6 +15,7 @@ import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 public class MyDynamicAuthorizationManager implements AuthorizationManager<RequestAuthorizationContext> {
 
@@ -43,6 +44,7 @@ public class MyDynamicAuthorizationManager implements AuthorizationManager<Reque
     }
 
     public synchronized void refreshMatcherEntries() {
+        //todo 실시간 반영 안되는거.. 버그 잡기..
         this.matcherEntries.clear();
         this.matcherEntries.addAll(initializeMatcherEntries());
     }
@@ -84,7 +86,7 @@ public class MyDynamicAuthorizationManager implements AuthorizationManager<Reque
                                 getAuthorizationManager(entry.getValue()) // 권한 검사기
                         )
                 )
-                .toList();
+                .collect(Collectors.toList()); // toList() 원소불변, collect(Collectors.toList()) 원소변경가능
     }
 
     private AuthorizationManager<RequestAuthorizationContext> getAuthorizationManager(String role) {

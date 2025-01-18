@@ -58,7 +58,7 @@ public class BaseSecurityConfig {
     }
 
     @Bean
-    public AuthorizationManager<RequestAuthorizationContext> myDynamicAuthorizationManager() {
+    public MyDynamicAuthorizationManager myDynamicAuthorizationManager() {
         return new MyDynamicAuthorizationManager(introspector, myDynamicAuthorizationService());
     }
 
