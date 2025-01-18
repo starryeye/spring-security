@@ -39,19 +39,12 @@ public class MyDynamicAuthorizationManager implements AuthorizationManager<Reque
         this.defaultAuthorizationDecision = authorizationService.getDefaultDecision();
         this.introspector = introspector;
         this.authorizationService = authorizationService;
-        this.matcherEntries = loadMatcherEntries();
+        this.matcherEntries = initializeMatcherEntries();
     }
 
-    public List<RequestMatcherEntry<AuthorizationManager<RequestAuthorizationContext>>> loadMatcherEntries() {
-        Map<String, String> urlRoleMappings = authorizationService.getUrlRoleMappings();
-        return urlRoleMappings.entrySet().stream()
-                .map(entry ->
-                        new RequestMatcherEntry<>(
-                                new MvcRequestMatcher(introspector, entry.getKey()), // resource path
-                                getAuthorizationManager(entry.getValue()) // 권한 검사기
-                        )
-                )
-                .toList();
+    public synchronized void refreshMatcherEntries() {
+        this.matcherEntries.clear();
+        this.matcherEntries.addAll(initializeMatcherEntries());
     }
 
     // deprecated..
@@ -77,10 +70,21 @@ public class MyDynamicAuthorizationManager implements AuthorizationManager<Reque
 
         return defaultAuthorizationDecision;
     }
-
     @Override
     public void verify(Supplier<Authentication> authentication, RequestAuthorizationContext object) {
         AuthorizationManager.super.verify(authentication, object);
+    }
+
+    private List<RequestMatcherEntry<AuthorizationManager<RequestAuthorizationContext>>> initializeMatcherEntries() {
+        Map<String, String> urlRoleMappings = authorizationService.getUrlRoleMappings();
+        return urlRoleMappings.entrySet().stream()
+                .map(entry ->
+                        new RequestMatcherEntry<>(
+                                new MvcRequestMatcher(introspector, entry.getKey()), // resource path
+                                getAuthorizationManager(entry.getValue()) // 권한 검사기
+                        )
+                )
+                .toList();
     }
 
     private AuthorizationManager<RequestAuthorizationContext> getAuthorizationManager(String role) {
