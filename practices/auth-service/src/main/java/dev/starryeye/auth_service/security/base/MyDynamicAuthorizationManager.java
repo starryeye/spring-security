@@ -44,7 +44,8 @@ public class MyDynamicAuthorizationManager implements AuthorizationManager<Reque
     }
 
     public synchronized void refreshMatcherEntries() {
-        //todo 실시간 반영 안되는거.. 버그 잡기..
+        // todo 실시간 반영..
+        //      resource 삭제는 실시간 반영되는데.. 생성은 실시간 반영안됨.. 뭐지..
         this.matcherEntries.clear();
         this.matcherEntries.addAll(initializeMatcherEntries());
     }

@@ -3,6 +3,7 @@ package dev.starryeye.auth_service.security.base;
 import dev.starryeye.auth_service.domain.MyResourceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -12,6 +13,7 @@ public class MyPersistenceUrlRoleMapper implements MyUrlRoleMapper {
 
     private final MyResourceRepository myResourceRepository;
 
+    @Transactional(readOnly = true)
     @Override
     public Map<String, String> getMappings() {
         /**
