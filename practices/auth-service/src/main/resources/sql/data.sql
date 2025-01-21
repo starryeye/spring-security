@@ -12,3 +12,10 @@ VALUES (
             NOW(),
             NOW()
        );
+
+INSERT INTO ROLE_HIERARCHY (name, parent_id, created_at, updated_at)
+VALUES ('ROLE_ADMIN', null, NOW(), NOW()),
+       ('ROLE_MANAGE', 1, NOW(), NOW()),
+       ('ROLE_DBA', 1, NOW(), NOW()),
+       ('ROLE_USER', 2, NOW(), NOW()),
+       ('ROLE_USER', 3, NOW(), NOW());

@@ -13,6 +13,7 @@ import java.util.Set;
 
 @Getter
 @Entity
+@Table(name = "role_hierarchy")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EntityListeners(AuditingEntityListener.class)
 public class MyRoleHierarchy extends BaseEntity {
