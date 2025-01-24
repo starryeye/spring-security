@@ -13,7 +13,7 @@
   - user, role, resource management
     - formLogin 기반 security 에 설정
     - home
-      - localhost:8080/admin/home
+      - localhost:8080/admin
      
 ## TODO
 - auth-service 에서 admin 분리
