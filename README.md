@@ -3,10 +3,10 @@
 - [spring security milestones](https://github.com/spring-projects/spring-security/milestones)
 - 
 
-## practice projects
+## 실전 베이스 projects
 - practices/auth-service
 
-## theory projects
+## 이론 베이스 projects
 - basic
   - default-security
     - spring security 라이브러리와 기본 설정
@@ -127,3 +127,7 @@
     - AuthorizationEvent, AuthorizationDeniedEvent, AuthorizationGrantedEvent
     - AuthorizationEventPublisher, SpringAuthorizationEventPublisher
     - custom AuthorizationEventPublisher 만들어보기
+
+## posting
+- [Spring security 소개](https://starryeye.tistory.com/235)
+- [Spring security 초기화 1](https://starryeye.tistory.com/236)
