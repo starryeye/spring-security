@@ -131,3 +131,4 @@
 ## posting
 - [Spring security 소개](https://starryeye.tistory.com/235)
 - [Spring security 초기화 1](https://starryeye.tistory.com/236)
+- [Spring security 초기화 2](https://starryeye.tistory.com/237)
