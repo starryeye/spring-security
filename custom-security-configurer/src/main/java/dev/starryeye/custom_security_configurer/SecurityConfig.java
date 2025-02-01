@@ -24,7 +24,7 @@ public class SecurityConfig {
                                 .anyRequest().authenticated()
                 )
                 .formLogin(Customizer.withDefaults())
-                .with(new MySecurityConfigurer(), customizer -> customizer.isSecure(false));
+                .with(new MySecurityConfigurer(), customizer -> customizer.isSecure(false)); // 커스텀 SecurityConfigurer 적용
 
         return http.build();
     }
