@@ -30,16 +30,15 @@ public class SecurityConfig {
          *          - 현재 인증 상태가 사용자(인증한 상태)이지만 권한 문제라면 AccessDeniedHandler 를 호출한다. (보통 403 리턴)
          *
          * exceptionHandling 설정은..
-         * ExceptionTranslationFilter 동작에 관련한 설정이다.
+         * ExceptionTranslationFilter 동작에 관련한 설정이다. (SecurityFilterChain 의 필터들 중 보통 가장 후 순위에 위치한다.)
          * authenticationEntryPoint 메서드로 AuthenticationEntryPoint 객체를 직접 등록하면..
          *      - 현재 spring security application 에서 적용 중인 인증 방법(인증 프로세스) 에서 제공하는 AuthenticationEntryPoint 를 무시하고 해당 커스텀 객체가 호출된다.
          *      - Spring Security 가 기본으로 제공하는 "/login" 페이지 자체가 생성 되지 않는다. (formLogin 설정과 상관 없이 생성 안됨)
          * accessDeniedHandler 메서드로 AccessDeniedHandler 객체를 직접 등록하면..
          *      - 현재 spring security application 에서 적용 중인 인증 방법(인증 프로세스) 에서 제공하는 AccessDeniedHandler 를 무시하고 해당 커스텀 객체가 호출된다.
          *
-         *
          * authenticationEntryPoint 를 설정하지 않으면..
-         *      인증 프로세스 마다 제공되는 클래스로 동작한다.
+         *      인증 프로세스(방법) 마다 제공되는 클래스로 동작한다. (요청 데이터와 매칭시켜 해당 방법에 맞는 객체로 수행됨)
          *          UsernamePasswordAuthenticationFilter -> LoginUrlAuthenticationEntryPoint
          *          BasicAuthenticationFilter -> BasicAuthenticationEntryPoint
          *          인증 프로세스 설정이 없으면 -> Http403ForbiddenEntryPoint
