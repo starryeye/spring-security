@@ -105,7 +105,7 @@
 
 - 인증/인가 공통 아키텍처
   - custom-authenticate-exception-handling
-    - 인증/인가 예외 처리, ExceptionTranslationFilter
+    - 인증/인가 예외 처리, ExceptionTranslationFilter, AuthenticationEntryPoint, AccessDeniedHandler
   - custom-security-matcher
     - securityMatchers, FilterChainProxy, SecurityFilterChain
   - custom-multiple-security-filter-chain
