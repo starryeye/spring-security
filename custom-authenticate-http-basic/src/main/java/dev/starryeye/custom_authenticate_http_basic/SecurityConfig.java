@@ -19,6 +19,12 @@ public class SecurityConfig {
          *
          * HttpBasicConfigurer 설정 클래스를 통해 설정가능하다.
          * Configurer 에 의해 생성되는 Filter 는 BasicAuthenticationFilter 이다.
+         *
+         * BasicAuthenticationFilter..
+         *      BasicAuthenticationConverter 를 통하여, 요청 데이터 헤더(Authorization) 에 Base64 로 username, password 를 인코딩 된 값을 추출한다.
+         *      인증이 성공하면 SecurityContext 에 Authentication(UsernamePasswordAuthenticationToken) 이 저장된다.
+         *      인증이 실패하면 BasicAuthenticationEntryPoint(기본값) 에 의해 절차 수행됨 (WWW-Authenticate 헤더 전송)
+         *      이전에 인증을 성공해서 세션 쿠키가 작동 중이라면, BasicAuthenticationFilter::authenticationIsRequired 에 의해 해당 필터는 스킵
          */
 
         http.authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
