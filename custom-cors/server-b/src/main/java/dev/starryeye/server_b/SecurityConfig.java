@@ -50,11 +50,11 @@ public class SecurityConfig {
 
         // http://localhost:8080 (스키마+호스트+포트) 가 모두 동일해야 동일 출처, 셋 중 하나라도 다르게 사용한다면 ...
         // -> 웹 브라우저는.. simple request 라면 해당 응답을 사용자에게 노출하지 않고, preflight request 라면 본 요청은 수행하지 않는다.
-        configuration.addAllowedOrigin("http://localhost:8080");
+        configuration.addAllowedOrigin("http://localhost:8080"); // server A 에 대해 허용
         configuration.addAllowedMethod("*");
         configuration.addAllowedHeader("*");
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(1L);
+        configuration.setAllowCredentials(true); // true 로 하면, addAllowedOrigin 에 와일드카드("*") 를 사용할 수 없음.
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration); // 모든 다른 출처 요청에 대해 CORS 를 적용하겠다.
