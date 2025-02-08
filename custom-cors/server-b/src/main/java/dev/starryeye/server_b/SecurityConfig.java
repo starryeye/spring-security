@@ -63,7 +63,7 @@ public class SecurityConfig {
         configuration.addAllowedMethod("*");
         configuration.addAllowedHeader("*");
         configuration.setAllowCredentials(true); // true 로 하면, addAllowedOrigin 에 와일드카드("*") 를 사용할 수 없음.
-        configuration.setMaxAge(3600L);
+        configuration.setMaxAge(3600L); // 웹브라우저가 preflight request 를 한번 성공되었다면 일정 시간동안 예비요청은 수행하지 않고 본 요청을 바로 수행한다.
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration); // 모든 다른 출처 요청에 대해 CORS 를 적용하겠다.
