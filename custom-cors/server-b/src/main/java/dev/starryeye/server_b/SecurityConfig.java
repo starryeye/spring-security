@@ -30,6 +30,15 @@ public class SecurityConfig {
          * Spring Security CorsFilter 는 Origin 이 없으면 그냥 Cors 필터에서 아무것도 안하고 그냥 다음 필터로 넘긴다.
          * 만약, Origin 헤더를 수동으로 설정하여 요청을 하면 CORS 가 정상 동작한다.
          * -> server-b/http/api.http 참고..
+         *
+         * 참고
+         * CORS 는 JavaScript 에 의한 요청만 해당한다고 한다.. Html 태그로 요청 하는 것은 해당사항 없다고 한다..
+         *
+         * 참고
+         * Simple Request 는 아래 3가지 조건을 지켜야 한다. 하나라도 지켜지지 않으면 Preflight Request 로 동작한다.
+         * 1. GET, POST, HEAD
+         * 2. Accept, Accept-Language, Content-Language, Content-Type, DPR, Downlink, Save-Data, Viewport-Width, Width 들만 사용되어야함.
+         * 3. Content-Type 은 application/x-www-form-urlencoded, multipart/form-data, text/plain 만 사용되어야함.
          */
 
         http.authorizeHttpRequests(auth ->
