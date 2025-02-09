@@ -1,0 +1,14 @@
+# docker-compose -p keycloak-latest up -d
+
+version: "3.8"
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    environment:
+      # 관리자로 로그인할 때 사용할 계정 정보 (필요에 따라 변경)
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: 1111
+    ports:
+      - "8090:8080"
+    command: start-dev
