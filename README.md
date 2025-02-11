@@ -3,10 +3,10 @@
 - [spring security milestones](https://github.com/spring-projects/spring-security/milestones)
 - 
 
-## 실전 베이스 projects
+## spring security 실전 베이스 projects
 - practices/auth-service
 
-## 이론 베이스 projects
+## spring security 이론 베이스 projects
 - basic
   - default-security
     - spring security 라이브러리와 기본 설정
@@ -133,3 +133,5 @@
 - [Spring security 초기화 1](https://starryeye.tistory.com/236)
 - [Spring security 초기화 2](https://starryeye.tistory.com/237)
 - [Spring security 초기화 3](https://starryeye.tistory.com/238)
+
+## OAuth 2.0 + spring security projects
