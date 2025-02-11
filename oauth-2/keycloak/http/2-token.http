@@ -1,0 +1,11 @@
+### token
+### client 가 auth 요청을 통해 발급받은 authorization code 로 authorization server 로 해당 요청(token)을 보내서 access token 을 발급받는다.
+### grant_type : 승인 타입 (access token 을 발급 받는 방법)
+### client_id : client id
+### client_secret : authorization server 가 client 에게 발급해준 시크릿 문자열 (사전에 client 를 authorization server 에 등록시 발급)
+### redirect_uri : client 콜백 uri
+### code : client 가 auth 요청을 통해 발급받은 authorization code
+POST http://localhost:8090/realms/custom-realm/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code&client_id=custom-client-app&client_secret=kAjcXgrLnfPZNRcqjdynH5uO0ACiqK6y&redirect_uri=http://localhost:8080&code=7feb1584-4d27-4290-aaa0-41d6d1e0091a.1a614e96-fb65-402e-8d2b-7fe66598330f.f530e442-10f0-45ad-894c-85c4493410df
