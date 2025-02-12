@@ -135,3 +135,9 @@
 - [Spring security 초기화 3](https://starryeye.tistory.com/238)
 
 ## OAuth 2.0 + spring security projects
+- Authorization code grant
+- Implicit grant
+- Resource owner password credentials grant
+- Client credentials grant
+- Refresh token grant
+- PKCE-enhanced authorization code grant
