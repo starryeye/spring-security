@@ -1,4 +1,4 @@
-### token
+### authorization code grant 방식 2단계 : token
 ###     client 가 auth 요청을 통해 발급받은 authorization code 로 authorization server 로 해당 요청(token)을 보내서 access token 을 발급받는다.
 ### grant_type : 승인 타입 (access token 을 발급 받는 방법)
 ### client_id : client id

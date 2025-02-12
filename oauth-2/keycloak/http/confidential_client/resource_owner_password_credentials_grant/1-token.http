@@ -1,0 +1,14 @@
+### resource owner password credentials grant 방식 (password grant) : token
+###     back channel 에서 이루어지므로 confidential client 방식이다.
+###     client 가 resource owner 의 아이디/비밀번호를 알아야 가능한 방법이다.
+###         client 와 authorization server 가 동일한 회사인 경우(고도 신뢰 관계)에만 가능
+### grant_type
+### username
+### password
+### client_id
+### client_secret
+### scope
+POST http://localhost:8090/realms/custom-realm/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&username=user&password=1111&client_id=custom-client-app&client_secret=kAjcXgrLnfPZNRcqjdynH5uO0ACiqK6y&scope=profile email openid

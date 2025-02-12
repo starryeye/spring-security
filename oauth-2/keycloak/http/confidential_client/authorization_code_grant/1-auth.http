@@ -1,4 +1,4 @@
-### auth
+### authorization code grant 방식 1단계 : authorize
 ###     client 가 resource server 에서 resource owner(사용자)의 자원에 접근하기 위해 authorization server 에 접근 권한을 받는 요청이다.
 ###     1. client 는 authorization server 에게 해당 요청(auth)을 보낸다.
 ###     2. authorization server 는 resource owner 의 승인이 있어야 하므로 로그인 창을 응답한다.

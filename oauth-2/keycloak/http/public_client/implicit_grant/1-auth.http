@@ -1,4 +1,4 @@
-### auth
+### implicit grant 방식 : authorize
 ###     client 가 resource server 에서 resource owner(사용자)의 자원에 접근하기 위해 authorization server 에 접근 권한을 받는 요청이다.
 ###     confidential_client 방식과 다르게 authorization code 과정 없이 사용자 인증 과정이후 바로 access token 이 발급되는 방식이다.
 ###     -> public client : 외부로 노출되는 front channel 에서 authorization server 와 상호작용을 하는 방식으로 보안 수준이 낮다.
