@@ -1,0 +1,15 @@
+### client credentials grant 방식 : token
+###     back channel 에서 이루어지므로 confidential client 방식이다.
+###     resource owner 가 없고 client 가 resource owner 라고 볼 수 있는 경우이다.
+###         서버 대 서버, 임베디드 장비가 client 인 경우 통신을 위한 인증으로 사용된다.
+###     client id, client secret 으로 access token 을 발급 받는다. (refresh token X)
+### grant_type
+### client_id
+### client_secret
+### scope
+### 참고
+###     발급 받은 access token 으로 userinfo 를 호출하면 사용자 정보는 없고 sub, email_verified, preferred_username 정도 응답된다.
+POST http://localhost:8090/realms/custom-realm/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials&client_id=custom-client-app&client_secret=kAjcXgrLnfPZNRcqjdynH5uO0ACiqK6y&scope=profile email openid
