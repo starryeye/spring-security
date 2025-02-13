@@ -1,0 +1,18 @@
+### PKCE-enhanced authorization code grant 방식 1단계 : authorize
+### PKCE(Proof Key for Code Exchange, RFC-6749)
+###     authorization code grant 와 기본적으로 동일하나, 파라미터가 몇개 더 추가되었다.
+###     authorization code 가 탈취 되거나 CSRF 공격을 방어할 목적으로 만들어졌다.
+###     1단계에서 code_challenge(원본문자열을 해싱 및 인코딩한 값), code_challenge_method(해싱 알고리즘) 을 요청데이터에 담아서 authorization server 에 요청한다.
+###     2단계에서는 code_verifier(원본문자열) 을 요청데이터에 담아서 authorization server 로 요청하고
+###         authorization server 는 2단계에서 받은 code_verifier 에 1단계에서 받은 code_challenge_method 를 수행하여 1단계에서 받은 code_challenge 와 일치하는지 검사한다.
+### response_type
+### client_id
+### scope
+### redirect_url
+### code_challenge
+### code_challenge_method
+### 참고
+###     웹 브라우저에서 수행
+###     응답받은 authorization code 는 1회용이다. 한번 사용되면 폐기됨
+###     S256 으로 해싱및 인코딩 https://tonyxu-io.github.io/pkce-generator
+GET http://localhost:8090/realms/custom-realm/protocol/openid-connect/auth?response_type=code&client_id=custom-client-app&scope=profile email openid&redirect_uri=http://localhost:8080&code_challenge=t8x3Ro9DrxCsLoiHZ-Myd0oIYQPir0z889kONTcviGU&code_challenge_method=S256

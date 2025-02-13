@@ -1,0 +1,16 @@
+### PKCE-enhanced authorization code grant 방식 2단계 : token
+###     client 가 auth 요청을 통해 발급받은 authorization code 로 authorization server 로 해당 요청(token)을 보내서 access token 을 발급받는다.
+###     authorization code grant 와 기본적으로 동일하나, 파라미터가 더 추가되었다.
+### grant_type
+### client_id
+### client_secret
+### redirect_uri
+### code
+### code_verifier
+### 참고
+###     code verifier 검증에 실패하면, "error": "invalid_grant", "error_description": "PKCE verification failed: Invalid code verifier" 에러가 발생
+###         다시 정확한 code verifier 를 입력해주면 authorization code 는 일회성이므로 invalid_grant 에러 발생
+POST http://localhost:8090/realms/custom-realm/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code&client_id=custom-client-app&client_secret=kAjcXgrLnfPZNRcqjdynH5uO0ACiqK6y&redirect_uri=http://localhost:8080&code=e9270593-6f4d-4c43-a8bb-0b6e057c2223.f3698abc-3eaf-43dd-aa63-be032cde7019.f530e442-10f0-45ad-894c-85c4493410df&code_verifier=bqWDPIgdxBz1khqPvqGjnw4SBH_HwTTqRy2dLmq6OCU
