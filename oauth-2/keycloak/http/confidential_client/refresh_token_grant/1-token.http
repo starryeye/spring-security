@@ -1,0 +1,11 @@
+### refresh token grant 방식 : token
+###     back channel 에서 이루어지므로 confidential client 방식이다.
+###     access token 이 만료되었을 경우에 access token 과 함께 발급 받은 refresh token 으로 새로운 access token 을 발급 받는 방법이다.
+### grant_type
+### refresh_token
+### client_id
+### client_secret
+POST http://localhost:8090/realms/custom-realm/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=refresh_token&client_id=custom-client-app&client_secret=kAjcXgrLnfPZNRcqjdynH5uO0ACiqK6y&refresh_token=eyJhbGciOiJIUzUxMiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJhM2I4YTI4ZC04ODFhLTRmMjctOTZmNi0wNzZiNDEwZDRkOTkifQ.eyJleHAiOjE3Mzk0NDk0MzgsImlhdCI6MTczOTQ0NzYzOCwianRpIjoiNGE0MzhkMGEtMGJiNy00NDlkLWI4NzctYmJiODQwODIyNjQ3IiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDkwL3JlYWxtcy9jdXN0b20tcmVhbG0iLCJhdWQiOiJodHRwOi8vbG9jYWxob3N0OjgwOTAvcmVhbG1zL2N1c3RvbS1yZWFsbSIsInN1YiI6IjMwZTgwOTI2LTU1NDYtNDg5OC04MmJiLWRjZjNkZGM1MjlhZCIsInR5cCI6IlJlZnJlc2giLCJhenAiOiJjdXN0b20tY2xpZW50LWFwcCIsInNpZCI6ImVhYjM3Njc5LTczZWUtNDhjYS04N2U4LTQ1OTE4ZDFlOTNhZSIsInNjb3BlIjoib3BlbmlkIGVtYWlsIGFjciBwcm9maWxlIHJvbGVzIHdlYi1vcmlnaW5zIHNlcnZpY2VfYWNjb3VudCBiYXNpYyJ9.W445LkpLyd9oZEaDJwbGPJ6Wi4OuSYhDpEKqQY5GfkyCnZm9SZA0I4PZ0pFRu5UeHt4rmwJXiWIP2vHmiY0PEQ
