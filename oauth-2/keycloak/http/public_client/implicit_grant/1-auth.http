@@ -12,6 +12,6 @@
 ###     response_type 에..
 ###         token 을 넣으면 access token 발급 (api 호출 인가용)
 ###         code 를 넣으면 authorization code 발급
-###         id_token 을 넣으면 id token 발급 (사용자 인증용, 사용자 정보(userinfo))
+###         id_token 을 넣으면 id token 발급 (사용자 인증용, 사용자 정보(userinfo)), id_token 으로 요청할땐.. nonce 쿼리파라미터가 필수이다.
 ###         3가지 중 원하는 것들을 여러개 한번에 요청해도 여러개가 동시에 발급된다.
 GET http://localhost:8090/realms/custom-realm/protocol/openid-connect/auth?response_type=token&client_id=custom-client-app&scope=profile email openid&redirect_uri=http://localhost:8080
