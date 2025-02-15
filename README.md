@@ -134,7 +134,7 @@
 - [Spring security 초기화 2](https://starryeye.tistory.com/237)
 - [Spring security 초기화 3](https://starryeye.tistory.com/238)
 
-## OAuth 2.0 + spring security projects
+## OAuth 2.0 + OIDC + spring security projects
 - Authorization code grant
 - Implicit grant
 - Resource owner password credentials grant
