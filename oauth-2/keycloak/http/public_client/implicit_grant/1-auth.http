@@ -7,5 +7,11 @@
 ### client_id : client id
 ### scope : client 가 resource server 에 접근하여 사용할 정보의 범위
 ### redirect_url : authorization server 가 발급한 authorized code 를 client 에게 넘겨주기 위한 콜백 주소 (Authorized redirect URIs)
-### 웹 브라우저에서 수행
+### 참고
+###     웹 브라우저에서 수행
+###     response_type 에..
+###         token 을 넣으면 access token 발급 (api 호출 인가용)
+###         code 를 넣으면 authorization code 발급
+###         id_token 을 넣으면 id token 발급 (사용자 인증용, 사용자 정보(userinfo))
+###         3가지 중 원하는 것들을 여러개 한번에 요청해도 여러개가 동시에 발급된다.
 GET http://localhost:8090/realms/custom-realm/protocol/openid-connect/auth?response_type=token&client_id=custom-client-app&scope=profile email openid&redirect_uri=http://localhost:8080
