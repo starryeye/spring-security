@@ -1,1 +1,27 @@
-spring.application.name=hello-oauth2-client
+server:
+  port: 8080
+
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            authorization-grant-type: authorization_code
+            client-id: custom-client-app
+            client-name: custom-client-app
+            client-secret: kAjcXgrLnfPZNRcqjdynH5uO0ACiqK6y
+            redirect-uri: http://localhost:8080/login/oauth2/code/keycloak
+            client-authentication-method: client_secret_basic
+            scope:
+              - openid
+              - email
+              - profile
+        provider:
+          keycloak:
+            authorization-uri: http://localhost:8090/realms/custom-realm/protocol/openid-connect/auth
+            issuer-uri: http://localhost:8090/realms/custom-realm
+            jwk-set-uri: http://localhost:8090/realms/custom-realm/protocol/openid-connect/certs
+            token-uri: http://localhost:8090/realms/custom-realm/protocol/openid-connect/token
+            user-info-uri: http://localhost:8090/realms/custom-realm/protocol/openid-connect/userinfo
+            user-name-attribute: preferred_username
