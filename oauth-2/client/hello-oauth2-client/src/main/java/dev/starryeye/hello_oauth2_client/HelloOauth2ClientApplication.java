@@ -23,6 +23,9 @@ public class HelloOauth2ClientApplication {
 	 * application.yml 에 작성한 설정 값들(client 설정, authorization server 정보)은 OAuth2ClientProperties 의 속성으로 바인딩된다.
 	 * OAuth2ClientProperties 의 registration, provider 속성들은 ClientRegistration 클래스에 Map 으로 적재된다.
 	 * ClientRegistration 의 값은 OAuth2Client(OAuth2AuthorizedClient) 가 authorization server 와 통신할 때 사용된다.
+	 *
+	 * 참고
+	 * OAuth2ClientRegistrationRepositoryConfiguration::clientRegistrationRepository
 	 */
 
 	public static void main(String[] args) {
