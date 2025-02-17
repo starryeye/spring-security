@@ -17,7 +17,7 @@ public class OAuth2ClientConfig {
      *      ClientRegistration 의 저장소 역할을 한다.
      *      직접 개발자가 빈 등록하지 않으면 auto configuration 으로 빈 등록된다.
      *      ClientRegistrationRepository::findByRegistrationId api 를 이용하여
-     *          런타임 시점에 ClientRegistration 을 얻어 필요한 정보를 얻을 수 있다.
+     *          런타임 시점에 ClientRegistration 을 얻어 필요한 정보를 얻을 수 있다. (HelloController 참조)
      */
 
     @Bean
