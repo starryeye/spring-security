@@ -26,10 +26,13 @@ public class OAuth2ClientConfig {
      *      OAuth2LoginAuthenticationFilter(아래 설명) 가 생성된다.
      *          access token 발급 관련 필터
      * OAuth2LoginConfigurer::configurer 과정에서..
-     *      OAuth2AuthorizationRequestRedirectFilter 가 생성된다.
+     *      OAuth2AuthorizationRequestRedirectFilter(아래 설명) 가 생성된다.
      *          authorization code 발급 관련 필터
      *
-     *
+     * OAuth2AuthorizationRequestRedirectFilter 는..
+     *      /oauth2/authorization 로 요청오면 처리하는 필터이다.
+     *      authorization code grant 방식에서 authorization code 를 발급받는 단계에서 사용된다.
+     *      ClientRegistrationRepository 를 가진다. (인가서버 요청에 필요한 정보 담김)
      *
      *
      * OAuth2LoginAuthenticationFilter 는..
