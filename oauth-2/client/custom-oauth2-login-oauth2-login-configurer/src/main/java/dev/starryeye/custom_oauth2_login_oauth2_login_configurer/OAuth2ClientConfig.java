@@ -34,14 +34,17 @@ public class OAuth2ClientConfig {
      *
      * OAuth2LoginAuthenticationFilter 는..
      *      /login/oauth2/code/{registration id} 로 요청오면 처리하는 필터이다.
+     *          위 요청은 authorization server 에서 code 발급하고 resource owner 를 거쳐 client 로 redirect 하는 요청 path 이다.
      *      authorization code grant 방식에서 authorization code 로 access token 을 발급받는 단계에서 사용된다.
      *      OAuth2LoginAuthenticationProvider(아래 설명) 에 authorization server 와 통신하는 역할을 위임한다.
-     *      clientRegistrationRepository 를 가진다. (인가서버 요청에 필요한 정보 담김)
-     *      authorizedClientRepository 를 가진다. (인가서버에 요청한 응답 결과가 담김)
-     *      authorizationRequestRepository 를 가진다. (인가서버 요청에 사용할 매개변수 담김)
+     *      ClientRegistrationRepository 를 가진다. (인가서버 요청에 필요한 정보 담김)
+     *      OAuth2AuthorizedClientRepository 를 가진다. (인가서버에 요청한 응답 결과가 담김)
+     *      AuthorizationRequestRepository<OAuth2AuthorizationRequest> 를 가진다. (인가서버 요청에 사용할 매개변수 담김)
+     *      OidcAuthorizationCodeAuthenticationProvider 를 가진다. (OpenID Connect, ID token 을 가지고 인증 처리를 하고자 할때 사용됨)
      *
      * OAuth2LoginAuthenticationProvider 는..
      *      authorization server 와 통신하는 역할을 담당한다.
+     *      access token 을 이용한 userinfo 요청으로 인증 처리를 하고자 할때 사용된다.
      *      userService 를 가진다. (access token 으로 userinfo 요청 담당)
      */
 
