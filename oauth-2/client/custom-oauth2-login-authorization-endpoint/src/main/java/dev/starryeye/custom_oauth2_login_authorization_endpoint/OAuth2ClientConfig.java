@@ -18,7 +18,6 @@ public class OAuth2ClientConfig {
                 )
                 .oauth2Login(oAuth2LoginConfigurer ->
                         oAuth2LoginConfigurer
-                                .loginPage("/login") // 기본값
                                 .authorizationEndpoint(authorizationEndpointConfigurer ->
                                         authorizationEndpointConfigurer
                                                 .baseUri("/oauth2/authorize") // 기본값은 "/oauth2/authorization" 이다.
