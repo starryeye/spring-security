@@ -16,15 +16,17 @@ public class OAuth2ClientConfig {
          * 현재 설정에 따르면 모든 요청에 대해 인증이 필요하다고 설정이 되어있다.
          * -> 인증은 oauth2Login 에 의해 OAuth 2.0 으로 인증이 이루어진다.
          * 1. 어떤 path 로 요청을 하면 인증이 필요하다.
-         * 2. 인증을 위해서 기본 client 로그인 페이지(아래 설명)로 redirect 된다.
-         *      todo, 실제로는 바로 /oauth2/authorization/{registration id} 요청을 한 효과가 나타난다.
+         * 2. 인증을 위해서 기본 client 로그인 페이지(아래 설명)로 redirect.. 되어야 할 것 같지만..
+         *      실제로는 바로 /oauth2/authorization/{registration id} 요청을 한 효과가 나타난다.
+         *          이유 : 접근 권한이 없는 경우, LoginUrlAuthenticationEntryPoint(기본) 에 설정된 Url 로 이동된다. ("/oauth2/authorization/{registration id}")
          *
          * oauth2Login 의 기본 설정에 따르면,
          * DefaultLoginPageGeneratingFilter 에 의해 기본 client 로그인 페이지가 생성된다. ("/login")
          * 1. 해당 로그인 페이지에 접속하면..
          * 2. registration 설정의 client-name 문자열(현재 예제에서 My keycloak)의 링크가 보인다.
          * 3. 해당 링크를 누르면, /oauth2/authorization/{registration id} 로 client 에게 요청된다.
-         * 4. 해당 요청이 들어오면, 요청을 처리하는 필터가 authorization server(현재 예제에서 keycloak) 로 인가 요청(현재 예제에서 authorization code grant)을 시작한다.
+         * 4. 해당 요청이 들어오면, 요청을 처리하는 필터(OAuth2AuthorizationRequestRedirectFilter)가
+         *      authorization server(현재 예제에서 keycloak) 로 인가 요청(현재 예제에서 authorization code grant)을 시작한다.
          * 5. authorization server 는 사용자에게 승인을 획득하기 위해 authorization server 의 로그인 페이지를 보여준다.
          *
          * 참고.
