@@ -30,8 +30,9 @@ public class OAuth2ClientConfig {
      *          authorization code 발급 관련 필터
      *
      * OAuth2AuthorizationRequestRedirectFilter 는..
-     *      /oauth2/authorization 로 요청오면 처리하는 필터이다.
-     *      authorization code grant 방식에서 authorization code 를 발급받는 단계에서 사용된다.
+     *      /oauth2/authorization/{registration id} 로 요청오면 처리하는 필터이다.
+     *      authorization code grant 방식에서 authorization code 를 authorization server 로 요청하고 발급 받는 필터이다.
+     *      authorization server 로 요청 시, redirect url 을 /login/oauth2/code/{registration id} 로 설정한다.
      *      ClientRegistrationRepository 를 가진다. (인가서버 요청에 필요한 정보 담김)
      *
      *
