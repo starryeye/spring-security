@@ -18,7 +18,7 @@ public class OAuth2ClientConfig {
          * 1. 어떤 path 로 요청을 하면 인증이 필요하다.
          * 2. 인증을 위해서 기본 client 로그인 페이지(아래 설명)로 redirect.. 되어야 할 것 같지만..
          *      실제로는 바로 /oauth2/authorization/{registration id} 요청을 한 효과가 나타난다.
-         *          이유 : 접근 권한이 없는 경우, LoginUrlAuthenticationEntryPoint(기본) 에 설정된 Url 로 이동된다. ("/oauth2/authorization/{registration id}")
+         *          이유 : 접근 권한이 없는 경우, LoginUrlAuthenticationEntryPoint(기본) 에 설정된 Url 로 redirect 응답을 보낸다. ("/oauth2/authorization/{registration id}")
          *
          * oauth2Login 의 기본 설정에 따르면,
          * DefaultLoginPageGeneratingFilter 에 의해 기본 client 로그인 페이지가 생성된다. ("/login")
