@@ -6,19 +6,19 @@ spring:
     oauth2:
       client:
         registration:
-          keycloak:
+          my-keycloak:
             client-id: custom-client-app
             client-secret: kAjcXgrLnfPZNRcqjdynH5uO0ACiqK6y
 #            client-name: custom-client-app
 #            authorization-grant-type: authorization_code
 #            client-authentication-method: client_secret_basic
             scope: openid,email,profile
-            redirect-uri: http://localhost:8080/login/oauth2/code/keycloak
+            redirect-uri: http://localhost:8080/login/oauth2/code/my-keycloak
           google:
             client-id: random
             client-secret: random
         provider:
-          keycloak:
+          my-keycloak:
             issuer-uri: http://localhost:8090/realms/custom-realm
 #            authorization-uri: http://localhost:8090/realms/custom-realm/protocol/openid-connect/auth
 #            jwk-set-uri: http://localhost:8090/realms/custom-realm/protocol/openid-connect/certs
