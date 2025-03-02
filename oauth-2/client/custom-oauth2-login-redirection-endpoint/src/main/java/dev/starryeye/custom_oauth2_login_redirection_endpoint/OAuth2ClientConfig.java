@@ -20,8 +20,8 @@ public class OAuth2ClientConfig {
      *          authorization server 가 state 값을 다시 그대로 redirect 해주는데 OAuth2LoginAuthenticationFilter(하위 설명) 에서 값이 동일한지 검증한다.(csrf)
      *      access token 을 얻으면 해당 토큰으로 OAuth2LoginAuthenticationToken 객체를 만든다.
      *      OAuth2LoginAuthenticationToken 을 AuthenticationManager 로 전달하며 최종 인증처리를 AuthenticationManager 에게 위임한다.
-     *      OAuth2AuthorizedClientRepository 를 사용하여 OAuth2AuthorizedClient 를 저장한다.
-     *      최종 인증 객체인 OAuth2AuthenticationToken 을 생성하게 되고 SecurityContext 에 저장한다.
+     *      OAuth2AuthorizedClientRepository 를 사용하여 OAuth2AuthorizedClient(access token, refresh token, ClientRegistration 등을 포함함) 를 저장한다.
+     *      최종 인증 객체인 OAuth2AuthenticationToken 을 생성하고 SecurityContext 에 저장한다.
      *
      * OAuth2LoginAuthenticationFilter 의 주요 클래스
      *      OAuth2LoginAuthenticationProvider.. (OAuth2LoginAuthenticationFilter 에서 AuthenticationManager 에 의해 호출되는듯..)
@@ -43,7 +43,7 @@ public class OAuth2ClientConfig {
      *
      * 참고
      * access token 을 전달해주는 authorization server 의 응답 데이터에 scope 가 포함되어있는데
-     * 해당 값이 권한 객체로 매핑된다.
+     * 해당 값이 권한(SCOPE_address, SCOPE_email 등)으로 매핑된다.
      */
 
     @Bean
