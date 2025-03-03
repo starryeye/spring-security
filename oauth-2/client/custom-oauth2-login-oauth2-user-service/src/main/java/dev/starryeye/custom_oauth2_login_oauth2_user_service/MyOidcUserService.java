@@ -26,10 +26,13 @@ public class MyOidcUserService extends OidcUserService {
      *          2. OpenID Connect 1.0 -> OidcAuthorizationCodeAuthenticationProvider 로 위임
      *
      * OAuth2LoginAuthenticationProvider 는..
-     *      code 로 token 교환을 위해, OAuth2AuthorizationCodeAuthenticationProvider 를 이용한다.
-     *      token 으로 userinfo 요청하여 사용자 인증 처리를 위해, DefaultOAuth2UserService 를 이용한다.
+     *      code 로 access token 교환을 위해, OAuth2AuthorizationCodeAuthenticationProvider 를 이용한다.
+     *      access token 으로 userinfo 요청하여 사용자 인증 처리를 위해, DefaultOAuth2UserService 를 이용한다.
      * OidcAuthorizationCodeAuthenticationProvider 는..
-     *      
+     *      code 로 access token 및 id token 교환을 위해, OAuth2AccessTokenResponseClient 를 이용한다.
+     *      id token 을 검증을 함으로써 인증 처리를 위해 OidcUserService 를 이용한다.
+     *          todo, OidcUserService 내부에서 DefaultOAuth2UserService 의존성을 가지고 userinfo 요청을 해버리는데.. 왜하는거지..
+     *
      */
 
     @Override
