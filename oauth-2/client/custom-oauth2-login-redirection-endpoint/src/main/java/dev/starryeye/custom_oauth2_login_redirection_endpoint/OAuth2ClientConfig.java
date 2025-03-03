@@ -23,24 +23,19 @@ public class OAuth2ClientConfig {
      *      OAuth2AuthorizedClientRepository 를 사용하여 OAuth2AuthorizedClient(access token, refresh token, ClientRegistration 등을 포함함) 를 저장한다.
      *      최종 인증 객체인 OAuth2AuthenticationToken 을 생성하고 SecurityContext 에 저장한다.
      *
-     * OAuth2LoginAuthenticationFilter 의 주요 클래스
-     *      OAuth2LoginAuthenticationProvider.. (OAuth2LoginAuthenticationFilter 에서 AuthenticationManager 에 의해 호출되는듯..)
-     *          authorization code 를 access token 으로 교환하는 처리와 최종 인증 처리를 담당한다..
-     *              scope 에 "openid" 값이 포함되어 있으면, OidcAuthorizationCodeAuthenticationProvider(하위 설명) 를 이용하고
-     *              아니면, OAuth2AuthorizationCodeAuthenticationProvider(하위 설명) 를 이용한다.
-     *
-     * OAuth2AuthorizationCodeAuthenticationProvider..
-     *      access token 을 얻는다.
-     *      DefaultOAuth2UserService 에게 인증 처리를 위임한다.
-     *          DefaultOAuth2UserService 는 access token 으로 userinfo 를 얻어서 인증 처리를 한다.
-     *          DefaultOAuth2UserService 는 DefaultOAuth2User(사용자 정보 객체)를 만들어 낸다.
-     *      authorization server 와의 실제 통신은 DefaultAuthorizationCodeTokenResponseClient 를 이용한다.
-     * OidcAuthorizationCodeAuthenticationProvider..
-     *      OpenID Connect 프로토콜을 사용한다. id token 으로 인증처리를 한다.
-     *      OidcUserService 에게 인증 처리를 위임한다.
-     *          OidcUserService 는 DefaultOidcUser(사용자 정보 객체)를 만들어 낸다.
-     *      authorization server 와의 실제 통신이 필요하다면..
-     *          OidcUserService 는 DefaultOAuth2UserService 를 의존하고 있기 때문에 DefaultAuthorizationCodeTokenResponseClient 를 이용한다.
+     * OAuth2LoginAuthenticationFilter 는 AuthenticationManager(ProviderManager) 로 아래 둘 중 하나로 code 교환 및 인증처리를 위임
+     *      1. OAuth2LoginAuthenticationProvider 는..
+     *          OAuth2AuthorizationCodeAuthenticationProvider 를 이용하여 authorization code 로 access token 을 얻는다.
+     *              OAuth2AuthorizationCodeAuthenticationProvider 는 OAuth2AccessTokenResponseClient 이용하여 실제 통신한다.
+     *          DefaultOAuth2UserService 를 이용하여, access token 로 userinfo 를 호출하여 사용자정보로 인증 처리한다.
+     *              DefaultOAuth2UserService 는 내부 RestTemplate 으로 실제 통신한다.
+     *              DefaultOAuth2UserService 는 DefaultOAuth2User(사용자 정보 객체)를 만들어 낸다.
+     *      2. OidcAuthorizationCodeAuthenticationProvider 는..
+     *          scope 에 "openid" 값이 포함되어 있으면, 사용하게 된다. OpenID Connect 1.0 기술을 이용하여 인증 처리한다.
+     *          OAuth2AccessTokenResponseClient 를 이용하여 authorization code 로 access token 및 id token 을 얻는다.
+     *          OidcUserService 를 이용하여 id token 을 검증하고 인증 처리한다.
+     *              OidcUserService 는 DefaultOidcUser(사용자 정보 객체)를 만들어 낸다.
+     *              OidcUserService 는 authorization server 와의 실제 통신이 필요하다면 의존하고 있는 DefaultOAuth2UserService 를 이용한다.
      *
      * 참고
      * access token 을 전달해주는 authorization server 의 응답 데이터에 scope 가 포함되어있는데
