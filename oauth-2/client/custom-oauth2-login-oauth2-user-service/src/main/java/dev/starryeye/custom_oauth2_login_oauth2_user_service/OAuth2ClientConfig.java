@@ -1,7 +1,8 @@
-package dev.starryeye.custom_oauth2_login_redirection_endpoint;
+package dev.starryeye.custom_oauth2_login_oauth2_user_service;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -29,18 +30,17 @@ public class OAuth2ClientConfig {
      *              scope 에 "openid" 값이 포함되어 있으면, OidcAuthorizationCodeAuthenticationProvider(하위 설명) 를 이용하고
      *              아니면, OAuth2AuthorizationCodeAuthenticationProvider(하위 설명) 를 이용한다.
      *
+     * OidcAuthorizationCodeAuthenticationProvider..
+     *      OpenID Connect 프로토콜을 사용한다. id token 으로 인증처리를 한다.
+     *      OidcUserService 에게 인증 처리를 위임한다.
+     *          OidcUserService 는 DefaultOidcUser(사용자 정보 객체)를 만들어 낸다.
+     *      authorization server 와의 실제 통신은 DefaultAuthorizationCodeTokenResponseClient 를 이용한다.
      * OAuth2AuthorizationCodeAuthenticationProvider..
      *      access token 을 얻는다.
      *      DefaultOAuth2UserService 에게 인증 처리를 위임한다.
      *          DefaultOAuth2UserService 는 access token 으로 userinfo 를 얻어서 인증 처리를 한다.
      *          DefaultOAuth2UserService 는 DefaultOAuth2User(사용자 정보 객체)를 만들어 낸다.
      *      authorization server 와의 실제 통신은 DefaultAuthorizationCodeTokenResponseClient 를 이용한다.
-     * OidcAuthorizationCodeAuthenticationProvider..
-     *      OpenID Connect 프로토콜을 사용한다. id token 으로 인증처리를 한다.
-     *      OidcUserService 에게 인증 처리를 위임한다.
-     *          OidcUserService 는 DefaultOidcUser(사용자 정보 객체)를 만들어 낸다.
-     *      authorization server 와의 실제 통신이 필요하다면..
-     *          OidcUserService 는 DefaultOAuth2UserService 를 의존하고 있기 때문에 DefaultAuthorizationCodeTokenResponseClient 를 이용한다.
      *
      * 참고
      * access token 을 전달해주는 authorization server 의 응답 데이터에 scope 가 포함되어있는데
@@ -55,13 +55,7 @@ public class OAuth2ClientConfig {
                         authorizationManagerRequestMatcherRegistry
                                 .anyRequest().authenticated()
                 )
-                .oauth2Login(oAuth2LoginConfigurer ->
-                        oAuth2LoginConfigurer
-                                .redirectionEndpoint(redirectionEndpointConfig ->
-                                        redirectionEndpointConfig
-                                                .baseUri("/login/oauth2/code/custom/*") // 기본 값은 "/login/oauth2/code/*" 이다.
-                                )
-                );
+                .oauth2Login(Customizer.withDefaults());
 
         return http.build();
     }

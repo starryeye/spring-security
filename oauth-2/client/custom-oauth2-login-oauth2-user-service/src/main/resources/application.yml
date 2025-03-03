@@ -1,0 +1,17 @@
+server:
+  port: 8080
+
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          my-keycloak:
+            client-id: custom-client-app
+            client-secret: kAjcXgrLnfPZNRcqjdynH5uO0ACiqK6y
+            client-name: My keycloak
+            scope: openid,email,profile
+            redirect-uri: http://localhost:8080/login/oauth2/code/my-keycloak
+        provider:
+          my-keycloak:
+            issuer-uri: http://localhost:8090/realms/custom-realm
