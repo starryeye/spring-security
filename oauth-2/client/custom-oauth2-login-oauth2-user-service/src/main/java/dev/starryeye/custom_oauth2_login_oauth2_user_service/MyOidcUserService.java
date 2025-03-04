@@ -30,11 +30,9 @@ public class MyOidcUserService extends OidcUserService {
      *      access token 으로 userinfo 요청하여 사용자 인증 처리를 위해, DefaultOAuth2UserService 를 이용한다.
      * OidcAuthorizationCodeAuthenticationProvider 는..
      *      code 로 access token 및 id token 교환을 위해, OAuth2AccessTokenResponseClient 를 이용한다.
-     *      id token 을 검증을 함으로써 인증 처리를 한다. 이를 위해 OidcUserService 를 이용한다.
+     *      id token 을 검증을 함으로써 인증 처리를 한다. 이를 위해 OidcUserService 를 이용한다. (실제 인증은 OidcAuthorizationCodeAuthenticationProvider 에서 이루어지며, JWT 를 검증함으로써 인증 처리된다.)
      *          참고.. OidcUserService 내부에서 DefaultOAuth2UserService 의존성을 가지고 있다.
      *              OidcUserService::shouldRetrieveUserInfo 결과값에 의해 userinfo 요청을 한다. (userinfo 요청을 해서 채워야할 데이터가 있는지 조건 체크인듯..)
-     *
-     *
      *
      */
 
