@@ -36,6 +36,34 @@ public class MyOidcUserService extends OidcUserService {
      *
      */
 
+    /**
+     * OAuth2UserService 인터페이스
+     *      access token 을 사용하여 userinfo 요청으로 사용자의 정보를 얻는다.
+     *      OAuth2User 타입의 객체를 리턴한다.
+     *      구현체
+     *          DefaultOAuth2UserService
+     *              표준 OAuth 2.0 Provider 인 OAuth2LoginAuthenticationProvider 에 의해 사용된다.
+     *          OidcUserService
+     *              OpenID Connect 1.0 Provider 인 OidcAuthorizationCodeAuthenticationProvider 에 의해 사용된다.
+     *
+     * OAuth2User 인터페이스
+     *      표준 OAuth 2.0 Provider 에 연결된 사용자 정보이다.
+     *      인증 처리 이후 Authentication (인증 객체) 의 principal 속성에 저장된다.
+     *      구현체
+     *          DefaultOAuth2User
+     *              DefaultOAuth2UserService 가 리턴하는 사용자 정보 객체
+     *              사용자 인증에 대한 정보는 attributes 속성이다.
+     *      상속
+     *          OidcUser 인터페이스
+     *              OpenID Connect 1.0 Provider 에 연결된 사용자 정보이다.
+     *              구현체
+     *                  DefaultOidcUser (OidcUser 인터페이스를 구현함과 동시에 DefaultOAuth2User 를 상속했다.)
+     *                      OidcUserService 가 리턴하는 사용자 정보 객체
+     *                      사용자 인증에 대한 정보는 getClaims() 로 얻을 수 있다. (attributes 속성 리턴)
+     *
+     * todo, id token 을 public key 로 검증하는지.. 확인해볼것..
+     */
+
     @Override
     public OidcUser loadUser(OidcUserRequest userRequest) throws OAuth2AuthenticationException {
         return super.loadUser(userRequest);
