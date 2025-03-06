@@ -15,3 +15,4 @@ spring:
         provider:
           my-keycloak:
             issuer-uri: http://localhost:8090/realms/custom-realm
+            user-name-attribute: preferred_username
