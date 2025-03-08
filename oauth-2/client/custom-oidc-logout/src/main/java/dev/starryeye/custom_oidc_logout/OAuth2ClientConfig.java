@@ -21,25 +21,18 @@ public class OAuth2ClientConfig {
      * OAuth 2.0 client 에서 인증 후, 로그아웃을 할 때는..
      * 2가지 작업이 필요하다.
      *      1. Client 에서 사용자의 웹 브라우저에 대한 세션과 쿠키를 지운다.
-     *      2. OpenID Provider (Authorization server) 에 세션 로그아웃 요청을 한다.
+     *      2. Client 는 OpenID Provider (Authorization server) 에 세션 로그아웃 요청을 한다.
+     *          provider 는 로그아웃 처리를 하면 client 의 로그인 페이지로 사용자의 웹브라우저를 redirect 시킨다.
+     *
+     * oidcLogout() api 는..
+     *      back channel logout 방식을 지원할 수 있도록 만들어졌다.
+     *          provider 에서 client 로 로그아웃 하겠다고 요청.
+     * logout() api 는..
+     *      logoutSuccessHandler 에 OidcClientInitiatedLogoutSuccessHandler 를 설정하면..
+     *      front channel logout 방식을 지원한다.
+     *          맨 위 "OAuth 2.0 client 에서 인증 후, 로그아웃을 할 때는.." 의 상황이다.
+     *
      */
-
-    // oidcLogout api 를 사용하는 방법
-//    @Bean
-//    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-//
-//        http
-//                .authorizeHttpRequests(authorizationManagerRequestMatcherRegistry ->
-//                        authorizationManagerRequestMatcherRegistry
-//                                .anyRequest().authenticated()
-//                )
-//                .oauth2Login(Customizer.withDefaults())
-//                .logout(AbstractHttpConfigurer::disable)
-//                .oidcLogout(Customizer.withDefaults())
-//                ;
-//
-//        return http.build();
-//    }
 
     // logout api 를 사용하는 방법
     @Bean
@@ -68,6 +61,11 @@ public class OAuth2ClientConfig {
                                         .clearAuthentication(true) // 로그아웃 시, 인증 객체 삭제 처리
                                         .deleteCookies("JSESSIONID") // 로그아웃 시, 쿠키 삭제 처리
                 )
+//                .oidcLogout( // todo provider 에서 로그아웃을 해도 client 로그아웃이 안됨.. 더 찾아 볼 것.
+//                        httpSecurityOidcLogoutConfigurer ->
+//                                httpSecurityOidcLogoutConfigurer
+//                                        .backChannel(Customizer.withDefaults())
+//                )
         ;
 
         return http.build();
