@@ -61,7 +61,7 @@ public class OAuth2ClientConfig {
                                         .clearAuthentication(true) // 로그아웃 시, 인증 객체 삭제 처리
                                         .deleteCookies("JSESSIONID") // 로그아웃 시, 쿠키 삭제 처리
                 )
-//                .oidcLogout( // todo provider 에서 로그아웃을 해도 client 로그아웃이 안됨.. 더 찾아 볼 것.
+//                .oidcLogout( // todo, provider 에서 로그아웃을 해도 client 로그아웃이 안됨.. provider 에 셋팅을 해줘야 할 것 같음.. 더 찾아 볼 것.
 //                        httpSecurityOidcLogoutConfigurer ->
 //                                httpSecurityOidcLogoutConfigurer
 //                                        .backChannel(Customizer.withDefaults())
