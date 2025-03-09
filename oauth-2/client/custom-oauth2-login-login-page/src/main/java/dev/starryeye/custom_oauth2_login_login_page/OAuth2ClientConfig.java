@@ -48,7 +48,7 @@ public class OAuth2ClientConfig {
         /**
          * 아래와 같이 loginPage api 를 이용하면..
          * 기본적으로 DefaultLoginPageGeneratingFilter 가 생성해주는 로그인 페이지가 아니라
-         * 개발자가 직접 커스텀한 페이지가 보여진다.
+         * 개발자가 직접 커스텀한 페이지가 보여진다. (LoginController, resources > templates > login.html)
          *
          */
 //        http
