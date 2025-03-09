@@ -50,9 +50,6 @@ public class OAuth2ClientConfig {
          * 기본적으로 DefaultLoginPageGeneratingFilter 가 생성해주는 로그인 페이지가 아니라
          * 개발자가 직접 커스텀한 페이지가 보여진다.
          *
-         * 참고
-         *      "/login" 이 loginPage 의 기본값인데, 기본값을 그대로 해서 loginPage("/login") 으로 하면..
-         *      무수히 많은 redirect 가 일어난다.. 권한 permitAll 로 해도 마찬가지.. todo 이유는?
          */
 //        http
 //                .authorizeHttpRequests(authorizationManagerRequestMatcherRegistry ->
