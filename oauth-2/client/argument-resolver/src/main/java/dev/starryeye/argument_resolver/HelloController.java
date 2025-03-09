@@ -6,12 +6,9 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
-import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.security.Principal;
 
 @Slf4j
 @RestController
@@ -21,6 +18,14 @@ public class HelloController {
     public String hello() {
         return "Hello OAuth 2.0 Client!";
     }
+
+    /**
+     * oauth2Login api 를 사용하여 client 에서 사용자 인증을 진행하면..
+     *      Authentication..
+     *          OAuth2AuthenticationToken 타입이다.
+     *          principal..
+     *              OAuth2User 타입의 상속인 DefaultOidcUser 타입이다. (OIDC)
+     */
 
     @GetMapping("/authentication")
     public Authentication authentication(Authentication authentication) {
