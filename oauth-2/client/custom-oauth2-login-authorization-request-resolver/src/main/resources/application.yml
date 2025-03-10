@@ -6,12 +6,22 @@ spring:
     oauth2:
       client:
         registration:
-          my-keycloak:
-            client-id: custom-client-app
-            client-secret: kAjcXgrLnfPZNRcqjdynH5uO0ACiqK6y
-            client-name: My keycloak
-            scope: openid,email,profile
-            redirect-uri: http://localhost:8080/login/oauth2/code/my-keycloak
+          keycloak-authorization-code:
+            client-id: custom-client-app-authorization-code
+            client-secret: rCnsYXcDCnCFMygtBQVWpuHT4tWMDNcH
+            client-name: keycloak authorization code grant
+            scope: openid,profile
+            redirect-uri: http://localhost:8080/login/oauth2/code/keycloak-authorization-code
+            provider: my-keycloak
+          keycloak-authorization-code-with-pkce:
+            client-id: custom-client-app-pkce
+            client-secret: F9nljSGuaDrbVGKdBVbfzLcGDKngdLHs
+            client-name: keycloak authorization code grant with PKCE
+            authorization-grant-type: authorization_code # default
+            scope: openid,profile
+            client-authentication-method: none
+            redirect-uri: http://localhost:8080/login/oauth2/code/keycloak-authorization-code-with-pkce
+            provider: my-keycloak
         provider:
           my-keycloak:
             issuer-uri: http://localhost:8090/realms/custom-realm
