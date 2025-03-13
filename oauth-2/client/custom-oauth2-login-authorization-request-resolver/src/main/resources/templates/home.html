@@ -14,8 +14,8 @@
             window.location.href = 'http://localhost:8080/oauth2/authorization/keycloak-authorization-code-with-pkce';
         }
 
-        function implicit(){
-            window.location.href = 'http://localhost:8080/oauth2/authorization/keycloak-implicit';
+        function authorizationCodeWithPKCEWithClientAuthentication(){
+            window.location.href = 'http://localhost:8080/oauth2/authorization/keycloak-authorization-code-with-pkce-with-client-authentication';
         }
     </script>
 </head>
@@ -30,7 +30,7 @@
 <div sec:authorize="isAnonymous()">
     <p><input type="button" onclick="authorizationCode()" value="Authorization Code Grant" /></p>
     <p><input type="button" onclick="authorizationCodeWithPKCE()" value="Authorization Code Grant with PKCE" /></p>
-    <p><input type="button" onclick="implicit()" value="Implicit Grant" /></p>
+    <p><input type="button" onclick="authorizationCodeWithPKCEWithClientAuthentication()" value="Authorization Code Grant with PKCE with Client Authentication" /></p>
 </div>
 </body>
 

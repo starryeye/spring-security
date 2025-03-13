@@ -15,12 +15,19 @@ spring:
             provider: my-keycloak
           keycloak-authorization-code-with-pkce:
             client-id: custom-client-app-pkce
-            client-secret: F9nljSGuaDrbVGKdBVbfzLcGDKngdLHs
             client-name: keycloak authorization code grant with PKCE
+            scope: openid,profile
+            client-authentication-method: none
+            redirect-uri: http://localhost:8080/login/oauth2/code/keycloak-authorization-code-with-pkce
+            provider: my-keycloak
+          keycloak-authorization-code-with-pkce-with-client-authentication:
+            client-id: custom-client-app-pkce-with-client-authentication
+            client-secret: zmlBtMLUPsm9Mx5J64FJSEUJzhtYgcHg
+            client-name: keycloak authorization code grant with PKCE and Client Authentication
             authorization-grant-type: authorization_code # default : authorization_code
             scope: openid,profile
             client-authentication-method: client_secret_basic # default : client_secret_basic
-            redirect-uri: http://localhost:8080/login/oauth2/code/keycloak-authorization-code-with-pkce
+            redirect-uri: http://localhost:8080/login/oauth2/code/keycloak-authorization-code-with-pkce-with-client-authentication
             provider: my-keycloak
         provider:
           my-keycloak:

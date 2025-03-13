@@ -19,6 +19,7 @@ public class OAuth2ClientConfig {
     /**
      * Authorization code grant with PKCE 를 Client 에 적용시키고 싶은데..
      *      authorization code 로 access token, id token 을 얻는 요청(2 단계 요청) 에서 client_secret 데이터를 함께 넣어줘야할때는..?
+     *          keycloak 의 client 설정에서 Client authentication 을 ON 해줘야 client_secret 검증을 수행한다.
      *
      * OAuth2AuthorizationRequestResolver 를 자세히 알아야한다. (구현체 : DefaultOAuth2AuthorizationRequestResolver)
      *      Authorization code 를 authorization server 에 요청(1 단계 요청) 하기 위한 OAuth2AuthorizationRequest 를 생성한다.
@@ -34,8 +35,16 @@ public class OAuth2ClientConfig {
      *              그래서, MyOAuth2AuthorizationRequestResolver 로 해결해보겠다.
      *                  "client-authentication-method: none" 이 아니라, "client-authentication-method: client_secret_basic" 으로 기본적인 authorization code grant 방식과 동일하게 셋팅하고..
      *                      registration id 를 바탕으로 분기하여 OAuth2AuthorizationRequest 를 생성하도록 한다.
-     *                          pkce 용 registration id 로 요청이 오면 pkce 용 OAuth2AuthorizationRequest 를 생성하도록한다.
+     *                          keycloak-authorization-code-with-pkce-with-client-authentication(registration id) 로 요청이 오면 pkce 용 OAuth2AuthorizationRequest 를 생성하도록한다.
      *                      "client-authentication-method: client_secret_basic" 로 설정하였기 때문에 2 단계 요청에서 client_secret 을 요청데이터에 넣는다.
+     *
+     * 단순히 Authorization code grant with PKCE 를 Client 에 적용시키고 싶을때는.. (2 단계 요청 에서 client_secret 검증 수행하지 않음)
+     *      application.yml 에서 "client-authentication-method: none" 설정하고
+     *      application.yml 에서 "client-secret" 설정을 하지 않고
+     *      keycloak 의 client 설정에서 Client authentication 을 OFF 하고
+     *      keycloak client 설정에서 advanced > Proof Key for Code Exchange Code Challenge Method 를 S256 으로 설정
+     *      해주면.. OAuth2AuthorizationRequestResolver 커스텀 설정 필요없이 기본 설정으로도 PKCE 가 충분히 동작한다.
+     *          -> keycloak-authorization-code-with-pkce (registration id)
      *
      */
 
