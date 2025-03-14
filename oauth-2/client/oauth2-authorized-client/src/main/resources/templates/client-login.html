@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head>
+    <meta charset="UTF-8">
+    <title>OAuth2 사용자 정보</title>
+</head>
+
+<body>
+<div>
+    <h2>Welcome</h2>
+
+    <div sec:authorize="isAuthenticated()">
+        <a th:href="@{/logout}">Logout</a>
+    </div>
+
+    <div sec:authorize="isAuthenticated()">
+        <p>Access Token: <span th:text="${accessToken}">accessToken</span></p>
+        <p>Refresh Token: <span th:text="${refreshToken}">refreshToken</span></p>
+        <p>Principal Name: <span th:text="${principalName}">principalName</span></p>
+        <p>Client Name: <span th:text="${clientName}">clientName</span></p>
+    </div>
+</div>
+</body>
+
+</html>

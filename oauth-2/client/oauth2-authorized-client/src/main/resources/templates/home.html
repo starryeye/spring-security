@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Authorize</title>
+    <script>
+        function authorizationCode() {
+            window.location.href = '/oauth2/authorization/my-keycloak';
+        }
+    </script>
+</head>
+
+<body>
+<div>
+    <h2>아래 버튼을 누르면 사용자는 Client 에게 사용자의 리소스에 접근할 수 있는 권한을 부여한다.</h2>
+
+    <div sec:authorize="isAuthenticated()">
+        <p>현재 로그인된 사용자: <span sec:authentication="name"></span></p>
+        <a th:href="@{/logout}">로그아웃</a>
+    </div>
+
+    <div sec:authorize="isAnonymous()">
+        <p><input type="button" onclick="authorizationCode()" value="Authorization Code Grant 방식으로 Client 에게 권한 부여"/></p>
+    </div>
+
+</body>
+</html>

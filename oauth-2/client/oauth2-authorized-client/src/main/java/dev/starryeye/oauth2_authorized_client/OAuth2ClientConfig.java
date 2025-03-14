@@ -15,6 +15,7 @@ public class OAuth2ClientConfig {
         http
                 .authorizeHttpRequests(authorizationManagerRequestMatcherRegistry ->
                         authorizationManagerRequestMatcherRegistry
+                                .requestMatchers("/", "/client-login").permitAll()
                                 .anyRequest().authenticated()
                 )
                 .oauth2Client(Customizer.withDefaults())
