@@ -45,12 +45,16 @@ public class ClientLoginController {
      *          2단게 필터인 OAuth2LoginAuthenticationFilter 에서 OAuth2AuthorizedClientRepository 에 OAuth2AuthorizedClient 를 저장함
      *      oauth2Client() 를 설정하면..
      *          2단계 필터인 OAuth2AuthorizationCodeGrantFilter 에서 OAuth2AuthorizedClientRepository 에 OAuth2AuthorizedClient 를 저장함
+     *
+     * 참고.
+     * 현재 사용자가 client 에게 anonymous 라면..
+     *      OAuth2AuthorizedClientService 로 부터 OAuth2AuthorizedClient 를 참조하면 null 이 리턴된다.
      */
 
     /**
-     * oauth2Client() api 를 통해 사용자가 client 에게 리소스 접근 권한을 부여하도록하고
-     * /login controller 를 통해..
-     *      인가된 client 가 access token 으로 resource server (여기서는 keycloak userinfo 이용) 에 접근해서
+     * oauth2Client() api 를 통해 사용자가 client server 에게 사용자의 리소스 접근 권한을 부여하도록하고
+     * /client-login controller 를 통해..
+     *      인가된 client server 가 access token 으로 resource server (여기서는 keycloak userinfo 이용) 에 접근해서
      *      사용자 정보를 획득하고 인증 처리해본다.
      *      즉, 로직 자체는 oauth2Client() api 에서 제공하지 않는 인증처리를 해당 "/login" controller 에서 처리해보는 연습이다.
      *          oauth2Login() api 의 OAuth2LoginAuthenticationFilter 로직을 참고함..

@@ -14,7 +14,8 @@
 
 <body>
 <div>
-    <h2>아래 버튼을 누르면 사용자는 Client 에게 사용자의 리소스에 접근할 수 있는 권한을 부여한다.</h2>
+    <h2>아래 버튼을 누르면 사용자는 Client Server 에게 사용자의 리소스에 접근할 수 있는 권한을 부여한다.</h2>
+    <h2>그리고, 얻어낸 권한으로 사용자 정보를 조회해서 Client Server 에 사용자를 인증 시킨다.</h2>
 
     <div sec:authorize="isAuthenticated()">
         <p>현재 로그인된 사용자: <span sec:authentication="name"></span></p>
@@ -22,7 +23,7 @@
     </div>
 
     <div sec:authorize="isAnonymous()">
-        <p><input type="button" onclick="authorizationCode()" value="Authorization Code Grant 방식으로 Client 에게 권한 부여"/></p>
+        <p><input type="button" onclick="authorizationCode()" value="Authorization Code Grant 방식으로 Client 에게 권한 부여 후 인증"/></p>
     </div>
 
 </body>
