@@ -35,10 +35,9 @@ public class OAuth2ClientConfig {
      *      OAuth2AuthorizationCodeGrantFilter 생성
      *          authorization server 가 redirect 로 응답(authorization code) 주는 path 를 처리하는 filter 이다. (2단계)
      *          발급된 authorization code 로 access token 을 authorization server 로 요청하는 처리를 담당한다.
-     *              주의, 사용자의 인증처리는 하지 않는다.
-     *          oauth2Login() api 에서는 OAuth2LoginAuthenticationFilter 가 해당 처리를 담당한다.
-     *              사용자의 인증처리까지 담당해준다.
      *          OAuth2AuthorizedClientRepository 를 사용하여 OAuth2AuthorizedClient (access token 과 principalName, clientRegistration 등이 적재) 를 저장한다.
+     *          oauth2Login() api 에서는 OAuth2LoginAuthenticationFilter 가 해당 처리를 담당한다.
+     *              위 작업에 더하여 사용자의 인증처리까지 담당해준다.
      */
 
     @Bean
