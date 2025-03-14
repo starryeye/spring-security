@@ -38,6 +38,16 @@ public class OAuth2ClientConfig {
      *          OAuth2AuthorizedClientRepository 를 사용하여 OAuth2AuthorizedClient (access token 과 principalName, clientRegistration 등이 적재) 를 저장한다.
      *          oauth2Login() api 에서는 OAuth2LoginAuthenticationFilter 가 해당 처리를 담당한다.
      *              위 작업에 더하여 사용자의 인증처리까지 담당해준다.
+     *
+     * 참고.
+     * OAuth2AuthorizationRequestRedirectFilter (1단계) 에서 authorization server 로 요청 시..
+     *      redirect url 을 application.yml 의 redirect-uri 값(A)을 넣는다. (keycloak, Valid redirect URIs 설정 필요)
+     * OAuth2AuthorizationCodeGrantFilter (2단계) 에서는..
+     *      1 단계에서 redirect url 로 보낸 그 url(A) 로 요청이 오면 2단계를 처리해준다.
+     *          OAuth2LoginAuthenticationFilter 에서는 기본적으로 "/oauth2/authorization/{registration id}" 로 설정되어있었지만.. 해당 필터는 다름..
+     *      2단계 처리가 끝나면 access token 이 발급 되고..
+     *      OAuth2AuthorizationCodeGrantFilter 는.. 다시 redirect 시키는데.. 그 url 도 A 이다..
+     *          그래서.. A url 에 access token 으로 resource server 로 리소스 접근을 하는 로직을 개발할듯..
      */
 
     @Bean
@@ -46,6 +56,7 @@ public class OAuth2ClientConfig {
         http
                 .authorizeHttpRequests(authorizationManagerRequestMatcherRegistry ->
                         authorizationManagerRequestMatcherRegistry
+                                .requestMatchers("/hello", "/authorize").permitAll()
                                 .anyRequest().authenticated()
                 )
 //                .oauth2Login(Customizer.withDefaults())
