@@ -14,9 +14,12 @@ public class OAuth2ClientConfig {
      *
      * 참고.
      * oauth2Login()
-     *      사용자의 인가처리 뿐만아니라 인증 처리까지 해주는 기능의 API 이다.
+     *      client 인가 뿐만아니라 사용자 인증 처리까지 해주는 기능의 API 이다.
      * oauth2Client()
-     *      사용자의 인가까지만 처리해주는 기능의 API 이다.
+     *      client 인가까지만 처리해주는 기능의 API 이다.
+     *
+     * 참고
+     *      "사용자가 authorization server 를 통해 client 에게 리소스 접근 권한을 부여" == "인가 받은 client" (client 인가)
      *
      * OAuth2ClientConfigurer..
      *      init, configurer 과정을 통해 AuthorizationCodeGrantConfigurer 의 init, configurer 과정을 진행시킨다.
@@ -35,6 +38,7 @@ public class OAuth2ClientConfig {
      *              주의, 사용자의 인증처리는 하지 않는다.
      *          oauth2Login() api 에서는 OAuth2LoginAuthenticationFilter 가 해당 처리를 담당한다.
      *              사용자의 인증처리까지 담당해준다.
+     *          OAuth2AuthorizedClientRepository 를 사용하여 OAuth2AuthorizedClient (access token 과 principalName, clientRegistration 등이 적재) 를 저장한다.
      */
 
     @Bean
