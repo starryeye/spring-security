@@ -1,9 +1,7 @@
 package dev.starryeye.oauth2_authorized_client_manager.client.interceptor;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRequest;
-import org.springframework.http.client.ClientHttpRequest;
 import org.springframework.http.client.ClientHttpRequestExecution;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.ClientHttpResponse;
@@ -16,7 +14,7 @@ import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
-public class OAuth2ClientCredentialsRequestInterceptor implements ClientHttpRequestInterceptor {
+public class OAuth2AuthorizationCodeGrantRequestInterceptor implements ClientHttpRequestInterceptor {
 
     private final OAuth2AuthorizedClientManager oAuth2AuthorizedClientManager;
 
