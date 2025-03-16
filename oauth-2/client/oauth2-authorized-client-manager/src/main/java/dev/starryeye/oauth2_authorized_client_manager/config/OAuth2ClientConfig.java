@@ -3,8 +3,8 @@ package dev.starryeye.oauth2_authorized_client_manager.config;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProvider;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProviderBuilder;
@@ -17,16 +17,23 @@ import org.springframework.security.web.SecurityFilterChain;
 @RequiredArgsConstructor
 public class OAuth2ClientConfig {
 
+    /**
+     * 서버(해당서버, client server) - 서버(타 서버, resource server) 간의 Client credential grant 가 필요로 할 때의 예시..
+     *      타 서버에 요청 시, access token 을 넘겨줘야하고.. 타 서버는 넘겨받은 access token 을 검증한다.
+     *
+     * 해당 client server 로 요청이 들어온 경우에 대해서 access token 검증은 수행하지 않는다고 가정한다.
+     */
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         http
                 .authorizeHttpRequests(authorizationManagerRequestMatcherRegistry ->
                         authorizationManagerRequestMatcherRegistry
-                                .requestMatchers("/").permitAll()
-                                .anyRequest().authenticated()
+                                .anyRequest().permitAll()
                 )
-                .oauth2Client(Customizer.withDefaults())
+                .csrf(AbstractHttpConfigurer::disable) // api 서버 이므로 disable
+//                .oauth2Client(Customizer.withDefaults()) // 필요 없음, OAuth2AuthorizedClientManager 로 oauth2 토큰관련 작업을 모두 수행함
                 ;
 
         return http.build();
@@ -72,8 +79,8 @@ public class OAuth2ClientConfig {
     ) {
 
         OAuth2AuthorizedClientProvider authorizedClientProvider = OAuth2AuthorizedClientProviderBuilder.builder()
-                .authorizationCode()
-                .refreshToken()
+//                .authorizationCode()
+//                .refreshToken() // client credentials grant 방식에서는 refresh token 이 발급되지 않아 필요없음.
                 .clientCredentials()
                 .build();
 

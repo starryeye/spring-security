@@ -7,10 +7,10 @@ spring:
       client:
         registration:
           my-keycloak:
-            client-id: custom-client-app-authentication-client
-            client-secret: aZponBmHnOggBf8dKNneDO8oMpNZzQgW
+            client-id: custom-client-credential-app
+            client-secret: Yi1wfgNNWDUcpoOPyoQACI6wWc5rOhQb
+            authorization-grant-type: client_credentials
             scope: openid,email,profile
-            redirect-uri: http://localhost:8080/client-login
         provider:
           my-keycloak:
             issuer-uri: http://localhost:8090/realms/custom-realm
