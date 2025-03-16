@@ -10,7 +10,15 @@ spring:
             client-id: custom-client-credential-app
             client-secret: Yi1wfgNNWDUcpoOPyoQACI6wWc5rOhQb
             authorization-grant-type: client_credentials
-            scope: openid,email,profile
+            scope: openid,profile
+            provider: my-keycloak
+          my-keycloak-authorization-code:
+            client-id: custom-client-app-authorization-code
+            client-secret: rCnsYXcDCnCFMygtBQVWpuHT4tWMDNcH
+            client-name: keycloak authorization code grant
+            scope: openid,profile
+            redirect-uri: http://localhost:8080/login/oauth2/code/my-keycloak-authorization-code
+            provider: my-keycloak
         provider:
           my-keycloak:
             issuer-uri: http://localhost:8090/realms/custom-realm
