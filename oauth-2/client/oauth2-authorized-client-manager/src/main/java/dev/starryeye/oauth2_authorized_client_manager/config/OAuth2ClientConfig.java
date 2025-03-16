@@ -18,8 +18,11 @@ import org.springframework.security.web.SecurityFilterChain;
 public class OAuth2ClientConfig {
 
     /**
-     * 서버(해당서버, client server) - 서버(타 서버, resource server) 간의 Client credential grant 가 필요로 할 때의 예시..
+     * 서버(해당서버, client server) to 서버(타 서버, resource server) 로 oauth 2.0 방식의 권한이 필요할 때의 예시..
      *      타 서버에 요청 시, access token 을 넘겨줘야하고.. 타 서버는 넘겨받은 access token 을 검증한다.
+     *          resource server 에 요청 시..
+     *              어떤 api 는 사용자의 브라우저를 통한 authorization code grant 방식(refresh token 으로 갱신)이 필요하고
+     *              어떤 api 는 내부 서버 api 호출이라 client credentials grant 방식이 필요하다고 해보겠다.
      *
      * 해당 client server 로 요청이 들어온 경우에 대해서 access token 검증은 수행하지 않는다고 가정한다.
      */
@@ -79,8 +82,8 @@ public class OAuth2ClientConfig {
     ) {
 
         OAuth2AuthorizedClientProvider authorizedClientProvider = OAuth2AuthorizedClientProviderBuilder.builder()
-//                .authorizationCode()
-//                .refreshToken() // client credentials grant 방식에서는 refresh token 이 발급되지 않아 필요없음.
+//                .authorizationCode() // 이 방식은 보통 oauth2Login() 으로 처리하고 refresh token 을 이용한 access token 자동 갱신 용도로 refreshToken() 을 이용한다.
+                .refreshToken() // client credentials grant 방식에서는 refresh token 이 발급되지 않아 필요없음.
                 .clientCredentials()
                 .build();
 

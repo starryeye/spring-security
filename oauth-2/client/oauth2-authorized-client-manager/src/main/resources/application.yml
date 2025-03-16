@@ -6,7 +6,7 @@ spring:
     oauth2:
       client:
         registration:
-          my-keycloak:
+          my-keycloak-client-credentials:
             client-id: custom-client-credential-app
             client-secret: Yi1wfgNNWDUcpoOPyoQACI6wWc5rOhQb
             authorization-grant-type: client_credentials
