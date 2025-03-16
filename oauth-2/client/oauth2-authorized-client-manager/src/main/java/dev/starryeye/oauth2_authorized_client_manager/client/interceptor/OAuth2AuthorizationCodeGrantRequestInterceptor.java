@@ -1,6 +1,7 @@
 package dev.starryeye.oauth2_authorized_client_manager.client.interceptor;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpRequest;
 import org.springframework.http.client.ClientHttpRequestExecution;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class OAuth2AuthorizationCodeGrantRequestInterceptor implements ClientHttpRequestInterceptor {
@@ -32,6 +34,7 @@ public class OAuth2AuthorizationCodeGrantRequestInterceptor implements ClientHtt
         }
 
         String token = authorizedClient.getAccessToken().getTokenValue();
+        log.info("access token: {}", token);
 
         request.getHeaders().setBearerAuth(token);
 

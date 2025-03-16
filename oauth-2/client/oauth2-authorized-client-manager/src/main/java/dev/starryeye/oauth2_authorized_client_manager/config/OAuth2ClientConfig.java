@@ -3,6 +3,7 @@ package dev.starryeye.oauth2_authorized_client_manager.config;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
@@ -33,8 +34,10 @@ public class OAuth2ClientConfig {
         http
                 .authorizeHttpRequests(authorizationManagerRequestMatcherRegistry ->
                         authorizationManagerRequestMatcherRegistry
-                                .anyRequest().permitAll()
+                                .requestMatchers("/client-credentials-grant").permitAll()
+                                .anyRequest().authenticated()
                 )
+                .oauth2Login(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable) // api 서버 이므로 disable
 //                .oauth2Client(Customizer.withDefaults()) // 필요 없음, OAuth2AuthorizedClientManager 로 oauth2 토큰관련 작업을 모두 수행함
                 ;
@@ -73,7 +76,7 @@ public class OAuth2ClientConfig {
      *          새로운 토큰을 재저장하고 API 호출 반복
      *      이런 복잡한 로직을 OAuth2AuthorizedClientManager 가 자동화 해줌..
      *
-     * todo, RestClient 와 연계해서 개발해볼 것.
+     * todo, resource server 와 한번 test 해보기..
      */
     @Bean
     public OAuth2AuthorizedClientManager oAuth2AuthorizedClientManager(
