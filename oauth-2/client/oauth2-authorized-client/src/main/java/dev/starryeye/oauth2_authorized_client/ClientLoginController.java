@@ -3,7 +3,9 @@ package dev.starryeye.oauth2_authorized_client;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.authority.mapping.SimpleAuthorityMapper;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
@@ -20,6 +22,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
 import java.util.List;
+import java.util.Set;
 
 @Controller
 @RequiredArgsConstructor
@@ -78,12 +81,18 @@ public class ClientLoginController {
         // ClientRegistration 접근
         ClientRegistration clientRegistration = oAuth2AuthorizedClient1.getClientRegistration();
 
-        // access token + userinfo 를 통해 인증 처리
+        // access token 으로 userinfo 호출
         OAuth2UserService<OAuth2UserRequest, OAuth2User> oAuth2UserService = new DefaultOAuth2UserService();
         OAuth2User oAuth2User = oAuth2UserService.loadUser(new OAuth2UserRequest(clientRegistration, accessToken)); // userinfo 요청
+
+        // 인증 처리
+        SimpleAuthorityMapper authorityMapper = new SimpleAuthorityMapper();
+        authorityMapper.setPrefix("CUSTOM_");
+        authorityMapper.setDefaultAuthority("OAUTH2_USER");
+        Set<GrantedAuthority> grantedAuthorities = authorityMapper.mapAuthorities(oAuth2User.getAuthorities());
         OAuth2AuthenticationToken authenticationToken = new OAuth2AuthenticationToken( // 인증 객체 생성
                 oAuth2User,
-                List.of(new SimpleGrantedAuthority("OAUTH2_USER")),
+                grantedAuthorities,
                 CLIENT_REGISTRATION_ID
         );
         SecurityContextHolder.getContextHolderStrategy().getContext().setAuthentication(authenticationToken); // 인증 객체 적재
