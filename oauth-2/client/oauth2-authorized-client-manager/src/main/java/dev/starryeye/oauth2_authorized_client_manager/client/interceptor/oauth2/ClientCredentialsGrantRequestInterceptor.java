@@ -1,5 +1,6 @@
 package dev.starryeye.oauth2_authorized_client_manager.client.interceptor.oauth2;
 
+import dev.starryeye.oauth2_authorized_client_manager.config.OAuth2ClientConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpRequest;
@@ -33,6 +34,7 @@ public class ClientCredentialsGrantRequestInterceptor implements ClientHttpReque
 
         OAuth2AuthorizeRequest authorizeRequest = OAuth2AuthorizeRequest.withClientRegistrationId("my-keycloak-authorization-code")
                 .principal(authentication.getName())
+                .attribute(OAuth2ClientConfig.CUSTOM_ATTRIBUTE, "client_credentials_grant") // 여기에 값을 추가하면 request data 에 추가로 담길 것 같지만.. 아닌듯 (OAuth2ClientConfig::contextAttributesMapper 참고)
                 .build();
 
         OAuth2AuthorizedClient authorizedClient = oAuth2AuthorizedClientManager.authorize(authorizeRequest);

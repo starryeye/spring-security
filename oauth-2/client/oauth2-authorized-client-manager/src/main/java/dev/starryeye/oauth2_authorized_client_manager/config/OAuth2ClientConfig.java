@@ -14,17 +14,17 @@ import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProvider
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizedClientManager;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
-import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Function;
 
 @Configuration
 @RequiredArgsConstructor
 public class OAuth2ClientConfig {
+
+    public static final String CUSTOM_ATTRIBUTE = "custom-attribute";
 
     /**
      * 서버(해당서버, client server) to 서버(타 서버, resource server) 로 oauth 2.0 방식의 권한이 필요할 때의 예시..
@@ -109,12 +109,11 @@ public class OAuth2ClientConfig {
         // authorization server 로 요청할 요청 객체(OAuth2AuthorizeRequest)에 커스텀하게 파라미터를 추가할 때 사용한다.
 
         // client server 로 요청한 요청 데이터 얻기
-        HttpServletRequest request = oAuth2AuthorizeRequest.getAttribute(HttpServletRequest.class.getName());
-        String test = request.getParameter("test");// 표준은 OAuth2ParameterNames 를 이용하면 된다.
+        String customAttribute = oAuth2AuthorizeRequest.getAttribute(CUSTOM_ATTRIBUTE);
 
         Map<String, Object> attributes = new HashMap<>();
-        if (StringUtils.hasText(test)) {
-            attributes.put("test", test);
+        if (StringUtils.hasText(customAttribute)) {
+            attributes.put("customAttribute", customAttribute);
         }
 
         return attributes; // attributes 를 authorization server 로 요청할 요청 객체(OAuth2AuthorizeRequest)에 담아서 함께 요청하게 된다.
