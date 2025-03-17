@@ -1,18 +1,26 @@
 package dev.starryeye.oauth2_authorized_client_manager.config;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.oauth2.client.OAuth2AuthorizeRequest;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProvider;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProviderBuilder;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizedClientManager;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
+import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.util.StringUtils;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Function;
 
 @Configuration
 @RequiredArgsConstructor
@@ -92,7 +100,24 @@ public class OAuth2ClientConfig {
 
         DefaultOAuth2AuthorizedClientManager defaultOAuth2AuthorizedClientManager = new DefaultOAuth2AuthorizedClientManager(clientRegistrationRepository, authorizedClientRepository);
         defaultOAuth2AuthorizedClientManager.setAuthorizedClientProvider(authorizedClientProvider);
+        defaultOAuth2AuthorizedClientManager.setContextAttributesMapper(this::contextAttributesMapper);
 
         return defaultOAuth2AuthorizedClientManager;
     }
+
+    private Map<String, Object> contextAttributesMapper(OAuth2AuthorizeRequest oAuth2AuthorizeRequest) {
+        // authorization server 로 요청할 요청 객체(OAuth2AuthorizeRequest)에 커스텀하게 파라미터를 추가할 때 사용한다.
+
+        // client server 로 요청한 요청 데이터 얻기
+        HttpServletRequest request = oAuth2AuthorizeRequest.getAttribute(HttpServletRequest.class.getName());
+        String test = request.getParameter("test");// 표준은 OAuth2ParameterNames 를 이용하면 된다.
+
+        Map<String, Object> attributes = new HashMap<>();
+        if (StringUtils.hasText(test)) {
+            attributes.put("test", test);
+        }
+
+        return attributes; // attributes 를 authorization server 로 요청할 요청 객체(OAuth2AuthorizeRequest)에 담아서 함께 요청하게 된다.
+    }
+
 }

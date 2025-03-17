@@ -1,4 +1,4 @@
-package dev.starryeye.oauth2_authorized_client_manager.client.interceptor;
+package dev.starryeye.oauth2_authorized_client_manager.client.interceptor.oauth2;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +16,7 @@ import java.io.IOException;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class OAuth2AuthorizationCodeGrantRequestInterceptor implements ClientHttpRequestInterceptor {
+public class AuthorizationCodeGrantRequestInterceptor implements ClientHttpRequestInterceptor {
 
     private final OAuth2AuthorizedClientManager oAuth2AuthorizedClientManager;
 
