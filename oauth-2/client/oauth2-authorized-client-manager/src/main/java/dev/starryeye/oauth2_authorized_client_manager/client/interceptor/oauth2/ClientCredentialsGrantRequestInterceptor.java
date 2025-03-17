@@ -28,6 +28,7 @@ public class ClientCredentialsGrantRequestInterceptor implements ClientHttpReque
 
         /**
          * todo OAuth2AuthorizedClientManager 내부 동작 설명하기..
+         *  DefaultOAuth2AuthorizedClientManager 에는 successHandler 가 기본적으로 있는데, 여기서 동일한 핸들러(+ 로깅)로 등록해본다.
          */
 
         Authentication authentication = SecurityContextHolder.getContextHolderStrategy().getContext().getAuthentication();
