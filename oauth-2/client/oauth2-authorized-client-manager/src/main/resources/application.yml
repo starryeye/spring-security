@@ -10,7 +10,6 @@ spring:
             client-id: custom-client-credential-app
             client-secret: Yi1wfgNNWDUcpoOPyoQACI6wWc5rOhQb
             authorization-grant-type: client_credentials
-            scope: openid,profile
             provider: my-keycloak
           my-keycloak-authorization-code:
             client-id: custom-client-app-authorization-code

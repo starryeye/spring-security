@@ -29,6 +29,15 @@ public class ClientCredentialsGrantRequestInterceptor implements ClientHttpReque
         /**
          * todo OAuth2AuthorizedClientManager 내부 동작 설명하기..
          *  DefaultOAuth2AuthorizedClientManager 에는 successHandler 가 기본적으로 있는데, 여기서 동일한 핸들러(+ 로깅)로 등록해본다.
+         *  아래 간단 정리 부분을 디버깅으로 확인해볼 것.
+         *
+         * 1. OAuth2AuthorizedClientManager 는 OAuth2AuthorizationContext 에 OAuth2AuthorizedClient 가 존재한다면 반환한다.
+         * 2. OAuth2AuthorizationContext 에 OAuth2AuthorizedClient 가 존재하지 않으면, OAuth2AuthorizedClientProvider 에 토큰 요청을 위임한다.
+         *
+         * OAuth2AuthorizedClientProvider 는 권한 획득 방식에 따라 구현체가 다르다.
+         *      client credentials grant :  ClientCredentialsOAuth2AuthorizedClientProvider
+         *      refresh token : RefreshTokenOAuth2AuthorizedClientProvider (access token 이 만료 되었는데 refresh token 이 존재하면 이 방식으로 처리된다.)
+         *
          */
 
         Authentication authentication = SecurityContextHolder.getContextHolderStrategy().getContext().getAuthentication();
