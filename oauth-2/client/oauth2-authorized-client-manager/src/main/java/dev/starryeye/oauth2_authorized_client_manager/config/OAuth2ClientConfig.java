@@ -17,6 +17,7 @@ import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepo
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -94,7 +95,13 @@ public class OAuth2ClientConfig {
 
         OAuth2AuthorizedClientProvider authorizedClientProvider = OAuth2AuthorizedClientProviderBuilder.builder()
 //                .authorizationCode() // 이 방식은 보통 oauth2Login() 으로 처리하고 refresh token 을 이용한 access token 자동 갱신 용도로 refreshToken() 을 이용한다.
-                .refreshToken() // client credentials grant 방식에서는 refresh token 이 발급되지 않아 필요없음.
+                .refreshToken( // client credentials grant 방식에서는 refresh token 이 발급되지 않아 필요없음.
+                        refreshTokenGrantBuilder ->
+                                // 기본적으로 토큰의 만료시간에서 60초(기본값) 만큼 빼고나서 현재시간이랑 비교하여 만료 여부를 판단한다.
+                                // 5분이 만료시간이면 300초로 설정한다면..
+                                // access token 을 발행(refresh token 포함 가정)하자마자 만료로 되어 무조건 refresh token 으로 동작한다.
+                                refreshTokenGrantBuilder.clockSkew(Duration.ofSeconds(300))
+                )
                 .clientCredentials()
                 .build();
 
