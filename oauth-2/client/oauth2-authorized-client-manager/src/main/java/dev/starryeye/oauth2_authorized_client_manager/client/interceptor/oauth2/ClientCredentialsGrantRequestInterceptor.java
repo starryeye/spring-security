@@ -33,10 +33,13 @@ public class ClientCredentialsGrantRequestInterceptor implements ClientHttpReque
          *
          * 1. OAuth2AuthorizedClientManager 는 OAuth2AuthorizationContext 에 OAuth2AuthorizedClient 가 존재한다면 반환한다.
          * 2. OAuth2AuthorizationContext 에 OAuth2AuthorizedClient 가 존재하지 않으면, OAuth2AuthorizedClientProvider 에 토큰 요청을 위임한다.
+         * 3. 여러 OAuth2AuthorizedClientProvider 가 순서대로(아래 구현체 순서로 우선됨)처리 조건들을 보면서 access token 발급 기능을 제공한다.
+         *      DelegatingOAuth2AuthorizedClientProvider 가 구현체들을 순서대로 호출함.
          *
          * OAuth2AuthorizedClientProvider 는 권한 획득 방식에 따라 구현체가 다르다.
-         *      client credentials grant :  ClientCredentialsOAuth2AuthorizedClientProvider
-         *      refresh token : RefreshTokenOAuth2AuthorizedClientProvider (access token 이 만료 되었는데 refresh token 이 존재하면 이 방식으로 처리된다.)
+         *      1) authorization code grant : AuthorizationCodeOAuth2AuthorizedClientProvider
+         *      2) refresh token : RefreshTokenOAuth2AuthorizedClientProvider (access token 이 만료 되었는데 refresh token 이 존재하면 이 방식으로 처리된다.)
+         *      3) client credentials grant : ClientCredentialsOAuth2AuthorizedClientProvider
          *
          */
 
