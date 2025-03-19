@@ -1,0 +1,18 @@
+server:
+  port: 8080
+
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          my-keycloak-password-credentials:
+            client-id: custom-password-credential-app
+            client-secret: vN7sx57Iq9MpyLxxXDt8yWYpqo9hLHK3
+            authorization-grant-type: password
+            scope: openid,profile
+            provider: my-keycloak
+        provider:
+          my-keycloak:
+            issuer-uri: http://localhost:8090/realms/custom-realm
+            user-name-attribute: preferred_username
