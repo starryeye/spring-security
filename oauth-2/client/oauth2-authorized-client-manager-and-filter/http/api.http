@@ -1,0 +1,2 @@
+### web browser 에서 요청
+GET http://localhost:8080/password-credentials-grant-login?username=user&password=1111

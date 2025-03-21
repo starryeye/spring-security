@@ -9,6 +9,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.authority.mapping.SimpleAuthorityMapper;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.OAuth2AuthorizationSuccessHandler;
 import org.springframework.security.oauth2.client.OAuth2AuthorizeRequest;
@@ -32,6 +33,9 @@ public class MyOAuth2LoginAuthenticationFilter extends AbstractAuthenticationPro
      * OAuth2AuthorizedClientManager 를 이용하여
      * Resource owner password credentials grant 방식으로 인가를 하고 인증까지 처리하는..
      * 커스텀 필터를 만들어본다.
+     *
+     * 참고
+     * AuthenticationManager 에 의한 인증을 수행하지 않고 있음
      */
 
     public static final String DEFAULT_FILTER_PROCESSES_URI = "/password-credentials-grant-login/**";
@@ -56,7 +60,6 @@ public class MyOAuth2LoginAuthenticationFilter extends AbstractAuthenticationPro
                     (HttpServletRequest) attributes.get(HttpServletRequest.class.getName()),
                     (HttpServletResponse) attributes.get(HttpServletResponse.class.getName())
             );
-            SecurityContextHolder.getContextHolderStrategy().getContext().setAuthentication(authentication);
         };
 
         this.authorizedClientManager.setAuthorizationSuccessHandler(successHandler);
@@ -81,7 +84,7 @@ public class MyOAuth2LoginAuthenticationFilter extends AbstractAuthenticationPro
         OAuth2AuthorizedClient authorizedClient = authorizedClientManager.authorize(oAuth2AuthorizeRequest);
 
         // access token, userinfo 로 인증 처리
-        if (authorizedClient == null) {
+        if (authorizedClient != null) {
 
             OAuth2UserRequest oAuth2UserRequest = new OAuth2UserRequest(authorizedClient.getClientRegistration(), authorizedClient.getAccessToken());
 

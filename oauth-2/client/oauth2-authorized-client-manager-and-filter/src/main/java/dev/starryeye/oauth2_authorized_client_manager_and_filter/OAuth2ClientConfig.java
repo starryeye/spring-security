@@ -19,7 +19,7 @@ import java.util.Map;
 public class OAuth2ClientConfig {
 
     @Bean
-    public DefaultOAuth2AuthorizedClientManager oAuth2AuthorizedClientManager(
+    public DefaultOAuth2AuthorizedClientManager defaultOAuth2AuthorizedClientManager(
             OAuth2AuthorizedClientRepository authorizedClientRepository,
             ClientRegistrationRepository clientRegistrationRepository
     ) {
@@ -27,7 +27,6 @@ public class OAuth2ClientConfig {
         OAuth2AuthorizedClientProvider authorizedClientProvider = OAuth2AuthorizedClientProviderBuilder.builder()
                 .password() // deprecated..
                 .refreshToken()
-                .clientCredentials()
                 .build();
 
         DefaultOAuth2AuthorizedClientManager defaultOAuth2AuthorizedClientManager = new DefaultOAuth2AuthorizedClientManager(clientRegistrationRepository, authorizedClientRepository);
