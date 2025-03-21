@@ -36,6 +36,13 @@ public class MyOAuth2LoginAuthenticationFilter extends AbstractAuthenticationPro
      *
      * 참고
      * AuthenticationManager 에 의한 인증을 수행하지 않고 있음
+     *
+     * todo
+     *      현재 로그인 url(/password-credentials-grant-login) 로 요청하면,
+     *          password grant 로 인가를 받고 DefaultOAuth2UserService 를 통해 userinfo 요청하여 인증을 받고 있다..
+     *      인증 객체 및 SecurityContext 를 HttpSessionSecurityContextRepository 에 저장하여 결국 쿠키 세션으로 로그인이 유지되고 있다..
+     *      id token 으로 로그인 유지를 해야하는 건 아닌지...(하다 못해.. access token 으로 라도..)
+     *
      */
 
     public static final String DEFAULT_FILTER_PROCESSES_URI = "/password-credentials-grant-login/**";
