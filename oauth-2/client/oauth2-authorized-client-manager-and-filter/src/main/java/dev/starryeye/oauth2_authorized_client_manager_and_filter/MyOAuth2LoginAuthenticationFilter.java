@@ -42,6 +42,7 @@ public class MyOAuth2LoginAuthenticationFilter extends AbstractAuthenticationPro
      *          password grant 로 인가를 받고 DefaultOAuth2UserService 를 통해 userinfo 요청하여 인증을 받고 있다..
      *      인증 객체 및 SecurityContext 를 HttpSessionSecurityContextRepository 에 저장하여 결국 쿠키 세션으로 로그인이 유지되고 있다..
      *      id token 으로 로그인 유지를 해야하는 건 아닌지...(하다 못해.. access token 으로 라도..)
+     *      로그아웃 처리..
      *
      */
 
