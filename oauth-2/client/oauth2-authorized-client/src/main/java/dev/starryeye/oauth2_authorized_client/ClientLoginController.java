@@ -62,6 +62,7 @@ public class ClientLoginController {
      *      즉, 로직 자체는 oauth2Client() api 에서 제공하지 않는 인증처리를 해당 "/login" controller 에서 처리해보는 연습이다.
      *          oauth2Login() api 의 OAuth2LoginAuthenticationFilter 로직을 참고함..
      *
+     * todo, 로그인 유지는 되고 있는가?
      */
 
     @GetMapping("/client-login")

@@ -22,6 +22,9 @@ public class OAuth2ClientConfig {
      *      OAuth2LoginAuthenticationToken 을 AuthenticationManager 로 전달하며 최종 인증처리를 AuthenticationManager 에게 위임한다.
      *      OAuth2AuthorizedClientRepository 를 사용하여 OAuth2AuthorizedClient(access token, refresh token, ClientRegistration 등을 포함함) 를 저장한다.
      *      최종 인증 객체인 OAuth2AuthenticationToken 을 생성하고 SecurityContext 에 저장한다.
+     *          OAuth2LoginAuthenticationFilter 는 AbstractAuthenticationProcessingFilter 를 상속하기 때문에..
+     *              AbstractAuthenticationProcessingFilter::successfulAuthentication 에서 SecurityContextRepository 에 SecurityContext 를 저장한다.
+     *                  SecurityContextRepository 는 HttpSessionSecurityContextRepository 에 기본적으로 적재 되어 쿠키 세션 기반으로 로그인 유지됨..
      *
      * OAuth2LoginAuthenticationFilter 는 AuthenticationManager(ProviderManager) 로 아래 둘 중 하나로 code 교환 및 인증처리를 위임
      *      1. OAuth2LoginAuthenticationProvider 는..
