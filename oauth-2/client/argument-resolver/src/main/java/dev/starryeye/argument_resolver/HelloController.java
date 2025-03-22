@@ -4,7 +4,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.annotation.RegisteredOAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.core.OAuth2AccessToken;
+import org.springframework.security.oauth2.core.OAuth2RefreshToken;
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -57,5 +62,35 @@ public class HelloController {
 
         return principal1;
     }
+
+    @GetMapping("/authorized-client")
+    public OAuth2AuthorizedClient authorizedClient(@RegisteredOAuth2AuthorizedClient("my-keycloak") OAuth2AuthorizedClient authorizedClient) {
+
+        /**
+         * "/authorized-client" path 는 permitAll 로 설정되어있어서 filter 에서 아무런 처리를 하지 않음.
+         * 그러나..
+         * @RegistredOAuth2AuthorizedClient..
+         *      OAuth2AuthorizedClientArgumentResolver 에 의해 OAuth2AuthorizedClient 를 바인딩 받을 수 있다.
+         *      registrationId 를 어노테이션 요소에 설정하면 해당 authorization server 를 통해 client 인가를 받을 수 있다.
+         *          내부적으로 OAuth2AuthorizedClientManager 로 인가 받는다.
+         *              지원하는 authorizedClientProvider..
+         *                  AuthorizationCodeOAuth2AuthorizedClientProvider
+         *                  RefreshTokenOAuth2AuthorizedClientProvider
+         *                  ClientCredentialsOAuth2AuthorizedClientProvider
+         *                  PasswordOAuth2AuthorizedClientProvider
+         *      OAuth2AuthorizedClientService, OAuth2AuthorizedClientRepository 를 DI 받아서 OAuth2AuthorizedClient 참조하는 방식보다 더 편리하다.
+         */
+
+        ClientRegistration clientRegistration = authorizedClient.getClientRegistration();
+        OAuth2AccessToken accessToken = authorizedClient.getAccessToken();
+        OAuth2RefreshToken refreshToken = authorizedClient.getRefreshToken();
+
+        log.info("clientRegistration: {}", clientRegistration);
+        log.info("accessToken: {}", accessToken.getTokenValue());
+        log.info("refreshToken: {}", refreshToken.getTokenValue());
+
+        return authorizedClient;
+    }
+
 
 }
