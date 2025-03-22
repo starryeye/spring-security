@@ -79,6 +79,11 @@ public class HelloController {
          *                  ClientCredentialsOAuth2AuthorizedClientProvider
          *                  PasswordOAuth2AuthorizedClientProvider
          *      OAuth2AuthorizedClientService, OAuth2AuthorizedClientRepository 를 DI 받아서 OAuth2AuthorizedClient 참조하는 방식보다 더 편리하다.
+         *
+         * todo,
+         *      1. OAuth2AuthorizedClientArgumentResolver 에서는 client 에 대한 인가만 하기 때문에.. 인증이 되지 않아야 하나.. 인증이 되는 것 처럼 보인다..
+         *              "/authorized-client" 호출 후, "/is-authenticated" 호출하면 anonymous 가 아님..
+         *      2. OAuth2AuthorizedClientArgumentResolver 에서 인가 에러가 나고 redirect 가 되서 .. oauth2Login 쪽을 수행하는 것 같음.. 그래서 인증이 되는 것 같음..
          */
 
         ClientRegistration clientRegistration = authorizedClient.getClientRegistration();
@@ -91,6 +96,5 @@ public class HelloController {
 
         return authorizedClient;
     }
-
 
 }

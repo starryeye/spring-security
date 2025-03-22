@@ -9,7 +9,6 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.authority.mapping.SimpleAuthorityMapper;
-import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.OAuth2AuthorizationSuccessHandler;
 import org.springframework.security.oauth2.client.OAuth2AuthorizeRequest;
@@ -103,6 +102,17 @@ public class MyOAuth2LoginAuthenticationFilter extends AbstractAuthenticationPro
             Set<GrantedAuthority> grantedAuthorities = mapper.mapAuthorities(oAuth2User.getAuthorities());
             OAuth2AuthenticationToken authenticationToken = new OAuth2AuthenticationToken(oAuth2User, grantedAuthorities, authorizedClient.getClientRegistration().getRegistrationId());
 
+            /**
+             * 참고.
+             * DefaultOAuth2AuthorizedClientManager 에도 OAuth2AuthorizationSuccessHandler 가 존재하며 내부에서 onAuthorizationSuccess 를 호출해준다. (로직도 동일)
+             * 하지만, DefaultOAuth2AuthorizedClientManager::authorize 메서드 호출 당시에는 Authentication 이 anonymous 인증 객체라서..
+             *      OAuth2AuthorizedClientRepository 에 OAuth2AuthorizedClient 를 저장하지 않는다.
+             * 따라서, 인증 후 OAuth2AuthenticationToken 인증 객체로 동일한 로직을 한번더 수행시켜 저장되도록 한다.
+             *
+             * 참고
+             * 인증 후 SecurityContext 저장은 해당 필터 상위 클래스인 AbstractAuthenticationProcessingFilter::successfulAuthentication 에서 수행하도록해준다.
+             *      SecurityCongif.java -> setSecurityContextRepository 설정 참고
+             */
             successHandler.onAuthorizationSuccess(
                     authorizedClient,
                     authenticationToken,
