@@ -12,6 +12,12 @@ spring:
             client-name: My keycloak
             scope: openid,email,profile
             redirect-uri: http://localhost:8080/login/oauth2/code/my-keycloak
+          my-keycloak-password-credentials:
+            client-id: custom-password-credential-app
+            client-secret: vN7sx57Iq9MpyLxxXDt8yWYpqo9hLHK3
+            authorization-grant-type: password
+            scope: openid,profile
+            provider: my-keycloak
         provider:
           my-keycloak:
             issuer-uri: http://localhost:8090/realms/custom-realm

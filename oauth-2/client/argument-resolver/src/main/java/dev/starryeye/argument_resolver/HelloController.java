@@ -67,23 +67,27 @@ public class HelloController {
     public OAuth2AuthorizedClient authorizedClient(@RegisteredOAuth2AuthorizedClient("my-keycloak") OAuth2AuthorizedClient authorizedClient) {
 
         /**
+         * oauth2Login 으로 인가 및 인증처리를 한 후, 호출해보자. ("/authentication")
+         */
+
+        /**
          * "/authorized-client" path 는 permitAll 로 설정되어있어서 filter 에서 아무런 처리를 하지 않음.
          * 그러나..
          * @RegistredOAuth2AuthorizedClient..
          *      OAuth2AuthorizedClientArgumentResolver 에 의해 OAuth2AuthorizedClient 를 바인딩 받을 수 있다.
-         *      registrationId 를 어노테이션 요소에 설정하면 해당 authorization server 를 통해 client 인가를 받을 수 있다.
-         *          내부적으로 OAuth2AuthorizedClientManager 로 인가 받는다.
+         *      registrationId 를 어노테이션 요소에 설정하면 해당 authorization server 를 통해 client 인가를 받을 수 있다. (스스로 인가 받기 위해서는 커스텀이 필요하다. "/authorized-client-password" 참고..)
+         *          그래서.. 이 controller 를 호출할땐 oauth2Login 으로 인증, 인가 처리를 하고 호출하면 인가 처리할때 저장한 OAuth2AuthorizedClient 가 바인딩된다.
+         *          내부적으로 OAuth2AuthorizedClientManager 로 인가 받는다. (여기선 개발자가 직접 등록한 OAuth2AuthorizedClientManager 를 사용한다.)
          *              지원하는 authorizedClientProvider..
-         *                  AuthorizationCodeOAuth2AuthorizedClientProvider
+         *                  AuthorizationCodeOAuth2AuthorizedClientProvider : 사실상 지원안하는듯..?
          *                  RefreshTokenOAuth2AuthorizedClientProvider
          *                  ClientCredentialsOAuth2AuthorizedClientProvider
          *                  PasswordOAuth2AuthorizedClientProvider
          *      OAuth2AuthorizedClientService, OAuth2AuthorizedClientRepository 를 DI 받아서 OAuth2AuthorizedClient 참조하는 방식보다 더 편리하다.
          *
-         * todo,
-         *      1. OAuth2AuthorizedClientArgumentResolver 에서는 client 에 대한 인가만 하기 때문에.. 인증이 되지 않아야 하나.. 인증이 되는 것 처럼 보인다..
-         *              "/authorized-client" 호출 후, "/is-authenticated" 호출하면 anonymous 가 아님..
-         *      2. OAuth2AuthorizedClientArgumentResolver 에서 인가 에러가 나고 redirect 가 되서 .. oauth2Login 쪽을 수행하는 것 같음.. 그래서 인증이 되는 것 같음..
+         *
+         * OAuth2AuthorizedClientArgumentResolver 에서는 client 에 대한 인가만 하기 때문에.. 인증이 되지 않는다.
+         *      "/authorized-client" 호출 후, "/is-authenticated" 호출하면 anonymous 이다..
          */
 
         ClientRegistration clientRegistration = authorizedClient.getClientRegistration();
