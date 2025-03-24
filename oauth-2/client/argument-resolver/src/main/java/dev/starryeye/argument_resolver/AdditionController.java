@@ -32,6 +32,9 @@ import java.util.Set;
 @RestController
 public class AdditionController {
 
+    /**
+     * HelloController 에서 알아본 지식을 조금 응용해보는 Controller 이다.
+     */
 
     private final OAuth2UserService<OAuth2UserRequest, OAuth2User> userService;
     private final OAuth2AuthorizationSuccessHandler authorizationSuccessHandler;
@@ -121,7 +124,7 @@ public class AdditionController {
             );
 
             // 인증 후, 인증 객체를 세션에 저장한다. (쿠키 세션 기반 로그인 유지를 위함)
-            SecurityContext securityContext11 = SecurityContextHolder.getContextHolderStrategy().getContext(); //?
+            SecurityContext existingSecurityContext = SecurityContextHolder.getContextHolderStrategy().getContext(); // 기존의 securityContext 는 anonymous 이다.
             SecurityContext securityContext = SecurityContextHolder.getContextHolderStrategy().createEmptyContext();
             securityContext.setAuthentication(authenticationToken);
             securityContextRepository.saveContext(securityContext, request, response);
