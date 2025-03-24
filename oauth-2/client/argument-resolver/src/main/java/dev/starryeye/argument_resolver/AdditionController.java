@@ -70,6 +70,7 @@ public class AdditionController {
          *      OAuth2AuthorizedClientArgumentResolver 에서는 인가 처리를 하지 못해서 oauth2Login 에 의한 redirect 되어 의도에서 벗어나게 된다.
          * 2. my-keycloak 으로 동작시켜도 DefaultOAuth2AuthorizedClientManager 는 AuthorizationCodeOAuth2AuthorizedClientProvider 를 가지지만..
          *      authorization code grant 방식으로 인가를 못시켜서.. 이또한.. oauth2Login 에 의한 redirect 되어 인가및 인증되게 됨..(의도에서 벗어남)
+         *          의도대로 할거면.. DefaultOAuth2AuthorizedClientManager, AuthorizationCodeOAuth2AuthorizedClientProvider 를 커스텀해야할듯..?
          * 3. "/authentication" 를 호출하여 oauth2Login 으로 인가 및 인증 하고 "/authorized-client-password" 를 호출하면..
          *      oauth2Login 에서는 my-keycloak registration id 로 인가 및 인증 처리를 하였기 때문에..
          *      @RegisteredOAuth2AuthorizedClient 에 "my-keycloak-password-credentials" 로 서로 다른 registration id 라..
