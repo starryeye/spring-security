@@ -1,4 +1,4 @@
-package dev.starryeye.custom_social_login_client.model;
+package dev.starryeye.custom_social_login_client.model.external_provider;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
