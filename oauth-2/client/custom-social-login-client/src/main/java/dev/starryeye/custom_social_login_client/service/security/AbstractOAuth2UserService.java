@@ -1,6 +1,5 @@
 package dev.starryeye.custom_social_login_client.service.security;
 
-import dev.starryeye.custom_social_login_client.exception.UserAlreadyExistsException;
 import dev.starryeye.custom_social_login_client.model.external_provider.GoogleUser;
 import dev.starryeye.custom_social_login_client.model.external_provider.KeycloakUser;
 import dev.starryeye.custom_social_login_client.model.external_provider.NaverUser;
@@ -12,6 +11,11 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 
 @Slf4j
 public abstract class AbstractOAuth2UserService {
+
+    /**
+     * AbstractOAuth2UserService 를 상속한 객체의 loadUser 메서드에서는 아래 두개의 메서드를 추가적으로 동작시킨다.
+     * 즉, 기존의 OAuth2UserService::loadUser 동작에서 register, providerUser 를 추가적으로 작동시킴
+     */
 
     private final UserService userService;
 
