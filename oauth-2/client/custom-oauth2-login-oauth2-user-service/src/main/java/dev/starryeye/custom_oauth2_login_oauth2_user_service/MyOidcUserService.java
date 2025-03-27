@@ -12,6 +12,7 @@ public class MyOidcUserService extends OidcUserService {
     /**
      * OidcUserService 타입의 빈을 직접 등록하면..
      *      OidcAuthorizationCodeAuthenticationProvider 는 개발자가 직접 등록한 MyOidcUserService 를 사용한다.
+     *          참고, OAuth2ClientConfig.java 에 보면.. oauth2Login() 의 userInfoEndpoint 설정을 이용하여 명시적으로 등록하는 방식도 존재한다.
      *
      * OAuth 2.0 표준 기술을 사용할 때, client 는 resource owner 의 인증을 위해..
      *      1. authorization server 에 access token 을 얻고, access token 으로 userinfo 를 얻어서 인증 처리를 하는 방식
