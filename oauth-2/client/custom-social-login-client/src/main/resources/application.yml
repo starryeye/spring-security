@@ -12,6 +12,18 @@ spring:
             client-name: My keycloak
             scope: openid,email,profile
             redirect-uri: http://localhost:8080/login/oauth2/code/my-keycloak
+          my-google:
+            client-id:
+            client-secret:
+            client-name: My Google
+            scope: openid,email,profile
+            redirect-uri: http://localhost:8080/login/oauth2/code/my-google
+          my-naver:
+            client-id:
+            client-secret:
+            client-name: My Naver
+            scope: openid,email,profile
+            redirect-uri: http://localhost:8080/login/oauth2/code/my-naver
         provider:
           my-keycloak:
             issuer-uri: http://localhost:8090/realms/custom-realm

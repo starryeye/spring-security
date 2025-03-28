@@ -20,6 +20,10 @@ public class CustomOAuth2UserService extends AbstractOAuth2UserService implement
         this.defaultOAuth2UserService = new DefaultOAuth2UserService();
     }
 
+    /**
+     * OAuth2LoginAuthenticationProvider 에 의해 호출 되며
+     *      loadUser 호출 이후 인증 처리를 완료한다. (인증 객체 생성 및 리턴)
+     */
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
 
