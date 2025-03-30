@@ -53,6 +53,7 @@ public class OAuth2ClientConfig {
          *          OAuth2AccessTokenResponse 에 scope 필드 값 존재하지 않음.
          *          https://developers.naver.com/docs/login/devguide/devguide.md#%EB%84%A4%EC%9D%B4%EB%B2%84%20%EB%A1%9C%EA%B7%B8%EC%9D%B8-%EA%B0%9C%EB%B0%9C%EA%B0%80%EC%9D%B4%EB%93%9C
          *          google, keycloak 의 경우 "/token" 요청에 대한 응답에 scope 필드가 존재하여 정상 권한 매핑 동작함. (ROLE_SCOPE_email, ROLE_SCOPE_profile 매핑됨)
+         *              -> scope 로 매핑된 권한으로 client 에서 차단 처리할 필요는 없고 그냥 access token 으로 resources server 에 요청을 해버리고 access 에 대한 자격을 위임하는 편이 나을 수 도..
          *      2. OpenID Connect 기술 지원이 안됨. openid scope 로 요청해도 id token 발급 안됨.
          *
          */
