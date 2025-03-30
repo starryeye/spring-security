@@ -24,6 +24,39 @@ public class OAuth2ClientConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
+        /**
+         * 전체 flow, 주요 클래스 및 메서드
+         * 초기화
+         *      OAuth2LoginConfigurer : init() / configure()
+         * authorization code 를 발급 받기위한 요청 처리
+         *      OAuth2AuthorizationRequestRedirectFilter
+         *          /oauth2/authorization/{registration id} 요청 처리
+         *          OAuth2AuthorizationRequest
+         *              요청하기 위한 데이터 객체
+         * access token 을 발급 받기위한 요청 처리 + 인증 처리
+         *      OAuth2LoginAuthenticationFilter
+         *          /login/oauth2/code/{registration id} 요청 처리 (authorization server 에서 사용자 웹브라우져 통해 redirect 요청}
+         *          OAuth2LoginAuthenticationProvider
+         *              OAuth2AuthorizationCodeAuthenticationProvider
+         *                  access token 요청
+         *              CustomOAuth2UserService (커스텀) 를 이용해 사용자 정보 GET (OAuth2User 생성)
+         *          OidcAuthorizationCodeAuthenticationProvider
+         *              id token, access token 요청
+         *              JwtDecoder 를 통한 id token 검증
+         *              CustomOidcUserService (커스텀) 를 이용해 사용자 정보 GET (OidcUser 생성)
+         *          인증 객체 생성 및 저장
+         *
+         *
+         * 참고..
+         * naver..
+         *      1. "/token" 요청에 대한 응답에 scope 필드를 응답하지 않아서 client 서버에서 권한 매핑이 정상 동작하지 않음..
+         *          OAuth2AccessTokenResponse 에 scope 필드 값 존재하지 않음.
+         *          https://developers.naver.com/docs/login/devguide/devguide.md#%EB%84%A4%EC%9D%B4%EB%B2%84%20%EB%A1%9C%EA%B7%B8%EC%9D%B8-%EA%B0%9C%EB%B0%9C%EA%B0%80%EC%9D%B4%EB%93%9C
+         *          google, keycloak 의 경우 "/token" 요청에 대한 응답에 scope 필드가 존재하여 정상 권한 매핑 동작함. (ROLE_SCOPE_email, ROLE_SCOPE_profile 매핑됨)
+         *      2. OpenID Connect 기술 지원이 안됨. openid scope 로 요청해도 id token 발급 안됨.
+         *
+         */
+
         http
                 .authorizeHttpRequests(authorizationManagerRequestMatcherRegistry ->
                         authorizationManagerRequestMatcherRegistry

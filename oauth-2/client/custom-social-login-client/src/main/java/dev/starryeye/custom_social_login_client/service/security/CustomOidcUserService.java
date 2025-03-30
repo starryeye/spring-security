@@ -30,7 +30,7 @@ public class CustomOidcUserService extends AbstractOAuth2UserService implements 
     public OidcUser loadUser(OidcUserRequest userRequest) throws OAuth2AuthenticationException {
 
         ClientRegistration clientRegistration = userRequest.getClientRegistration();
-        OidcUser oidcUser = oidcUserService.loadUser(userRequest); // id token (+ "/userinfo) 에서 사용자 정보 얻기
+        OidcUser oidcUser = oidcUserService.loadUser(userRequest); // id token (+ "/userinfo) 에서 사용자 정보 얻기 (google 의 경우 조건이 안맞아 "/userinfo" 요청 하지 않음)
 
         // providerUser 생성
         ProviderUser providerUser = super.providerUser(clientRegistration, oidcUser);
