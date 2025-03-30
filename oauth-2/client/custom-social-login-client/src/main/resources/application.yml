@@ -6,6 +6,7 @@ spring:
     oauth2:
       client:
         registration:
+
           my-keycloak:
 #            authorization-grant-type: authorization_code
 #            client-authentication-method: client_secret_basic
@@ -15,6 +16,8 @@ spring:
             scope: openid,email,profile
             redirect-uri: http://localhost:8080/login/oauth2/code/my-keycloak
             provider: my-keycloak
+
+          # https://console.cloud.google.com/auth
           my-google:
 #            authorization-grant-type: authorization_code
 #            client-authentication-method: client_secret_basic
@@ -24,6 +27,8 @@ spring:
 #            scope: openid,email,profile
 #            redirect-uri: http://localhost:8080/login/oauth2/code/my-google
             provider: google # CommonOAuth2Provider
+
+          # https://developers.naver.com/apps
           my-naver:
             authorization-grant-type: authorization_code
             client-authentication-method: client_secret_basic
