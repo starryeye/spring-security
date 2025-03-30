@@ -22,8 +22,6 @@ public class CustomGrantedAuthoritiesMapper implements GrantedAuthoritiesMapper 
     @Override
     public Collection<? extends GrantedAuthority> mapAuthorities(Collection<? extends GrantedAuthority> authorities) {
 
-        // todo, naver 의 경우.. email, profile 권한 매핑 안되고 있음.. 확인할 것..
-
         HashSet<GrantedAuthority> mapped = HashSet.newHashSet(authorities.size());
 
         for(GrantedAuthority authority : authorities) {

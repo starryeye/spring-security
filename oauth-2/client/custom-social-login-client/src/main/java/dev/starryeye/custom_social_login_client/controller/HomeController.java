@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class HomeController {
 
-    @GetMapping("/api/user")
+    @GetMapping("/api/oauth2-oidc-user")
     public Authentication user(Authentication authentication, @AuthenticationPrincipal OAuth2User oauth2User) {
 
         log.info("authentication: {}, oauth2User: {}", authentication, oauth2User);
@@ -20,8 +20,16 @@ public class HomeController {
         return authentication;
     }
 
-    @GetMapping("/api/oidc")
-    public Authentication oidc(Authentication authentication, @AuthenticationPrincipal OidcUser oidcUser) {
+    @GetMapping("/api/scope-profile")
+    public Authentication profile(Authentication authentication, @AuthenticationPrincipal OAuth2User oauth2User) {
+
+        log.info("authentication: {}, oauth2User: {}", authentication, oauth2User);
+
+        return authentication;
+    }
+
+    @GetMapping("/api/scope-openid")
+    public Authentication openid(Authentication authentication, @AuthenticationPrincipal OidcUser oidcUser) {
 
         log.info("authentication: {}, oidcUser: {}", authentication, oidcUser);
 
