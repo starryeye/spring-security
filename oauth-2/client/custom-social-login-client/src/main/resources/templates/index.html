@@ -30,7 +30,7 @@
                     <a th:href="@{/oauth2/authorization/my-naver}" class="naver btn w-100 mb-2">
                         Sign in with Naver
                     </a>
-                    <a th:href="@{/oauth2/authorization/my-keycloak}" class="keycloak btn w-100">
+                    <a th:href="@{/oauth2/authorization/my-keycloak}" class="keycloak btn w-100 mb-2">
                         Sign in with Keycloak
                     </a>
                 </div>
@@ -40,10 +40,10 @@
                     <div sec:authorize="isAuthenticated()">
                         <h2>안녕하세요 <span th:text="${user}"></span> 님</h2>
                         <br/><br/>
-                        <a th:href="@{/api/oauth2-oidc-user}" class="keycloak btn w-100 mb-2">oauth2 user or oidc user 권한을 가진 사용자 인증 정보</a>
-                        <a th:href="@{/api/scope-profile}" class="keycloak btn w-100 mb-2">profile scope 권한을 가진 사용자 인증 정보</a>
-                        <a th:href="@{/api/scope-openid}" class="keycloak btn w-100 mb-2">openid scope 권한을 가진 사용자 인증 정보</a>
-                        <a th:href="@{/logout}" class="google btn w-100">Logout</a>
+                        <a th:href="@{/api/oauth2-oidc-user}" class="gray btn w-100 mb-2">oauth2 user or oidc user 권한을 가진 사용자 인증 정보</a>
+                        <a th:href="@{/api/scope-profile}" class="gray btn w-100 mb-2">profile scope 권한을 가진 사용자 인증 정보</a>
+                        <a th:href="@{/api/scope-openid}" class="gray btn w-100 mb-2">openid scope 권한을 가진 사용자 인증 정보</a>
+                        <a th:href="@{/logout}" class="red btn w-100">Logout</a>
                     </div>
                 </div>
             </div>
