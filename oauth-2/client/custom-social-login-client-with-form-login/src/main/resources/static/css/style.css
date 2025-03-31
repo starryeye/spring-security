@@ -1,0 +1,67 @@
+body {
+    font-family: "Roboto", sans-serif;
+    background-color: #f8fafb;
+}
+
+p {
+    color: #b3b3b3;
+    font-weight: 300;
+}
+
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+    font-family: "Roboto", sans-serif;
+}
+
+a {
+    transition: .3s all ease;
+}
+
+a:hover {
+    text-decoration: none !important;
+}
+
+.content {
+    padding: 7rem 0;
+}
+
+h2 {
+    font-size: 20px;
+}
+
+.form-block {
+    background: #fff;
+    padding: 30px;
+    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
+}
+
+.content .btn {
+    padding: 12px 20px;
+    font-size: 16px;
+    border-radius: 6px;
+}
+
+.social-login a {
+    text-decoration: none;
+    text-align: center;
+    color: #fff;
+    margin-bottom: 10px;
+    display: inline-block;
+    border-radius: 6px;
+}
+
+.social-login a:hover {
+    opacity: 0.9;
+}
+
+.social-login a.naver {
+    background: #3ab509;
+}
+
+.social-login a.keycloak {
+    background: #04aed4;
+}
+
+.social-login a.google {
+    background: #ea4335;
+}
