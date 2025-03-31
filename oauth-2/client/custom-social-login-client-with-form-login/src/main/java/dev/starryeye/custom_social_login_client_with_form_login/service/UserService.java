@@ -1,9 +1,9 @@
 package dev.starryeye.custom_social_login_client_with_form_login.service;
 
-import dev.starryeye.custom_social_login_client.exception.UserNotFoundException;
-import dev.starryeye.custom_social_login_client.model.User;
-import dev.starryeye.custom_social_login_client.model.external_provider.ProviderUser;
-import dev.starryeye.custom_social_login_client.repository.UserRepository;
+import dev.starryeye.custom_social_login_client_with_form_login.exception.UserNotFoundException;
+import dev.starryeye.custom_social_login_client_with_form_login.model.User;
+import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.ProviderUser;
+import dev.starryeye.custom_social_login_client_with_form_login.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

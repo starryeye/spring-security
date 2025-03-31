@@ -1,10 +1,10 @@
 package dev.starryeye.custom_social_login_client_with_form_login.service.security;
 
-import dev.starryeye.custom_social_login_client.model.external_provider.GoogleUser;
-import dev.starryeye.custom_social_login_client.model.external_provider.KeycloakUser;
-import dev.starryeye.custom_social_login_client.model.external_provider.NaverUser;
-import dev.starryeye.custom_social_login_client.model.external_provider.ProviderUser;
-import dev.starryeye.custom_social_login_client.service.UserService;
+import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.GoogleUser;
+import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.KeycloakUser;
+import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.NaverUser;
+import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.ProviderUser;
+import dev.starryeye.custom_social_login_client_with_form_login.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.core.user.OAuth2User;

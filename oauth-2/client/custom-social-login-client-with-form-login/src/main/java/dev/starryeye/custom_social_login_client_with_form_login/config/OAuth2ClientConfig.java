@@ -1,7 +1,7 @@
 package dev.starryeye.custom_social_login_client_with_form_login.config;
 
-import dev.starryeye.custom_social_login_client.service.security.CustomOAuth2UserService;
-import dev.starryeye.custom_social_login_client.service.security.CustomOidcUserService;
+import dev.starryeye.custom_social_login_client_with_form_login.service.security.CustomOAuth2UserService;
+import dev.starryeye.custom_social_login_client_with_form_login.service.security.CustomOidcUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

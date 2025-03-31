@@ -1,6 +1,6 @@
 package dev.starryeye.custom_social_login_client_with_form_login.repository;
 
-import dev.starryeye.custom_social_login_client.model.User;
+import dev.starryeye.custom_social_login_client_with_form_login.model.User;
 import org.springframework.stereotype.Repository;
 
 import java.util.Map;
