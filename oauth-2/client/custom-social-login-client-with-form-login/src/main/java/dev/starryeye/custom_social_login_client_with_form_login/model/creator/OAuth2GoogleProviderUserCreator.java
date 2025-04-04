@@ -1,6 +1,5 @@
 package dev.starryeye.custom_social_login_client_with_form_login.model.creator;
 
-import dev.starryeye.custom_social_login_client_with_form_login.model.OAuth2UserAttributes;
 import dev.starryeye.custom_social_login_client_with_form_login.model.ProviderType;
 import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.GoogleUser;
 import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.ProviderUser;
@@ -21,8 +20,7 @@ public class OAuth2GoogleProviderUserCreator implements ProviderUserCreator<Crea
 
         return new GoogleUser(
                 oAuth2User,
-                clientRegistration,
-                OAuth2UserAttributes.ofMain(oAuth2User)
+                clientRegistration
         );
     }
 }

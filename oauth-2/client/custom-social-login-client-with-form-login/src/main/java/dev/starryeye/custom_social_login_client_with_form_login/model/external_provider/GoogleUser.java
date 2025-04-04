@@ -8,8 +8,8 @@ import java.util.Map;
 
 public class GoogleUser extends OAuth2ProviderUser {
 
-    public GoogleUser(OAuth2User oAuth2User, ClientRegistration clientRegistration, OAuth2UserAttributes attributes) {
-        super(oAuth2User, clientRegistration, attributes);
+    public GoogleUser(OAuth2User oAuth2User, ClientRegistration clientRegistration) {
+        super(oAuth2User, clientRegistration, OAuth2UserAttributes.ofMain(oAuth2User));
     }
 
     @Override

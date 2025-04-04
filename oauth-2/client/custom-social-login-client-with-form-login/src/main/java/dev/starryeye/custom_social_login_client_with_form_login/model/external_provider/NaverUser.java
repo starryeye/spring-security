@@ -8,8 +8,10 @@ import java.util.Map;
 
 public class NaverUser extends OAuth2ProviderUser {
 
-    public NaverUser(OAuth2User oAuth2User, ClientRegistration clientRegistration, OAuth2UserAttributes attributes) {
-        super(oAuth2User, clientRegistration, attributes);
+    private static final String NAVER_SUB_ATTRIBUTES_KEY = "response";
+
+    public NaverUser(OAuth2User oAuth2User, ClientRegistration clientRegistration) {
+        super(oAuth2User, clientRegistration, OAuth2UserAttributes.ofSub(oAuth2User, NAVER_SUB_ATTRIBUTES_KEY));
     }
 
     @Override

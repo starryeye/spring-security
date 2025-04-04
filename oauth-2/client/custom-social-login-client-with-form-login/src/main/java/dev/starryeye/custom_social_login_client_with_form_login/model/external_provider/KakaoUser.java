@@ -6,8 +6,8 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 
 public class KakaoUser extends OAuth2ProviderUser {
 
-    public KakaoUser(OAuth2User oAuth2User, ClientRegistration clientRegistration, OAuth2UserAttributes attributes) {
-        super(oAuth2User, clientRegistration, attributes);
+    public KakaoUser(OAuth2User oAuth2User, ClientRegistration clientRegistration) {
+        super(oAuth2User, clientRegistration, OAuth2UserAttributes.ofMain(oAuth2User));
     }
 
     @Override
