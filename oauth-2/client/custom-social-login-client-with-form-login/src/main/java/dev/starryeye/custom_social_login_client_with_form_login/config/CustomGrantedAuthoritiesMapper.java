@@ -34,7 +34,7 @@ public class CustomGrantedAuthoritiesMapper implements GrantedAuthoritiesMapper 
 
     private GrantedAuthority mapAuthority(String name) {
 
-        String roleName = getParsedRoleNameForGoogle(name);
+        String roleName = getParsedRoleNameForGoogle(name); // todo google 분리
 
         String authorityName = addDefaultAuthorityPrefix(roleName);
 
