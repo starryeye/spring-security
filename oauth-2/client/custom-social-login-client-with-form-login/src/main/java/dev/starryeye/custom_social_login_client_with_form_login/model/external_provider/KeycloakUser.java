@@ -3,10 +3,12 @@ package dev.starryeye.custom_social_login_client_with_form_login.model.external_
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
+import java.util.Map;
+
 public class KeycloakUser extends OAuth2ProviderUser {
 
-    public KeycloakUser(OAuth2User oAuth2User, ClientRegistration clientRegistration) {
-        super(oAuth2User, clientRegistration, oAuth2User.getAttributes());
+    public KeycloakUser(OAuth2User oAuth2User, ClientRegistration clientRegistration, Map<String, Object> attributes) {
+        super(oAuth2User, clientRegistration, attributes);
     }
 
     @Override

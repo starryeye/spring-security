@@ -33,7 +33,7 @@ public class CustomOidcUserService extends AbstractOAuth2UserService implements 
         OidcUser oidcUser = oidcUserService.loadUser(userRequest); // id token (+ "/userinfo) 에서 사용자 정보 얻기 (google 의 경우 조건이 안맞아 "/userinfo" 요청 하지 않음)
 
         // providerUser 생성
-        ProviderUser providerUser = super.providerUser(clientRegistration, oidcUser);
+        ProviderUser providerUser = super.createProviderUser(clientRegistration, oidcUser);
         // 회원 가입
         super.register(clientRegistration, providerUser);
 

@@ -1,13 +1,12 @@
 package dev.starryeye.custom_social_login_client_with_form_login.service.security;
 
-import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.GoogleUser;
-import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.KeycloakUser;
-import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.NaverUser;
+import dev.starryeye.custom_social_login_client_with_form_login.model.creator.DelegatingProviderUserConverter;
+import dev.starryeye.custom_social_login_client_with_form_login.model.creator.ProviderUserConverter;
+import dev.starryeye.custom_social_login_client_with_form_login.model.creator.CreateProviderUserRequest;
 import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.ProviderUser;
 import dev.starryeye.custom_social_login_client_with_form_login.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 
 @Slf4j
 public abstract class AbstractOAuth2UserService {
@@ -18,9 +17,11 @@ public abstract class AbstractOAuth2UserService {
      */
 
     private final UserService userService;
+    private final ProviderUserConverter<CreateProviderUserRequest, ProviderUser> providerUserConverter;
 
-    public AbstractOAuth2UserService(UserService userService) {
+    public AbstractOAuth2UserService(UserService userService, DelegatingProviderUserConverter providerUserConverter) {
         this.userService = userService;
+        this.providerUserConverter = providerUserConverter;
     }
 
     protected void register(ClientRegistration clientRegistration, ProviderUser providerUser) {
@@ -34,15 +35,8 @@ public abstract class AbstractOAuth2UserService {
         userService.register(clientRegistration.getRegistrationId(), providerUser);
     }
 
-    protected ProviderUser providerUser(ClientRegistration clientRegistration, OAuth2User oAuth2User) {
+    protected ProviderUser createProviderUser(CreateProviderUserRequest createProviderUserRequest) {
 
-        String registrationId = clientRegistration.getRegistrationId();
-
-        return switch (registrationId) {
-            case "my-google" -> new GoogleUser(oAuth2User, clientRegistration);
-            case "my-naver" -> new NaverUser(oAuth2User, clientRegistration);
-            case "my-keycloak" -> new KeycloakUser(oAuth2User, clientRegistration);
-            default -> throw new IllegalStateException("Unexpected value: " + registrationId);
-        };
+        return providerUserConverter.convert(createProviderUserRequest);
     }
 }

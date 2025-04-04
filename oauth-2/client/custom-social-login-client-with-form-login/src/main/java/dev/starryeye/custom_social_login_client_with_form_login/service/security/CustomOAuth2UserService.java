@@ -1,5 +1,6 @@
 package dev.starryeye.custom_social_login_client_with_form_login.service.security;
 
+import dev.starryeye.custom_social_login_client_with_form_login.model.creator.CreateProviderUserRequest;
 import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.ProviderUser;
 import dev.starryeye.custom_social_login_client_with_form_login.service.UserService;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
@@ -30,8 +31,10 @@ public class CustomOAuth2UserService extends AbstractOAuth2UserService implement
         ClientRegistration clientRegistration = userRequest.getClientRegistration();
         OAuth2User oAuth2User = defaultOAuth2UserService.loadUser(userRequest); // "/userinfo"
 
+        CreateProviderUserRequest createProviderUserRequest = new CreateProviderUserRequest(clientRegistration, oAuth2User);
+
         // providerUser 생성
-        ProviderUser providerUser = super.providerUser(clientRegistration, oAuth2User);
+        ProviderUser providerUser = super.createProviderUser(createProviderUserRequest);
         // 회원 가입
         super.register(clientRegistration, providerUser);
 
