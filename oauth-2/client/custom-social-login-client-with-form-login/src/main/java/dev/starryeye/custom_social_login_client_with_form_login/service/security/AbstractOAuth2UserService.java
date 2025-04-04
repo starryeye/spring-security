@@ -1,7 +1,7 @@
 package dev.starryeye.custom_social_login_client_with_form_login.service.security;
 
-import dev.starryeye.custom_social_login_client_with_form_login.model.creator.DelegatingProviderUserConverter;
-import dev.starryeye.custom_social_login_client_with_form_login.model.creator.ProviderUserConverter;
+import dev.starryeye.custom_social_login_client_with_form_login.model.creator.DelegatingProviderUserCreator;
+import dev.starryeye.custom_social_login_client_with_form_login.model.creator.ProviderUserCreator;
 import dev.starryeye.custom_social_login_client_with_form_login.model.creator.CreateProviderUserRequest;
 import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.ProviderUser;
 import dev.starryeye.custom_social_login_client_with_form_login.service.UserService;
@@ -17,11 +17,11 @@ public abstract class AbstractOAuth2UserService {
      */
 
     private final UserService userService;
-    private final ProviderUserConverter<CreateProviderUserRequest, ProviderUser> providerUserConverter;
+    private final ProviderUserCreator<CreateProviderUserRequest, ProviderUser> providerUserCreator;
 
-    public AbstractOAuth2UserService(UserService userService, DelegatingProviderUserConverter providerUserConverter) {
+    public AbstractOAuth2UserService(UserService userService, DelegatingProviderUserCreator providerUserConverter) {
         this.userService = userService;
-        this.providerUserConverter = providerUserConverter;
+        this.providerUserCreator = providerUserConverter;
     }
 
     protected void register(ClientRegistration clientRegistration, ProviderUser providerUser) {
@@ -37,6 +37,6 @@ public abstract class AbstractOAuth2UserService {
 
     protected ProviderUser createProviderUser(CreateProviderUserRequest createProviderUserRequest) {
 
-        return providerUserConverter.convert(createProviderUserRequest);
+        return providerUserCreator.create(createProviderUserRequest);
     }
 }

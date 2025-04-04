@@ -7,26 +7,26 @@ import java.util.List;
 import java.util.Objects;
 
 @Component
-public class DelegatingProviderUserConverter implements ProviderUserConverter<CreateProviderUserRequest, ProviderUser> {
+public class DelegatingProviderUserCreator implements ProviderUserCreator<CreateProviderUserRequest, ProviderUser> {
 
-    private final List<ProviderUserConverter<CreateProviderUserRequest, ProviderUser>> converters;
+    private final List<ProviderUserCreator<CreateProviderUserRequest, ProviderUser>> converters;
 
-    public DelegatingProviderUserConverter() {
+    public DelegatingProviderUserCreator() {
         this.converters = List.of(
-                new OAuth2GoogleProviderUserConverter(),
-                new OAuth2NaverProviderUserConverter()
+                new OAuth2GoogleProviderUserCreator(),
+                new OAuth2NaverProviderUserCreator()
         );
     }
 
     @Override
-    public ProviderUser convert(CreateProviderUserRequest createProviderUserRequest) {
+    public ProviderUser create(CreateProviderUserRequest createProviderUserRequest) {
 
         if (createProviderUserRequest == null) {
             throw new IllegalArgumentException("createProviderUserRequest cannot be null");
         }
 
         return converters.stream()
-                .map(converter -> converter.convert(createProviderUserRequest))
+                .map(converter -> converter.create(createProviderUserRequest))
                 .filter(Objects::nonNull)
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Can't convert " + createProviderUserRequest + " to ProviderUser"));

@@ -7,10 +7,10 @@ import dev.starryeye.custom_social_login_client_with_form_login.model.external_p
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
-public class OAuth2GoogleProviderUserConverter implements ProviderUserConverter<CreateProviderUserRequest, ProviderUser> {
+public class OAuth2GoogleProviderUserCreator implements ProviderUserCreator<CreateProviderUserRequest, ProviderUser> {
 
     @Override
-    public ProviderUser convert(CreateProviderUserRequest createProviderUserRequest) {
+    public ProviderUser create(CreateProviderUserRequest createProviderUserRequest) {
 
         OAuth2User oAuth2User = createProviderUserRequest.oAuth2User();
         ClientRegistration clientRegistration = createProviderUserRequest.clientRegistration();
