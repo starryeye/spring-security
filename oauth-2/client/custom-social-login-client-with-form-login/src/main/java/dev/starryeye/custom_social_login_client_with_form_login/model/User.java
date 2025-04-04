@@ -13,30 +13,33 @@ public class User {
     private final String id;
     private final String username;
     private final String password;
-    private final String providerId;
     private final String email;
+    private final String profileImageUrl;
+    private final String providerId;
     private final List<? extends GrantedAuthority> authorities;
 
     @Builder
-    private User(String registrationId, String id, String username, String password, String providerId, String email, List<? extends GrantedAuthority> authorities) {
+    private User(String registrationId, String id, String username, String password, String email, String profileImageUrl, String providerId, List<? extends GrantedAuthority> authorities) {
         this.registrationId = registrationId;
         this.id = id;
         this.username = username;
         this.password = password;
-        this.providerId = providerId;
         this.email = email;
+        this.profileImageUrl = profileImageUrl;
+        this.providerId = providerId;
         this.authorities = authorities;
     }
 
-    public static User createUser(String registrationId, String id, String username, String password, String providerId, String email, List<? extends GrantedAuthority> authorities) {
+    public static User createUser(String registrationId, String id, String username, String password, String email, String profileImageUrl, String providerId, List<? extends GrantedAuthority> authorities) {
 
         return User.builder()
                 .registrationId(registrationId)
                 .id(id)
                 .username(username)
                 .password(password)
-                .providerId(providerId)
                 .email(email)
+                .profileImageUrl(profileImageUrl)
+                .providerId(providerId)
                 .authorities(authorities)
                 .build();
     }

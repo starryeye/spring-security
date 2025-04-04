@@ -21,8 +21,9 @@ public class UserService {
                 providerUser.getId(),
                 providerUser.getUsername(),
                 providerUser.getPassword(),
-                providerUser.getProviderId(),
                 providerUser.getEmail(),
+                providerUser.getProfileImageUrl(),
+                providerUser.getProviderId(),
                 providerUser.getAuthorities()
         );
 

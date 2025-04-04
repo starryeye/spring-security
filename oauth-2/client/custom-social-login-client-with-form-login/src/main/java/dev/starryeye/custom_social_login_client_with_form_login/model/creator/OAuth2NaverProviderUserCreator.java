@@ -24,7 +24,7 @@ public class OAuth2NaverProviderUserCreator implements ProviderUserCreator<Creat
         return new NaverUser(
                 oAuth2User,
                 clientRegistration,
-                OAuth2UserAttributes.ofSub(oAuth2User, NAVER_SUB_ATTRIBUTES_KEY).getSubAttributes()
+                OAuth2UserAttributes.ofSub(oAuth2User, NAVER_SUB_ATTRIBUTES_KEY)
         );
     }
 }
