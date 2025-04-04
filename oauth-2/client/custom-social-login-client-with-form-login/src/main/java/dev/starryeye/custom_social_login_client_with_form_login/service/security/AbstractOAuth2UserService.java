@@ -19,9 +19,9 @@ public abstract class AbstractOAuth2UserService {
     private final UserService userService;
     private final ProviderUserCreator<CreateProviderUserRequest, ProviderUser> providerUserCreator;
 
-    public AbstractOAuth2UserService(UserService userService, DelegatingProviderUserCreator providerUserConverter) {
+    public AbstractOAuth2UserService(UserService userService, ProviderUserCreator<CreateProviderUserRequest, ProviderUser> providerUserCreator) {
         this.userService = userService;
-        this.providerUserCreator = providerUserConverter;
+        this.providerUserCreator = providerUserCreator;
     }
 
     protected void register(ClientRegistration clientRegistration, ProviderUser providerUser) {

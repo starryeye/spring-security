@@ -30,7 +30,7 @@ spring:
 
           # https://developers.naver.com/apps
           my-naver:
-#            authorization-grant-type: authorization_code
+            authorization-grant-type: authorization_code
 #            client-authentication-method: client_secret_basic
             client-id:
             client-secret:

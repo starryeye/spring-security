@@ -9,10 +9,10 @@ import java.util.Objects;
 @Component
 public class DelegatingProviderUserCreator implements ProviderUserCreator<CreateProviderUserRequest, ProviderUser> {
 
-    private final List<ProviderUserCreator<CreateProviderUserRequest, ProviderUser>> converters;
+    private final List<ProviderUserCreator<CreateProviderUserRequest, ProviderUser>> creators;
 
     public DelegatingProviderUserCreator() {
-        this.converters = List.of(
+        this.creators = List.of(
                 new OAuth2GoogleProviderUserCreator(),
                 new OAuth2NaverProviderUserCreator()
         );
@@ -25,8 +25,8 @@ public class DelegatingProviderUserCreator implements ProviderUserCreator<Create
             throw new IllegalArgumentException("createProviderUserRequest cannot be null");
         }
 
-        return converters.stream()
-                .map(converter -> converter.create(createProviderUserRequest))
+        return creators.stream()
+                .map(creator -> creator.create(createProviderUserRequest))
                 .filter(Objects::nonNull)
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Can't convert " + createProviderUserRequest + " to ProviderUser"));
