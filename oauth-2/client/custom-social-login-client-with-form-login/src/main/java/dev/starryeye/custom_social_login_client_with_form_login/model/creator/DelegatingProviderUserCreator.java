@@ -15,7 +15,8 @@ public class DelegatingProviderUserCreator implements ProviderUserCreator<Create
         this.creators = List.of(
                 new OAuth2GoogleProviderUserCreator(),
                 new OAuth2NaverProviderUserCreator(),
-                new OAuth2KakaoProviderUserCreator()
+                new OAuth2KakaoProviderUserCreator(),
+                new OAuth2KeycloakProviderUserCreator()
         );
     }
 
