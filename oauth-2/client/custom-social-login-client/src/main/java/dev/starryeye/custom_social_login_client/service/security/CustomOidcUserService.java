@@ -24,7 +24,11 @@ public class CustomOidcUserService extends AbstractOAuth2UserService implements 
 
     /**
      * OidcAuthorizationCodeAuthenticationProvider 에 의해 호출 되며
-     *      loadUser 호출 이후 인증 처리를 완료한다. (인증 객체 생성 및 리턴)
+     *      oidcUserService.loadUser 호출 이후..
+     *      리턴 받은 OidcUser (사용자 정보 객체) 를 ProviderUser 로 가공 후 저장(회원가입)한다.
+     *
+     * 참고.
+     * OAuth2LoginAuthenticationFilter 에서 사용자 정보 객체를 가지고 최종적으로 인증객체를 생성 및 저장함.
      */
     @Override
     public OidcUser loadUser(OidcUserRequest userRequest) throws OAuth2AuthenticationException {

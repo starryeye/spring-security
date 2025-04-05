@@ -22,7 +22,11 @@ public class CustomOAuth2UserService extends AbstractOAuth2UserService implement
 
     /**
      * OAuth2LoginAuthenticationProvider 에 의해 호출 되며
-     *      loadUser 호출 이후 인증 처리를 완료한다. (인증 객체 생성 및 리턴)
+     *      defaultOAuth2UserService.loadUser 호출 이후..
+     *      리턴 받은 OidcUser (사용자 정보 객체) 를 ProviderUser 로 가공 후 저장(회원가입)한다.
+     *
+     * 참고.
+     * OAuth2LoginAuthenticationFilter 에서 사용자 정보 객체를 가지고 최종적으로 인증객체를 생성 및 저장함.
      */
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
