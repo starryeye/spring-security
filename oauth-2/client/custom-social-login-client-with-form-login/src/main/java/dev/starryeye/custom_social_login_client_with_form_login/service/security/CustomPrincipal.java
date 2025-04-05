@@ -10,7 +10,6 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 
 public class CustomPrincipal implements UserDetails, OAuth2User, OidcUser {
@@ -22,55 +21,67 @@ public class CustomPrincipal implements UserDetails, OAuth2User, OidcUser {
      *
      * Authentication 는 principal, credentials, authorities 를 참조할 수 있다.
      * principal 은 인증 방법에 따라 UserDetails, OAuth2User, OidcUser 가 될 수 있다.
-     *      이 프로젝트에서는 form 인증, OAuth 2.0 인증 을 함께 사용하기 때문에 위 3가지 타입을 하나의 객체로 묶는 CustomPrincipal 을 개발함.
-     *          -> @AuthenticationPrincipal 로 CustomPrincipal 을 참조할 수 있게 됨. 모든 인증객체에서 CustomPrincipal 를 참조함
+     * 이 프로젝트에서는 form 인증, OAuth 2.0 인증 을 함께 사용하기 때문에 위 3가지 타입을 하나의 객체로 묶는 CustomPrincipal 을 개발함.
+     * -> @AuthenticationPrincipal 로 CustomPrincipal 을 참조할 수 있게 됨. 모든 인증객체에서 CustomPrincipal 를 참조함
      */
 
     private final String username;
     private final String password;
-    private final Map<String, Object> attributes;
+    private final Map<String, Object> attributes; // todo, Serializable 구현필요
     private final Collection<? extends GrantedAuthority> authorities;
 
-    public CustomPrincipal(ProviderUser providerUser) {
-        // OAuth 2.0 인증 시 OAuth2User, OidcUser 대신 CustomPrincipal 을 사용
-
-        this.username = providerUser.getUsername();
-        this.password = providerUser.getPassword();
-        this.attributes = providerUser.getAttributes();
-        this.authorities = providerUser.getAuthorities();
+    private CustomPrincipal(String username, String password, Map<String, Object> attributes, Collection<? extends GrantedAuthority> authorities) {
+        this.username = username;
+        this.password = password;
+        this.attributes = attributes;
+        this.authorities = authorities;
     }
 
-    public CustomPrincipal(User user) {
+    public static CustomPrincipal of(ProviderUser providerUser) {
+        // OAuth 2.0 인증 시 OAuth2User, OidcUser 대신 CustomPrincipal 을 사용
+
+        return new CustomPrincipal(
+                providerUser.getUsername(),
+                providerUser.getPassword(),
+                providerUser.getAttributes(),
+                providerUser.getAuthorities()
+        );
+    }
+
+    public static CustomPrincipal of(User user) {
         // form 인증 시 UserDetails 대신 CustomPrincipal 을 사용
 
-        this.username = user.getUsername();
-        this.password = user.getPassword();
-        // todo
+        return new CustomPrincipal(
+                user.getUsername(),
+                user.getPassword(),
+                Map.of(), // todo, 검토 필요
+                user.getAuthorities()
+        );
     }
 
     @Override // -- by OAuth2User --
     public String getName() {
-        return "";
+        return this.username;
     }
 
     @Override // -- by OAuth2User --
     public Map<String, Object> getAttributes() {
-        return Map.of();
+        return this.attributes;
     }
 
     @Override // -- by UserDetails, OAuth2User --
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of();
+        return this.authorities;
     }
 
     @Override // -- by UserDetails --
     public String getPassword() {
-        return "";
+        return this.password;
     }
 
     @Override // -- by UserDetails --
     public String getUsername() {
-        return "";
+        return this.username;
     }
 
     @Override // -- by OidcUser --

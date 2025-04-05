@@ -1,11 +1,7 @@
 package dev.starryeye.custom_social_login_client_with_form_login.service.security;
 
 import dev.starryeye.custom_social_login_client_with_form_login.model.User;
-import dev.starryeye.custom_social_login_client_with_form_login.model.creator.CreateProviderUserRequest;
-import dev.starryeye.custom_social_login_client_with_form_login.model.creator.ProviderUserCreator;
-import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.ProviderUser;
 import dev.starryeye.custom_social_login_client_with_form_login.repository.UserRepository;
-import dev.starryeye.custom_social_login_client_with_form_login.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -30,7 +26,6 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         User user = userRepository.findByUsername(username).orElseThrow(() -> new UsernameNotFoundException(username));
 
-        //todo..
-
+        return CustomPrincipal.of(user);
     }
 }
