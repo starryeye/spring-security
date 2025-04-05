@@ -10,6 +10,7 @@ import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMap
 import org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 
 @Configuration
@@ -68,6 +69,15 @@ public class OAuth2ClientConfig {
                                 .requestMatchers("/api/scope-openid").hasAuthority("ROLE_SCOPE_openid")
                                 .anyRequest().authenticated()
                 )
+                .formLogin(httpSecurityFormLoginConfigurer ->
+                        // formLogin 의 loginPage 는 폼 로그인, oauth2Login 의 loginPage 는 oauth2 로그인 페이지가 기본이다.
+                        // 여기서는 커스텀 login page(폼 로그인 + social 로그인) 으로 만들어본다.
+                        httpSecurityFormLoginConfigurer
+                                .loginPage("/login")
+                                .loginProcessingUrl("/login-process")
+                                .defaultSuccessUrl("/")
+                                .permitAll()
+                )
                 .oauth2Login(oAuth2LoginConfigurer ->
                         oAuth2LoginConfigurer
                                 .userInfoEndpoint(userInfoEndpointConfig ->
@@ -83,7 +93,14 @@ public class OAuth2ClientConfig {
                                 .invalidateHttpSession(true)
                                 .clearAuthentication(true)
                                 .deleteCookies("JSESSIONID")
-                );
+                )
+                .exceptionHandling(httpSecurityExceptionHandlingConfigurer ->
+                        httpSecurityExceptionHandlingConfigurer
+                                // 인증 실패 시, 로그인 페이지로 보낸다.
+                                .authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login")
+                                )
+                )
+        ;
 
         return http.build();
     }

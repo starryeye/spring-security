@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
 @RestController
-public class HomeController {
+public class AuthenticationInfoController {
 
     @GetMapping("/api/oauth2-oidc-user")
     public Authentication user(Authentication authentication, @AuthenticationPrincipal OAuth2User oauth2User) {
