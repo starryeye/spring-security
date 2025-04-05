@@ -4,8 +4,6 @@ import dev.starryeye.custom_social_login_client_with_form_login.model.OAuth2User
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
-import java.util.Map;
-
 public class KeycloakUser extends OAuth2ProviderUser {
 
     public KeycloakUser(OAuth2User oAuth2User, ClientRegistration clientRegistration) {
@@ -14,12 +12,12 @@ public class KeycloakUser extends OAuth2ProviderUser {
 
     @Override
     public String getId() {
-        return (String) getAttributes().getMainAttributes().get("sub");
+        return (String) getLayeredAttributes().getMainAttributes().get("sub");
     }
 
     @Override
     public String getUsername() {
-        return (String) getAttributes().getMainAttributes().get("preferred_username");
+        return (String) getLayeredAttributes().getMainAttributes().get("preferred_username");
     }
 
     @Override

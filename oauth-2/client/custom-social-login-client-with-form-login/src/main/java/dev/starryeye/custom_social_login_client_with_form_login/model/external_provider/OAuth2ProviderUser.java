@@ -13,12 +13,12 @@ public abstract class OAuth2ProviderUser implements ProviderUser {
 
     private final OAuth2User oAuth2User;
     private final ClientRegistration clientRegistration;
-    private final OAuth2UserAttributes attributes;
+    private final OAuth2UserAttributes layeredAttributes;
 
-    public OAuth2ProviderUser(OAuth2User oAuth2User, ClientRegistration clientRegistration, OAuth2UserAttributes attributes) {
+    public OAuth2ProviderUser(OAuth2User oAuth2User, ClientRegistration clientRegistration, OAuth2UserAttributes layeredAttributes) {
         this.oAuth2User = oAuth2User;
         this.clientRegistration = clientRegistration;
-        this.attributes = attributes;
+        this.layeredAttributes = layeredAttributes;
     }
 
     @Override
@@ -28,7 +28,7 @@ public abstract class OAuth2ProviderUser implements ProviderUser {
 
     @Override
     public String getEmail() {
-        return (String) this.attributes.getMainAttributes().get("email");
+        return (String) this.layeredAttributes.getMainAttributes().get("email");
     }
 
     @Override
@@ -42,7 +42,11 @@ public abstract class OAuth2ProviderUser implements ProviderUser {
     }
 
     @Override
-    public OAuth2UserAttributes getAttributes() {
-        return this.attributes;
+    public Map<String, Object> getAttributes() {
+        return this.layeredAttributes.getMainAttributes();
+    }
+
+    protected OAuth2UserAttributes getLayeredAttributes() {
+        return this.layeredAttributes;
     }
 }

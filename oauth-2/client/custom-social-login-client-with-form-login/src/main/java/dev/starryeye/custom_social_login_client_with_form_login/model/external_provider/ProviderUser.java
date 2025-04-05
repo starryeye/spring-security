@@ -18,6 +18,5 @@ public interface ProviderUser {
 
     List<? extends GrantedAuthority> getAuthorities();
 
-    OAuth2UserAttributes getAttributes();
-
+    Map<String, Object> getAttributes();
 }

@@ -26,32 +26,26 @@ public class CustomPrincipal implements UserDetails, OAuth2User, OidcUser {
      *          -> @AuthenticationPrincipal 로 CustomPrincipal 을 참조할 수 있게 됨. 모든 인증객체에서 CustomPrincipal 를 참조함
      */
 
+    private final String username;
+    private final String password;
+    private final Map<String, Object> attributes;
+    private final Collection<? extends GrantedAuthority> authorities;
+
     public CustomPrincipal(ProviderUser providerUser) {
         // OAuth 2.0 인증 시 OAuth2User, OidcUser 대신 CustomPrincipal 을 사용
 
-        // todo
+        this.username = providerUser.getUsername();
+        this.password = providerUser.getPassword();
+        this.attributes = providerUser.getAttributes();
+        this.authorities = providerUser.getAuthorities();
     }
 
     public CustomPrincipal(User user) {
         // form 인증 시 UserDetails 대신 CustomPrincipal 을 사용
 
+        this.username = user.getUsername();
+        this.password = user.getPassword();
         // todo
-    }
-
-
-    @Override // -- by OidcUser --
-    public Map<String, Object> getClaims() {
-        return Map.of();
-    }
-
-    @Override // -- by OidcUser --
-    public OidcUserInfo getUserInfo() {
-        return null;
-    }
-
-    @Override // -- by OidcUser --
-    public OidcIdToken getIdToken() {
-        return null;
     }
 
     @Override // -- by OAuth2User --
@@ -77,5 +71,20 @@ public class CustomPrincipal implements UserDetails, OAuth2User, OidcUser {
     @Override // -- by UserDetails --
     public String getUsername() {
         return "";
+    }
+
+    @Override // -- by OidcUser --
+    public Map<String, Object> getClaims() {
+        return Map.of();
+    }
+
+    @Override // -- by OidcUser --
+    public OidcUserInfo getUserInfo() {
+        return null;
+    }
+
+    @Override // -- by OidcUser --
+    public OidcIdToken getIdToken() {
+        return null;
     }
 }

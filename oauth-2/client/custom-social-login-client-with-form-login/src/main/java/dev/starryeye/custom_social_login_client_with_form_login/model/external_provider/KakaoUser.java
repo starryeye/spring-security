@@ -12,16 +12,16 @@ public class KakaoUser extends OAuth2ProviderUser {
 
     @Override
     public String getId() {
-        return (String) getAttributes().getMainAttributes().get("sub");
+        return (String) getLayeredAttributes().getMainAttributes().get("sub");
     }
 
     @Override
     public String getUsername() {
-        return (String) getAttributes().getMainAttributes().get("nickname");
+        return (String) getLayeredAttributes().getMainAttributes().get("nickname");
     }
 
     @Override
     public String getProfileImageUrl() {
-        return (String) getAttributes().getMainAttributes().get("picture");
+        return (String) getLayeredAttributes().getMainAttributes().get("picture");
     }
 }
