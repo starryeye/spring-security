@@ -135,16 +135,16 @@
 - [Spring security 초기화 3](https://starryeye.tistory.com/238)
 
 ## OAuth 2.0 + OIDC + spring security projects
-- Authorization code grant
-- Implicit grant
-- Resource owner password credentials grant
-- Client credentials grant
-- Refresh token grant
-- PKCE-enhanced authorization code grant
   
 - oauth-2/keycloak
   - keycloak default docker-compose
   - OAuth 2.0, OIDC protocol 의 다양한 grant 별 request / response example
+    - Authorization code grant
+    - Implicit grant
+    - Resource owner password credentials grant
+    - Client credentials grant
+    - Refresh token grant
+    - PKCE-enhanced authorization code grant
 - oauth-2/client
   - spring-oauth2-client 의존성 알아보기
   - hello-oauth2-client
