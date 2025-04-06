@@ -141,3 +141,25 @@
 - Client credentials grant
 - Refresh token grant
 - PKCE-enhanced authorization code grant
+  
+- oauth-2/keycloak
+  - keycloak default docker-compose
+  - OAuth 2.0, OIDC protocol 의 다양한 grant 별 request / response example
+- oauth-2/client
+  - spring-oauth2-client 의존성 알아보기
+  - hello-oauth2-client
+  - custom-client-registration-repository
+  - custom-oauth2-login-oauth2-login-configurer
+  - custom-oauth2-login-login-page
+  - custom-oauth2-login-authorization-endpoint
+  - custom-oauth2-login-redirection-endpoint
+  - custom-oauth2-login-oauth2-user-service
+  - custom-oidc-logout
+  - argument-resolver
+  - custom-oauth2-login-authorization-request-resolver
+  - custom-oauth2-client-oauth2-client-configurer
+  - oauth2-authorized-client
+  - oauth2-authorized-client-manager
+  - oauth2-authorized-client-manager-and-filter
+  - custom-social-login-client
+  - custom-social-login-client-with-form-login
