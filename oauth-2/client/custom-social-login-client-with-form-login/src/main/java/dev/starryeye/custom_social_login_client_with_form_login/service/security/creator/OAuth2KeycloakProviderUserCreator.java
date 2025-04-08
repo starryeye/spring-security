@@ -1,4 +1,4 @@
-package dev.starryeye.custom_social_login_client_with_form_login.model.creator;
+package dev.starryeye.custom_social_login_client_with_form_login.service.security.creator;
 
 import dev.starryeye.custom_social_login_client_with_form_login.model.ProviderType;
 import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.KeycloakUser;

@@ -1,4 +1,4 @@
-package dev.starryeye.custom_social_login_client_with_form_login.model.creator;
+package dev.starryeye.custom_social_login_client_with_form_login.service.security.creator;
 
 import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.ProviderUser;
 import org.springframework.stereotype.Component;
@@ -11,13 +11,8 @@ public class DelegatingProviderUserCreator implements ProviderUserCreator<Create
 
     private final List<ProviderUserCreator<CreateProviderUserRequest, ProviderUser>> creators;
 
-    public DelegatingProviderUserCreator() {
-        this.creators = List.of(
-                new OAuth2GoogleProviderUserCreator(),
-                new OAuth2NaverProviderUserCreator(),
-                new OAuth2KakaoProviderUserCreator(),
-                new OAuth2KeycloakProviderUserCreator()
-        );
+    public DelegatingProviderUserCreator(List<ProviderUserCreator<CreateProviderUserRequest, ProviderUser>> creators) {
+        this.creators = creators;
     }
 
     @Override

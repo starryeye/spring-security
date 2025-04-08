@@ -7,10 +7,10 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
 @Controller
-public class IndexController {
+public class SocialController {
 
-    @GetMapping("/")
-    public String index(Model model, Authentication authentication) {
+    @GetMapping("/social")
+    public String social(Model model, Authentication authentication) {
 
         // @AuthenticationPrincipal CustomPrincipal principal 대체 가능
         CustomPrincipal principal = (CustomPrincipal) authentication.getPrincipal();
@@ -24,15 +24,11 @@ public class IndexController {
              */
 
             String username = principal.getUsername();
-            String providerId = principal.getProviderId();
-
             model.addAttribute("user", username);
-            model.addAttribute("provider", providerId);
         } else {
             model.addAttribute("user", "방문자");
-            model.addAttribute("provider", "none");
         }
 
-        return "index";
+        return "social";
     }
 }

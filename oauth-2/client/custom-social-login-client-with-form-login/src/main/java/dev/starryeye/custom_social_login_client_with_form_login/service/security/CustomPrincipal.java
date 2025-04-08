@@ -2,6 +2,7 @@ package dev.starryeye.custom_social_login_client_with_form_login.service.securit
 
 import dev.starryeye.custom_social_login_client_with_form_login.model.User;
 import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.ProviderUser;
+import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
@@ -12,6 +13,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import java.util.Collection;
 import java.util.Map;
 
+@Getter
 public class CustomPrincipal implements UserDetails, OAuth2User, OidcUser {
 
     /**
@@ -30,11 +32,14 @@ public class CustomPrincipal implements UserDetails, OAuth2User, OidcUser {
     private final Map<String, Object> attributes; // todo, Serializable 구현필요
     private final Collection<? extends GrantedAuthority> authorities;
 
-    private CustomPrincipal(String username, String password, Map<String, Object> attributes, Collection<? extends GrantedAuthority> authorities) {
+    private final String providerId;
+
+    private CustomPrincipal(String username, String password, Map<String, Object> attributes, Collection<? extends GrantedAuthority> authorities, String providerId) {
         this.username = username;
         this.password = password;
         this.attributes = attributes;
         this.authorities = authorities;
+        this.providerId = providerId;
     }
 
     public static CustomPrincipal of(ProviderUser providerUser) {
@@ -44,7 +49,8 @@ public class CustomPrincipal implements UserDetails, OAuth2User, OidcUser {
                 providerUser.getUsername(),
                 providerUser.getPassword(),
                 providerUser.getAttributes(),
-                providerUser.getAuthorities()
+                providerUser.getAuthorities(),
+                providerUser.getProviderId()
         );
     }
 
@@ -55,7 +61,8 @@ public class CustomPrincipal implements UserDetails, OAuth2User, OidcUser {
                 user.getUsername(),
                 user.getPassword(),
                 Map.of(), // todo, 검토 필요
-                user.getAuthorities()
+                user.getAuthorities(),
+                user.getProviderId()
         );
     }
 

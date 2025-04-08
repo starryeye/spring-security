@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:th="http://www.thymeleaf.org"
+<html xmlns:th="http://www.thymeleaf.org"
       xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://fonts.googleapis.com/css?family=Roboto:300,400&display=swap" rel="stylesheet">
 
     <!-- Bootstrap CSS -->
@@ -16,55 +15,42 @@
     <!-- Custom Style -->
     <link rel="stylesheet" th:href="@{/css/style.css}">
 
-    <title>Login</title>
+    <title>Index</title>
 </head>
 <body>
 <div class="content">
     <div class="container">
-        <div class="row align-items-center">
-            <div class="col-md-5" sec:authorize="isAnonymous()">
-                <div class="social-login text-center">
-                    <a th:href="@{/oauth2/authorization/my-google}" class="google btn w-100 mb-2">
-                        Sign in with Google
-                    </a>
-                    <a th:href="@{/oauth2/authorization/my-naver}" class="naver btn w-100 mb-2">
-                        Sign in with Naver
-                    </a>
-                    <a th:href="@{/oauth2/authorization/my-kakao}" class="kakao btn w-100 mb-2">
-                        Sign in with kakao
-                    </a>
-                    <a th:href="@{/oauth2/authorization/my-keycloak}" class="keycloak btn w-100 mb-2">
-                        Sign in with Keycloak
-                    </a>
-                </div>
-            </div>
-            <div class="col-md-5">
-                <div class="social-login text-center">
-                    <div sec:authorize="isAuthenticated()">
-                        <h2>안녕하세요 <span th:text="${user}"></span> 님</h2>
-                        <br/><br/>
-                        <a th:href="@{/api/oauth2-oidc-user}" class="gray btn w-100 mb-2">oauth2 user or oidc user 권한을 가진 사용자 인증 정보</a>
-                        <a th:href="@{/api/scope-profile}" class="gray btn w-100 mb-2">profile scope 권한을 가진 사용자 인증 정보</a>
-                        <a th:href="@{/api/scope-openid}" class="gray btn w-100 mb-2">openid scope 권한을 가진 사용자 인증 정보</a>
-                        <a th:href="@{/logout}" class="red btn w-100">Logout</a>
+        <div class="row justify-content-center align-items-center">
+            <div class="col-md-6">
+                <div class="card shadow p-4 text-center">
+
+                    <!-- 비로그인 사용자 -->
+                    <div sec:authorize="isAnonymous()">
+                        <h2 class="mb-3">안녕하세요 환영합니다.</h2>
+                        <h4 class="mb-4">회원 로그인</h4>
+                        <a th:href="@{/login}" class="btn btn-primary w-100">Login</a>
                     </div>
+
+                    <!-- 로그인 사용자 -->
+                    <div sec:authorize="isAuthenticated()">
+                        <div class="mb-3">
+                            <img th:src="@{'/images/' + ${provider} + '.png'}" class="img-fluid" alt="Provider Icon" style="max-height: 100px;" />
+                        </div>
+                        <h4 class="mb-2">안녕하세요 <span th:text="${user}"></span> 님</h4>
+                        <h5 class="mb-4 text-success">본인 인증 완료</h5>
+                        <a th:href="@{/logout}" class="btn btn-danger w-100">Logout</a>
+                    </div>
+
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- jQuery -->
+<!-- Scripts -->
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-
-<!-- Popper.js -->
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
-
-<!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
-<!-- Owl Carousel JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/owl.carousel.min.js"></script>
-
 </body>
 </html>
