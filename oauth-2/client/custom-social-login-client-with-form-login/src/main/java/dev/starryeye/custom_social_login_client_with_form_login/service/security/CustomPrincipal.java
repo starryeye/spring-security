@@ -1,7 +1,7 @@
 package dev.starryeye.custom_social_login_client_with_form_login.service.security;
 
 import dev.starryeye.custom_social_login_client_with_form_login.model.User;
-import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.ProviderUser;
+import dev.starryeye.custom_social_login_client_with_form_login.model.ProviderUser;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;

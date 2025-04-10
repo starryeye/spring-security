@@ -1,6 +1,6 @@
 package dev.starryeye.custom_social_login_client_with_form_login.service.security.creator;
 
-import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.ProviderUser;
+import dev.starryeye.custom_social_login_client_with_form_login.model.ProviderUser;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

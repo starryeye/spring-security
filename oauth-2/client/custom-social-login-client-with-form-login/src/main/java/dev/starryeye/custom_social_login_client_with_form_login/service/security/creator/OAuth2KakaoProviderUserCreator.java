@@ -2,7 +2,7 @@ package dev.starryeye.custom_social_login_client_with_form_login.service.securit
 
 import dev.starryeye.custom_social_login_client_with_form_login.model.ProviderType;
 import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.KakaoUser;
-import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.ProviderUser;
+import dev.starryeye.custom_social_login_client_with_form_login.model.ProviderUser;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 

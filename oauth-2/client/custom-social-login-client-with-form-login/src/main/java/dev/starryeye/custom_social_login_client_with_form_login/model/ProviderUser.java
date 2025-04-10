@@ -1,6 +1,5 @@
-package dev.starryeye.custom_social_login_client_with_form_login.model.external_provider;
+package dev.starryeye.custom_social_login_client_with_form_login.model;
 
-import dev.starryeye.custom_social_login_client_with_form_login.model.OAuth2UserAttributes;
 import org.springframework.security.core.GrantedAuthority;
 
 import java.util.List;

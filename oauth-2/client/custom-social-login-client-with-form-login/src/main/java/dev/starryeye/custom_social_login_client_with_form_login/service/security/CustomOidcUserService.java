@@ -2,7 +2,7 @@ package dev.starryeye.custom_social_login_client_with_form_login.service.securit
 
 import dev.starryeye.custom_social_login_client_with_form_login.service.security.creator.CreateProviderUserRequest;
 import dev.starryeye.custom_social_login_client_with_form_login.service.security.creator.ProviderUserCreator;
-import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.ProviderUser;
+import dev.starryeye.custom_social_login_client_with_form_login.model.ProviderUser;
 import dev.starryeye.custom_social_login_client_with_form_login.service.UserService;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
