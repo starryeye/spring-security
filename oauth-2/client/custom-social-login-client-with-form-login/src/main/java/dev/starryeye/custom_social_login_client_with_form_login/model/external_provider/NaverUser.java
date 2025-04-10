@@ -19,7 +19,7 @@ public class NaverUser extends OAuth2ProviderUser {
 
     @Override
     public String getUsername() {
-        return (String) getLayeredAttributes().getSubAttributes().get("email");
+        return (String) getLayeredAttributes().getSubAttributes().get("name");
     }
 
     @Override

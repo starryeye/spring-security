@@ -86,8 +86,12 @@ public class OAuth2ClientConfig {
                                                 .oidcUserService(customOidcUserService)
                                 )
                 )
-                .logout( // front channel logout setting
-                httpSecurityLogoutConfigurer ->
+                .logout(httpSecurityLogoutConfigurer ->
+                        // front channel logout setting
+                        // 참고. oauth2Login, formLogin 두개 모두를 사용하여.. 둘중 하나만 사용하면 제공되던 GET "/logout" 페이지가 기본적으로 제공되지 않는다..
+                        //      이 프로젝트에서는 POST "/logout" 만을 사용하도록 하였다. (index.html 참고)
+                        // todo 그러나.. oidc logout 처리를 위해 formLogin, oauth2Login 에 따라 분기를 해야할 것 같음..
+                        //      직접 logout api 를 개발해야할 것 같음..
                         httpSecurityLogoutConfigurer
                                 .logoutSuccessHandler(oidcLogoutSuccessHandler())
                                 .invalidateHttpSession(true)

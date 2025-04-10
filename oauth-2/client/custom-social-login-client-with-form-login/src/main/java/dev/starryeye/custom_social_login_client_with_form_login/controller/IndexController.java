@@ -12,16 +12,16 @@ public class IndexController {
     @GetMapping("/")
     public String index(Model model, Authentication authentication) {
 
-        // @AuthenticationPrincipal CustomPrincipal principal 대체 가능
-        CustomPrincipal principal = (CustomPrincipal) authentication.getPrincipal();
-
-        if (authentication != null) {
+        if (authentication != null) { // 인증 여부
             /**
              * authentication 타입이 OAuth2AuthenticationToken 이면
              *      OAuth 2.0 access token /userinfo 로 인증했거나
              *      OAuth 2.0 OIDC id token (혹은 추가로.. + access token /userinfo) 로 인증했거나
              *      form 로그인으로 인증하진 않음
              */
+
+            // @AuthenticationPrincipal CustomPrincipal principal 대체 가능
+            CustomPrincipal principal = (CustomPrincipal) authentication.getPrincipal();
 
             String username = principal.getUsername();
             String providerId = principal.getProviderId();

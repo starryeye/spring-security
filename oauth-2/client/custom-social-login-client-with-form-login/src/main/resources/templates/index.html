@@ -38,7 +38,9 @@
                         </div>
                         <h4 class="mb-2">안녕하세요 <span th:text="${user}"></span> 님</h4>
                         <h5 class="mb-4 text-success">본인 인증 완료</h5>
-                        <a th:href="@{/logout}" class="btn btn-danger w-100">Logout</a>
+                        <form th:action="@{/logout}" method="post">
+                            <button type="submit" class="btn btn-danger w-100">Logout</button>
+                        </form>
                     </div>
 
                 </div>
