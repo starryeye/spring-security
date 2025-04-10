@@ -14,6 +14,8 @@ public class RegisterController {
     //      index.html 에 회원가입 버튼을 만들고..
     //          그에 따른 회원가입 페이지(register.html)도 추가로 만들고..
 
+    // todo, 현재 social 은 username 으로 쿼리도 하고.. 유니크 id 처럼 쓰는데.. 개선해야함..
+
     @GetMapping("/register")
     public String register() {
         return "register";
