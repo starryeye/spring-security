@@ -8,6 +8,10 @@ import java.util.Map;
 
 public class FormUser implements ProviderUser {
 
+    /**
+     * todo, 직접 회원 가입 시(해당 서버를 통해 register) 사용해야할 객체..
+     */
+
     private final String id;
     private final String username;
     private final String password;
@@ -66,5 +70,10 @@ public class FormUser implements ProviderUser {
     @Override
     public Map<String, Object> getAttributes() {
         return this.attributes;
+    }
+
+    @Override
+    public boolean isOidcUser() {
+        return false;
     }
 }

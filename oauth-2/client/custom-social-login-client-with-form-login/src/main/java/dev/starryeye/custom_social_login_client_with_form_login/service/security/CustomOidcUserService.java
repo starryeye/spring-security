@@ -44,6 +44,6 @@ public class CustomOidcUserService extends AbstractOAuth2UserService implements 
         // 회원 가입
         super.register(clientRegistration, providerUser);
 
-        return CustomPrincipal.of(providerUser);
+        return CustomPrincipal.ofOidc(providerUser);
     }
 }

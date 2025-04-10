@@ -2,6 +2,7 @@ package dev.starryeye.custom_social_login_client_with_form_login.service.securit
 
 import dev.starryeye.custom_social_login_client_with_form_login.model.User;
 import dev.starryeye.custom_social_login_client_with_form_login.model.ProviderUser;
+import dev.starryeye.custom_social_login_client_with_form_login.model.external_provider.ProviderOidcUser;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -32,24 +33,49 @@ public class CustomPrincipal implements UserDetails, OAuth2User, OidcUser {
     private final Map<String, Object> attributes; // todo, Serializable 구현필요
     private final Collection<? extends GrantedAuthority> authorities;
 
+    private final Map<String, Object> claims;
+    private final OidcUserInfo oidcUserInfo;
+    private final OidcIdToken idToken;
+
     private final String providerId;
 
-    private CustomPrincipal(String username, String password, Map<String, Object> attributes, Collection<? extends GrantedAuthority> authorities, String providerId) {
+    private CustomPrincipal(String username, String password, Map<String, Object> attributes, Collection<? extends GrantedAuthority> authorities, Map<String, Object> claims, OidcUserInfo oidcUserInfo, OidcIdToken idToken, String providerId) {
         this.username = username;
         this.password = password;
         this.attributes = attributes;
         this.authorities = authorities;
+        this.claims = claims;
+        this.oidcUserInfo = oidcUserInfo;
+        this.idToken = idToken;
         this.providerId = providerId;
     }
 
-    public static CustomPrincipal of(ProviderUser providerUser) {
-        // OAuth 2.0 인증 시 OAuth2User, OidcUser 대신 CustomPrincipal 을 사용
+    public static CustomPrincipal ofOAuth2(ProviderUser providerUser) {
+        // OAuth 2.0 인증 시 OAuth2User 대신 CustomPrincipal 을 사용
 
         return new CustomPrincipal(
                 providerUser.getUsername(),
                 providerUser.getPassword(),
                 providerUser.getAttributes(),
                 providerUser.getAuthorities(),
+                Map.of(),
+                null,
+                null,
+                providerUser.getProviderId()
+        );
+    }
+
+    public static CustomPrincipal ofOidc(ProviderUser providerUser) {
+        // OIDC 인증 시 OidcUser 대신 CustomPrincipal 을 사용
+
+        return new CustomPrincipal(
+                providerUser.getUsername(),
+                providerUser.getPassword(),
+                providerUser.getAttributes(),
+                providerUser.getAuthorities(),
+                ((ProviderOidcUser)providerUser).getClaims(), // todo, 좀더 좋은 방법 없나..
+                ((ProviderOidcUser)providerUser).getUserInfo(),
+                ((ProviderOidcUser)providerUser).getIdToken(),
                 providerUser.getProviderId()
         );
     }
@@ -62,8 +88,10 @@ public class CustomPrincipal implements UserDetails, OAuth2User, OidcUser {
                 user.getPassword(),
                 Map.of(), // todo, 검토 필요
                 user.getAuthorities(),
-                user.getProviderId()
-        );
+                Map.of(),
+                null,
+                null,
+                user.getProviderId());
     }
 
     @Override // -- by OAuth2User --
@@ -93,16 +121,16 @@ public class CustomPrincipal implements UserDetails, OAuth2User, OidcUser {
 
     @Override // -- by OidcUser --
     public Map<String, Object> getClaims() {
-        return Map.of();
+        return this.claims;
     }
 
     @Override // -- by OidcUser --
     public OidcUserInfo getUserInfo() {
-        return null;
+        return this.oidcUserInfo;
     }
 
     @Override // -- by OidcUser --
     public OidcIdToken getIdToken() {
-        return null;
+        return this.idToken;
     }
 }

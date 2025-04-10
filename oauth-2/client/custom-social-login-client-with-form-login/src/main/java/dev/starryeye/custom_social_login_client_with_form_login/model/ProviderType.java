@@ -10,7 +10,9 @@ public enum ProviderType {
     GOOGLE("my-google"),
     NAVER("my-naver"),
     KAKAO("my-kakao"),
-    KEYCLOAK("my-keycloak")
+    KEYCLOAK("my-keycloak"),
+
+    NONE("none"),
     ;
 
     private final String providerId; // todo, application.yml 과 통합 필요

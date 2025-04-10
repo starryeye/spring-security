@@ -88,10 +88,12 @@ public class OAuth2ClientConfig {
                 )
                 .logout(httpSecurityLogoutConfigurer ->
                         // front channel logout setting
+
                         // 참고. oauth2Login, formLogin 두개 모두를 사용하여.. 둘중 하나만 사용하면 제공되던 GET "/logout" 페이지가 기본적으로 제공되지 않는다..
                         //      이 프로젝트에서는 POST "/logout" 만을 사용하도록 하였다. (index.html 참고)
-                        // todo 그러나.. oidc logout 처리를 위해 formLogin, oauth2Login 에 따라 분기를 해야할 것 같음..
-                        //      직접 logout api 를 개발해야할 것 같음..
+                        // todo 그러나.. formLogin, oauth2Login 에 따라 분기하도록 해서 직접 logout api 를 개발해야할 것 같음.. (for oidc front channel logout..)
+                        //      - 지금 keycloak 은 front channel logout 이 되는데.. google, kakao 는.. 원래 안되는건가.. 개발자 사이트 설정이 필요한가..
+                        //      - formLogin 에 따라 logout 은 정상 동작하는지 확인 필요..
                         httpSecurityLogoutConfigurer
                                 .logoutSuccessHandler(oidcLogoutSuccessHandler())
                                 .invalidateHttpSession(true)

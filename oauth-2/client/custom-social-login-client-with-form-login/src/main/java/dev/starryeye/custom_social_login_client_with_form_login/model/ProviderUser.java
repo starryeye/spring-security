@@ -18,4 +18,6 @@ public interface ProviderUser {
     List<? extends GrantedAuthority> getAuthorities();
 
     Map<String, Object> getAttributes();
+
+    boolean isOidcUser();
 }

@@ -4,6 +4,7 @@ import dev.starryeye.custom_social_login_client_with_form_login.model.OAuth2User
 import dev.starryeye.custom_social_login_client_with_form_login.model.ProviderUser;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
 import java.util.List;
@@ -47,7 +48,21 @@ public abstract class OAuth2ProviderUser implements ProviderUser {
         return this.layeredAttributes.getMainAttributes();
     }
 
+    @Override
+    public boolean isOidcUser() {
+        return this.oAuth2User instanceof OidcUser;
+    }
+
     protected OAuth2UserAttributes getLayeredAttributes() {
         return this.layeredAttributes;
+    }
+
+    protected OidcUser getOidcUser() {
+
+        if (isOidcUser()) {
+            return (OidcUser) this.oAuth2User;
+        }
+
+        throw new UnsupportedOperationException("This user is not OidcUser..");
     }
 }
