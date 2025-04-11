@@ -37,7 +37,7 @@
                             <img th:src="@{'/images/' + ${provider} + '.png'}" class="img-fluid" alt="Provider Icon" style="max-height: 100px;" />
                         </div>
                         <h4 class="mb-2">안녕하세요 <span th:text="${user}"></span> 님</h4>
-                        <h5 class="mb-4 text-success">본인 인증 완료</h5>
+                        <h5 class="mb-4 text-success">로그인 완료</h5>
                         <form th:action="@{/logout}" method="post">
                             <button type="submit" class="btn btn-danger w-100">Logout</button>
                         </form>

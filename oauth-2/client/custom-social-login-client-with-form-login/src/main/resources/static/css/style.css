@@ -77,3 +77,16 @@ h2 {
 .social-login a.red {
     background: #ea4335;
 }
+
+.test-api a {
+    text-decoration: none;
+    text-align: center;
+    color: #fff;
+    margin-bottom: 10px;
+    display: inline-block;
+    border-radius: 6px;
+}
+
+.test-api a.gray {
+    background-color: #6c757d;
+}

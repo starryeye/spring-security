@@ -59,11 +59,19 @@ public class OAuth2ClientConfig {
          *
          */
 
+        /**
+         * 해당 프로젝트 진입점.
+         * 1. http://localhost:8080
+         * 2. http://localhost:8080/social
+         * 3. http://localhost:8080/test
+         */
+
         http
                 .authorizeHttpRequests(authorizationManagerRequestMatcherRegistry ->
                         authorizationManagerRequestMatcherRegistry
                                 .requestMatchers("/images/**", "/css/**", "/js/**").permitAll() // 정적파일접근 허용
-                                .requestMatchers("/", "/social").permitAll()
+                                .requestMatchers("/", "/social", "/test").permitAll()
+                                .requestMatchers("/api/is-authenticated", "/api/is-authorized-client-1", "/api/is-authorized-client-2", "/api/is-authorized-client-3").permitAll()
                                 .requestMatchers("/api/oauth2-oidc-user").hasAnyAuthority("ROLE_OAUTH2_USER", "ROLE_OIDC_USER")
                                 .requestMatchers("/api/scope-profile").hasAuthority("ROLE_SCOPE_profile")
                                 .requestMatchers("/api/scope-openid").hasAuthority("ROLE_SCOPE_openid")

@@ -46,7 +46,9 @@
                         <a th:href="@{/api/oauth2-oidc-user}" class="gray btn w-100 mb-2">oauth2 user or oidc user 권한을 가진 사용자 인증 정보</a>
                         <a th:href="@{/api/scope-profile}" class="gray btn w-100 mb-2">profile scope 권한을 가진 사용자 인증 정보</a>
                         <a th:href="@{/api/scope-openid}" class="gray btn w-100 mb-2">openid scope 권한을 가진 사용자 인증 정보</a>
-                        <a th:href="@{/logout}" class="red btn w-100">Logout</a>
+                        <form th:action="@{/logout}" method="post">
+                            <button type="submit" class="red btn w-100">Logout</button>
+                        </form>
                     </div>
                 </div>
             </div>
