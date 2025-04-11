@@ -45,10 +45,13 @@ public class OAuth2ResourceServerConfig {
          *
          * BearerTokenAuthenticationFilter ..
          *      AnonymousAuthenticationProvider, JwtAuthenticationProvider 를 사용
+         *      전자서명된 토큰을 검증하고 인증객체를 생성한다.
          *
          * JwtAuthenticationProvider..
          *      NimbusJwtDecoder 를 사용
          *      JwtAuthenticationConverter 를 사용
+         *      JwtDecoder(NimbusJwtDecoder) 로 전자서명된 토큰을 검증
+         *      최종 인증 처리한다.
          */
         http
                 .authorizeHttpRequests(authorizationManagerRequestMatcherRegistry ->
