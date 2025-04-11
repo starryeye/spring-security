@@ -10,6 +10,8 @@ public class FormUser implements ProviderUser {
 
     /**
      * todo, 직접 회원 가입 시(해당 서버를 통해 register) 사용해야할 객체..
+     *      직접 회원 가입 기능은 개발해야함.
+     *          form 로그인 현재 불가.
      */
 
     private final String id;
