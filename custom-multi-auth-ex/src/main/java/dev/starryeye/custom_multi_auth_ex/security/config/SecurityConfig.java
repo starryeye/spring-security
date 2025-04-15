@@ -11,18 +11,16 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.context.SecurityContextHolderFilter;
 
 import java.util.List;
 
@@ -31,7 +29,7 @@ public class SecurityConfig {
 
     @Bean
     @Order(1)
-    public SecurityFilterChain apiChain(HttpSecurity http, AuthenticationManager jwtManager) throws Exception {
+    public SecurityFilterChain apiChain(HttpSecurity http, AuthenticationManager jwtAuthenticationManager) throws Exception {
 
         return http
                 .securityMatcher("/api/**")
@@ -39,13 +37,13 @@ public class SecurityConfig {
                         authorizationManagerRequestMatcherRegistry
                                 .anyRequest().hasAuthority("ROLE_DEVELOPER")
                 )
-                .addFilterBefore(new JwtAuthenticationFilter(jwtManager), UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new JwtAuthenticationFilter(jwtAuthenticationManager), UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
 
     @Bean
     @Order(2)
-    public SecurityFilterChain adminChain(HttpSecurity http, AuthenticationManager apiKeyManager) throws Exception {
+    public SecurityFilterChain adminChain(HttpSecurity http, AuthenticationManager apiKeyAuthenticationManager) throws Exception {
 
         /**
          * ApiKey 로 인증을 수행하는 것은..
@@ -58,7 +56,7 @@ public class SecurityConfig {
                         authorizationManagerRequestMatcherRegistry
                                 .anyRequest().hasAnyAuthority("ROLE_ADMIN")
                 )
-                .addFilterBefore(new ApiKeyAuthenticationFilter(apiKeyManager), UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new ApiKeyAuthenticationFilter(apiKeyAuthenticationManager), UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
 
@@ -78,12 +76,25 @@ public class SecurityConfig {
     // parent AuthenticationManager
     @Bean
     public AuthenticationManager parentDaoAuthenticationManager(HttpSecurity http) throws Exception {
+        /**
+         * 참고 이 AuthenticationManager(ProviderManager) 는..
+         * 직접 가진(child) Provider 가 0개이고
+         * parent AuthenticationManager(ProviderManager) 에 DaoAuthenticationProvider 가 있다.
+         *
+         * 의도한대로 깔끔하게 한다면.. (현재.. ApiKeyAuthenticationFilter 에서 authenticationManager 를 참조해보면 이중으로 되어있음)
+         * 아래 코드처럼 할게 아니라..
+         * return new ProviderManager(
+         *                 List.of(new DaoAuthenticationProvider()),
+         *                 null
+         *         );
+         * 로 해야함.. 대신 UserDetailService 및 passwordEncoder 등을 직접 셋팅해야할듯..
+         */
         AuthenticationManagerBuilder authenticationManagerBuilder = http.getSharedObject(AuthenticationManagerBuilder.class);
         return authenticationManagerBuilder.build();
     }
 
     @Bean
-    public AuthenticationManager jwtManager(JwtService jwtService, AuthenticationManager parentDaoAuthenticationManager) {
+    public AuthenticationManager jwtAuthenticationManager(JwtService jwtService, AuthenticationManager parentDaoAuthenticationManager) {
         JwtAuthenticationProvider jwtAuthenticationProvider = new JwtAuthenticationProvider(jwtService);
         return new ProviderManager(
                 List.of(jwtAuthenticationProvider),
@@ -92,7 +103,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager apiKeyManager(ApiKeyService apiKeyService, AuthenticationManager parentDaoAuthenticationManager) {
+    public AuthenticationManager apiKeyAuthenticationManager(ApiKeyService apiKeyService, AuthenticationManager parentDaoAuthenticationManager) {
         ApiKeyAuthenticationProvider apiKeyAuthenticationProvider = new ApiKeyAuthenticationProvider(apiKeyService);
         return new ProviderManager(
                 List.of(apiKeyAuthenticationProvider),
@@ -102,11 +113,15 @@ public class SecurityConfig {
 
     @Bean
     public UserDetailsService userDetailsService() {
-        UserDetails userDetails = User.withUsername("user")
+        UserDetails user = User.withUsername("user")
                 .password("{noop}1111")
                 .roles("USER")
                 .build();
+        UserDetails forParentDao = User.withUsername("parent")
+                .password("{noop}1111")
+                .roles("USER", "ADMIN", "DEVELOPER")
+                .build();
 
-        return new InMemoryUserDetailsManager(userDetails);
+        return new InMemoryUserDetailsManager(List.of(user, forParentDao));
     }
 }
