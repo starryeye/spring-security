@@ -18,6 +18,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -74,23 +76,43 @@ public class SecurityConfig {
     }
 
     // parent AuthenticationManager
+
+    /**
+     * AuthenticationManagerBuilder authenticationManagerBuilder = http.getSharedObject(AuthenticationManagerBuilder.class);
+     * return authenticationManagerBuilder.build();
+     *
+     * 위와 같이 parentDaoAuthenticationManager 를 등록하면..
+     * JwtAuthenticationManager 기준..
+     * spring boot 자동 구성에 의해 DaoAuthenticationProvider 로 아래와 같은 구조로 만들어준다.
+     * 하지만, 이중 parent 구성으로 보기가 좀 그렇다..
+     * 그래서 현재 코드처럼 하여 이중 parent 구성을 회피함.
+     *
+     * JwtAuthenticationManager(ProviderManager)
+     * - provider
+     *      - JwtAuthenticationProvider
+     * - parent(AuthenticationManager(ProviderManager)) <- parentDaoAuthenticationManager 이다.
+     *      - provider
+     *          - null
+     *      - parent(AuthenticationManager(ProviderManager))
+     *          - provider
+     *              - DaoAuthenticationProvider
+     *          - parent
+     *              - null
+     */
     @Bean
-    public AuthenticationManager parentDaoAuthenticationManager(HttpSecurity http) throws Exception {
-        /**
-         * 참고 이 AuthenticationManager(ProviderManager) 는..
-         * 직접 가진(child) Provider 가 0개이고
-         * parent AuthenticationManager(ProviderManager) 에 DaoAuthenticationProvider 가 있다.
-         *
-         * 의도한대로 깔끔하게 한다면.. (현재.. ApiKeyAuthenticationFilter 에서 authenticationManager 를 참조해보면 이중으로 되어있음)
-         * 아래 코드처럼 할게 아니라..
-         * return new ProviderManager(
-         *                 List.of(new DaoAuthenticationProvider()),
-         *                 null
-         *         );
-         * 로 해야함.. 대신 UserDetailService 및 passwordEncoder 등을 직접 셋팅해야할듯..
-         */
-        AuthenticationManagerBuilder authenticationManagerBuilder = http.getSharedObject(AuthenticationManagerBuilder.class);
-        return authenticationManagerBuilder.build();
+    public AuthenticationManager parentDaoAuthenticationManager(
+            HttpSecurity http,
+            UserDetailsService userDetailsService,
+            PasswordEncoder passwordEncoder
+    ) {
+
+        DaoAuthenticationProvider authenticationManager = new DaoAuthenticationProvider();
+        authenticationManager.setUserDetailsService(userDetailsService);
+        authenticationManager.setPasswordEncoder(passwordEncoder);
+        return new ProviderManager(
+                List.of(authenticationManager),
+                null
+        );
     }
 
     @Bean
@@ -112,16 +134,21 @@ public class SecurityConfig {
     }
 
     @Bean
-    public UserDetailsService userDetailsService() {
+    public UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
         UserDetails user = User.withUsername("user")
-                .password("{noop}1111")
+                .password(passwordEncoder.encode("1111"))
                 .roles("USER")
                 .build();
         UserDetails forParentDao = User.withUsername("parent")
-                .password("{noop}1111")
+                .password(passwordEncoder.encode("1111"))
                 .roles("USER", "ADMIN", "DEVELOPER")
                 .build();
 
         return new InMemoryUserDetailsManager(List.of(user, forParentDao));
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }
