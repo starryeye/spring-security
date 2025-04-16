@@ -14,6 +14,7 @@ import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -85,7 +86,7 @@ public class SecurityConfig {
      * JwtAuthenticationManager 기준..
      * spring boot 자동 구성에 의해 DaoAuthenticationProvider 로 아래와 같은 구조로 만들어준다.
      * 하지만, 이중 parent 구성으로 보기가 좀 그렇다..
-     * 그래서 현재 코드처럼 하여 이중 parent 구성을 회피함.
+     * 그래서 현재 적용된 코드처럼 하여 이중 parent 구성을 회피함.
      *
      * JwtAuthenticationManager(ProviderManager)
      * - provider
@@ -93,7 +94,7 @@ public class SecurityConfig {
      * - parent(AuthenticationManager(ProviderManager)) <- parentDaoAuthenticationManager 이다.
      *      - provider
      *          - null
-     *      - parent(AuthenticationManager(ProviderManager))
+     *      - parent(AuthenticationManager(ProviderManager)) <- 이게 첫번째 parent 로 가야 깔끔
      *          - provider
      *              - DaoAuthenticationProvider
      *          - parent
@@ -102,9 +103,10 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager parentDaoAuthenticationManager(
             HttpSecurity http,
+            AuthenticationConfiguration authenticationConfiguration,
             UserDetailsService userDetailsService,
             PasswordEncoder passwordEncoder
-    ) {
+    ) throws Exception {
 
         DaoAuthenticationProvider authenticationManager = new DaoAuthenticationProvider();
         authenticationManager.setUserDetailsService(userDetailsService);
@@ -113,6 +115,14 @@ public class SecurityConfig {
                 List.of(authenticationManager),
                 null
         );
+//        return authenticationConfiguration.getAuthenticationManager(); // 위 코드와 동일
+        /**
+         * 참고, (타입은 생략)
+         *      am1 = authenticationConfiguration.getAuthenticationManager();
+         *      AuthenticationManagerBuilder authenticationManagerBuilder = http.getSharedObject(AuthenticationManagerBuilder.class);
+         *      am2 = authenticationManagerBuilder.build();
+         *      am1 인스턴스 와 am2 의 parent 인스턴스는 동일하다.
+         */
     }
 
     @Bean
