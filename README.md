@@ -28,6 +28,8 @@
 - 인증 공통 아키텍처
   - custom-authenticate-authentication-manager
     - AuthenticationManager, ProviderManager
+  - custom-multi-auth-ex
+    - 다중 AuthenticationManager, multi SecurityFilterChain, (stateless vs session-based) authentication
   - custom-authenticate-authentication-provider
     - AuthenticationProvider
   - custom-authenticate-user-details-service
