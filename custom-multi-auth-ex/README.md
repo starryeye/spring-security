@@ -3,16 +3,16 @@
 ### api 설명
 - "/admin"
   - SecurityFilterChain(adminChain) 으로 동작함.
-  - AuthenticationManager : apiKeyAuthenticationManager (child), parentDaoAuthenticationManager (parent, fallback 용)
+  - AuthenticationManager : apiKeyAuthenticationManager (parent : parentDaoAuthenticationManager, fallback 용)
   - ROLE_ADMIN 필요
 - "/api"
   - SecurityFilterChain(apiChain) 으로 동작함.
-  - AuthenticationManager : jwtAuthenticationManager (child), parentDaoAuthenticationManager (parent, fallback 용)
+  - AuthenticationManager : jwtAuthenticationManager (parent : parentDaoAuthenticationManager, fallback 용)
   - ROLE_DEVELOPER 필요
 - 그외 path
   - SecurityFilterChain(loginChain) 으로 동작함.
   - spring security 기본 formLogin 설정을 따름.
-  - AuthenticationManager : parentDaoAuthenticationManager (parent)
+  - AuthenticationManager : parentDaoAuthenticationManager (parent : null)
   - ROLE_USER 필요
 
 ### api 스팩
