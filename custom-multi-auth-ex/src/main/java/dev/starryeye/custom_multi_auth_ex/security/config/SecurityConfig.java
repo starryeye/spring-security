@@ -119,7 +119,7 @@ public class SecurityConfig {
         /**
          * 참고, (타입은 생략)
          *      am1 = authenticationConfiguration.getAuthenticationManager();
-         *      AuthenticationManagerBuilder authenticationManagerBuilder = http.getSharedObject(AuthenticationManagerBuilder.class);
+         *      authenticationManagerBuilder = http.getSharedObject(AuthenticationManagerBuilder.class);
          *      am2 = authenticationManagerBuilder.build();
          *      am1 인스턴스 와 am2 의 parent 인스턴스는 동일하다.
          */
