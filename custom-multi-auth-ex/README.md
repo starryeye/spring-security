@@ -1,5 +1,10 @@
 ## 설명
 
+### 프로젝트 의의
+- multi SecurityFilterChain 관리
+- 다중 AuthenticationManager 관리
+- (stateless vs session-based) authentication
+
 ### api 설명
 - "/admin"
   - SecurityFilterChain(adminChain) 으로 동작함.
