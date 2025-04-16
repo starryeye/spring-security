@@ -29,7 +29,7 @@
   - custom-authenticate-authentication-manager
     - AuthenticationManager, ProviderManager
   - custom-multi-auth-ex
-    - 다중 AuthenticationManager, multi SecurityFilterChain, (stateless vs session-based) authentication
+    - 다중 AuthenticationManager, multi SecurityFilterChain, (stateless vs session-based) authentication, (readme.md..)
   - custom-authenticate-authentication-provider
     - AuthenticationProvider
   - custom-authenticate-user-details-service
