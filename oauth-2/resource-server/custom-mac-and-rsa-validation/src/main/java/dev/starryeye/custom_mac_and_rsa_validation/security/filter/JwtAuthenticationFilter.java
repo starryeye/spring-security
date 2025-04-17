@@ -20,7 +20,7 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
 
     /**
-     * username, password 로 인증 후 JWT 토큰 발행한다.
+     * username, password 로 인증
      */
 
     private final JWTGenerator tokenGenerator;
@@ -42,9 +42,9 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
                 return null;
             }
 
-            UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(loginRequest.username(), loginRequest.password());
+            UsernamePasswordAuthenticationToken unauthenticated = UsernamePasswordAuthenticationToken.unauthenticated(loginRequest.username(), loginRequest.password());
 
-            return getAuthenticationManager().authenticate(authenticationToken);
+            return getAuthenticationManager().authenticate(unauthenticated);
         } catch (Exception e) {
             throw new BadCredentialsException("Failed to parse login request", e);
         }
