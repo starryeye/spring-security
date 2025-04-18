@@ -1,13 +1,10 @@
-package dev.starryeye.custom_mac_and_rsa_validation.security.config;
+package dev.starryeye.custom_mac_and_rsa_validation.security;
 
-import dev.starryeye.custom_mac_and_rsa_validation.security.filter.jwt.provider.JwtAuthenticationProvider;
 import dev.starryeye.custom_mac_and_rsa_validation.security.filter.username_password.CustomUsernamePasswordAuthenticationFilter;
 import dev.starryeye.custom_mac_and_rsa_validation.security.filter.jwt.JwtVerifierFilter;
-import dev.starryeye.custom_mac_and_rsa_validation.signature.JwtVerifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -20,10 +17,8 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import java.util.List;
-
 @Configuration
-public class SecurityConfig {
+public class FilterChainConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(
@@ -47,31 +42,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CustomUsernamePasswordAuthenticationFilter jwtAuthenticationFilter(AuthenticationManager defaultAuthenticationManager) {
-        CustomUsernamePasswordAuthenticationFilter customUsernamePasswordAuthenticationFilter = new CustomUsernamePasswordAuthenticationFilter();
-        customUsernamePasswordAuthenticationFilter.setAuthenticationManager(defaultAuthenticationManager);
-        return customUsernamePasswordAuthenticationFilter;
-    }
-
-    @Bean
-    public JwtVerifierFilter jwtVerifierFilter(AuthenticationManager jwtAuthenticationManager) {
-        return new JwtVerifierFilter(jwtAuthenticationManager);
-    }
-
-    @Bean
     public AuthenticationManager defaultAuthenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
-    }
-
-    @Bean
-    public AuthenticationManager jwtAuthenticationManager(JwtVerifier jwtVerifier) {
-
-        JwtAuthenticationProvider jwtAuthenticationProvider = new JwtAuthenticationProvider(jwtVerifier);
-
-        return new ProviderManager(
-                List.of(jwtAuthenticationProvider),
-                null
-        );
     }
 
     @Bean
