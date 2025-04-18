@@ -12,13 +12,13 @@ import org.springframework.security.core.userdetails.UserDetails;
 import javax.crypto.SecretKey;
 import java.util.Date;
 
-public class JWTGenerator {
+public class JwtGenerator {
 
     private static final int FIVE_MINUTE = 60 * 1000 * 5;
 
     private final JWK jwk;
 
-    public JWTGenerator(JWK jwk) {
+    public JwtGenerator(JWK jwk) {
         this.jwk = jwk;
     }
 

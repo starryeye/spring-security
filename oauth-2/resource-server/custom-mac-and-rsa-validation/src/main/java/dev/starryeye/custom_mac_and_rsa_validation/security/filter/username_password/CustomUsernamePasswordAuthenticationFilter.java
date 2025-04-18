@@ -1,35 +1,25 @@
-package dev.starryeye.custom_mac_and_rsa_validation.security.filter;
+package dev.starryeye.custom_mac_and_rsa_validation.security.filter.username_password;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nimbusds.jose.JOSEException;
-import dev.starryeye.custom_mac_and_rsa_validation.security.filter.request.LoginRequest;
-import dev.starryeye.custom_mac_and_rsa_validation.signature.JWTGenerator;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
+import dev.starryeye.custom_mac_and_rsa_validation.security.filter.username_password.request.LoginRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import java.io.IOException;
-
-public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
+public class CustomUsernamePasswordAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
 
     /**
      * username, password 로 인증
      */
 
-    private final JWTGenerator tokenGenerator;
-
     private final ObjectMapper mapper;
 
-    public JwtAuthenticationFilter(JWTGenerator tokenGenerator) {
+    public CustomUsernamePasswordAuthenticationFilter() {
         this.mapper = new ObjectMapper();
-        this.tokenGenerator = tokenGenerator;
     }
 
     @Override

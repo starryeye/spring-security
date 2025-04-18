@@ -4,7 +4,8 @@ import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.gen.OctetSequenceKeyGenerator;
-import dev.starryeye.custom_mac_and_rsa_validation.signature.JWTGenerator;
+import dev.starryeye.custom_mac_and_rsa_validation.signature.JwtGenerator;
+import dev.starryeye.custom_mac_and_rsa_validation.signature.JwtVerifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -20,7 +21,16 @@ public class SignatureConfig {
     }
 
     @Bean
-    public JWTGenerator tokenGenerator(JWK jwk) {
-        return new JWTGenerator(jwk);
+    public JwtGenerator tokenGenerator(JWK jwk) {
+        return new JwtGenerator(jwk);
+    }
+
+    @Bean
+    public JwtVerifier jwtVerifier(JWK jwk) {
+        try {
+            return new JwtVerifier(jwk);
+        } catch (JOSEException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
