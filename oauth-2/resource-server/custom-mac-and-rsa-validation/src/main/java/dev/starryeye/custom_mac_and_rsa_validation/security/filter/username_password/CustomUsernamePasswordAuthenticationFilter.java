@@ -28,8 +28,7 @@ public class CustomUsernamePasswordAuthenticationFilter extends UsernamePassword
         try {
             LoginRequest loginRequest = mapper.readValue(request.getInputStream(), LoginRequest.class);
             if (loginRequest == null || loginRequest.username() == null || loginRequest.password() == null) {
-//                throw new BadCredentialsException("Username or password must not be null");
-                return null;
+                throw new BadCredentialsException("Username or password must not be null");
             }
 
             UsernamePasswordAuthenticationToken unauthenticated = UsernamePasswordAuthenticationToken.unauthenticated(loginRequest.username(), loginRequest.password());
