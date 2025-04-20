@@ -1,6 +1,6 @@
-package dev.starryeye.custom_mac_and_rsa_validation.security.filter.jwt;
+package dev.starryeye.custom_mac_and_rsa_validation.security.filter.jwt_1;
 
-import dev.starryeye.custom_mac_and_rsa_validation.security.filter.jwt.authentication.JwtAuthentication;
+import dev.starryeye.custom_mac_and_rsa_validation.security.filter.jwt_1.authentication.JwtAuthentication;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

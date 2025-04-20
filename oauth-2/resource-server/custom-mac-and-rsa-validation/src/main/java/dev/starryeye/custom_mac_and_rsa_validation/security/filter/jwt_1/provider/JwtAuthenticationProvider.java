@@ -1,6 +1,6 @@
-package dev.starryeye.custom_mac_and_rsa_validation.security.filter.jwt.provider;
+package dev.starryeye.custom_mac_and_rsa_validation.security.filter.jwt_1.provider;
 
-import dev.starryeye.custom_mac_and_rsa_validation.security.filter.jwt.authentication.JwtAuthentication;
+import dev.starryeye.custom_mac_and_rsa_validation.security.filter.jwt_1.authentication.JwtAuthentication;
 import dev.starryeye.custom_mac_and_rsa_validation.signature.JwtVerifier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationProvider;

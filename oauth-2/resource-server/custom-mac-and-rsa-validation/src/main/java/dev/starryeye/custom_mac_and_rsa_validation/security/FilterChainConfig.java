@@ -1,7 +1,7 @@
 package dev.starryeye.custom_mac_and_rsa_validation.security;
 
 import dev.starryeye.custom_mac_and_rsa_validation.security.filter.username_password.CustomUsernamePasswordAuthenticationFilter;
-import dev.starryeye.custom_mac_and_rsa_validation.security.filter.jwt.JwtVerifierFilter;
+import dev.starryeye.custom_mac_and_rsa_validation.security.filter.jwt_1.JwtVerifierFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;

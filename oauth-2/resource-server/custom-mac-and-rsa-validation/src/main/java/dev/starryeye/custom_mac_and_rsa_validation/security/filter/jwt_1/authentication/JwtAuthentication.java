@@ -1,4 +1,4 @@
-package dev.starryeye.custom_mac_and_rsa_validation.security.filter.jwt.authentication;
+package dev.starryeye.custom_mac_and_rsa_validation.security.filter.jwt_1.authentication;
 
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 

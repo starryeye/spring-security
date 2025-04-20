@@ -1,7 +1,7 @@
-package dev.starryeye.custom_mac_and_rsa_validation.security.filter.jwt.config;
+package dev.starryeye.custom_mac_and_rsa_validation.security.filter.jwt_1.config;
 
-import dev.starryeye.custom_mac_and_rsa_validation.security.filter.jwt.JwtVerifierFilter;
-import dev.starryeye.custom_mac_and_rsa_validation.security.filter.jwt.provider.JwtAuthenticationProvider;
+import dev.starryeye.custom_mac_and_rsa_validation.security.filter.jwt_1.JwtVerifierFilter;
+import dev.starryeye.custom_mac_and_rsa_validation.security.filter.jwt_1.provider.JwtAuthenticationProvider;
 import dev.starryeye.custom_mac_and_rsa_validation.signature.JwtVerifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
