@@ -4,10 +4,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class CustomMacAndRsaValidationApplication {
+public class CustomMacIssuerVerifierApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(CustomMacAndRsaValidationApplication.class, args);
+		SpringApplication.run(CustomMacIssuerVerifierApplication.class, args);
 	}
 
 }
