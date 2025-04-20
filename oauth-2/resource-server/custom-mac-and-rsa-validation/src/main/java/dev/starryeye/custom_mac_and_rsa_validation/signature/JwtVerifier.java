@@ -16,7 +16,7 @@ import java.util.UUID;
 public class JwtVerifier {
 
     private static final String CLAIM_USERNAME = "username";
-    private static final String CLAIM_AUTHORITY = "authority";
+    private static final String CLAIM_AUTHORITY = "authorities";
 
     private final MACVerifier verifier;
 
@@ -34,7 +34,7 @@ public class JwtVerifier {
 
             JWTClaimsSet claims = signedJWT.getJWTClaimsSet();
             String username = claims.getStringClaim(CLAIM_USERNAME);
-            List<String> authorities = claims.getStringListClaim("authorities");
+            List<String> authorities = claims.getStringListClaim(CLAIM_AUTHORITY);
 
             if (username == null || authorities == null || authorities.isEmpty()) {
                 throw new BadCredentialsException("Missing required claims in token");
