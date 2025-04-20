@@ -22,6 +22,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 public class FilterChainConfig {
 
+    /**
+     * README.md 참고하면 좋음
+     */
+
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
@@ -42,9 +46,9 @@ public class FilterChainConfig {
                 .addFilterBefore(customUsernamePasswordAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 
                 // 토큰 검증
-                // jwt_1 방식 (직접 커스텀 Filter 사용, spring-resource-server 의존성 X)
-//                .addFilterBefore(jwtVerifierFilter, UsernamePasswordAuthenticationFilter.class) // jwt_1 방식
-                // jwt_2 방식 (oauth2ResourceServer() 설정 api 사용, BearTokenAuthenticationFilter 를 사용하게됨)
+                // jwt_1 방식
+//                .addFilterBefore(jwtVerifierFilter, UsernamePasswordAuthenticationFilter.class)
+                // jwt_2 방식
                 .oauth2ResourceServer(httpSecurityOAuth2ResourceServerConfigurer ->
                         httpSecurityOAuth2ResourceServerConfigurer
                                 .jwt(Customizer.withDefaults()) // JwtDecoderConfig 로 JwtDecoder 는 직접 생성
