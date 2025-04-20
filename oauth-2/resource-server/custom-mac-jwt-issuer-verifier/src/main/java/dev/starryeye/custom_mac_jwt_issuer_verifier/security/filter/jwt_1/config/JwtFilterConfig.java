@@ -13,10 +13,11 @@ import java.util.List;
 @Configuration
 public class JwtFilterConfig {
 
-    @Bean
-    public JwtVerifierFilter jwtVerifierFilter(AuthenticationManager jwtAuthenticationManager) {
-        return new JwtVerifierFilter(jwtAuthenticationManager);
-    }
+    // 주의! OncePerRequestFilter를 상속받은 filter 는 빈으로 등록하면 servlet filter 에 추가되므로 원래는 SecurityFilterChain 에서 new 해주는게 좋음..
+//    @Bean
+//    public JwtVerifierFilter jwtVerifierFilter(AuthenticationManager jwtAuthenticationManager) {
+//        return new JwtVerifierFilter(jwtAuthenticationManager);
+//    }
 
     @Bean
     public AuthenticationManager jwtAuthenticationManager(JwtVerifier jwtVerifier) {

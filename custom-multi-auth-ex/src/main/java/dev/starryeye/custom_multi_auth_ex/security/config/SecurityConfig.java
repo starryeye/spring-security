@@ -44,6 +44,7 @@ public class SecurityConfig {
                         authorizationManagerRequestMatcherRegistry
                                 .anyRequest().hasAuthority("ROLE_DEVELOPER")
                 )
+                // 주의사항, OncePerRequestFilter를 상속받은 filter 는 빈으로 등록하면 servlet filter 에 추가되므로 SecurityFilterChain 에서 new 해주는게 좋음..
                 .addFilterBefore(new JwtAuthenticationFilter(jwtAuthenticationManager), UsernamePasswordAuthenticationFilter.class)
                 .build();
     }

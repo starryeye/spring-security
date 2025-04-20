@@ -29,8 +29,8 @@ public class FilterChainConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            CustomUsernamePasswordAuthenticationFilter customUsernamePasswordAuthenticationFilter,
-            JwtVerifierFilter jwtVerifierFilter
+            CustomUsernamePasswordAuthenticationFilter customUsernamePasswordAuthenticationFilter
+//            JwtVerifierFilter jwtVerifierFilter
     ) throws Exception {
         return http
                 .authorizeHttpRequests(authorizationManagerRequestMatcherRegistry ->
