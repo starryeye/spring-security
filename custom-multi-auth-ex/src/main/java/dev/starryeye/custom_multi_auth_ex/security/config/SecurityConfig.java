@@ -30,6 +30,10 @@ import java.util.List;
 @Configuration
 public class SecurityConfig {
 
+    /**
+     * README.md 참고하면 좋음
+     */
+
     @Bean
     @Order(1)
     public SecurityFilterChain apiChain(HttpSecurity http, AuthenticationManager jwtAuthenticationManager) throws Exception {
