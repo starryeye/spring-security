@@ -1,6 +1,7 @@
 package dev.starryeye.custom_mac_jwt_issuer_verifier.signature;
 
 import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JWSVerifier;
 import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jwt.JWTClaimsSet;
@@ -18,17 +19,17 @@ public class JwtVerifier {
     private static final String CLAIM_USERNAME = "username";
     private static final String CLAIM_AUTHORITY = "authorities";
 
-    private final MACVerifier verifier;
+    private final JWSVerifier jwsVerifier;
 
     public JwtVerifier(JWK jwk) throws JOSEException {
-        this.verifier = new MACVerifier(jwk.toOctetSequenceKey().toSecretKey());
+        this.jwsVerifier = new MACVerifier(jwk.toOctetSequenceKey().toSecretKey());
     }
 
     public UserDetails verify(String token) {
         try {
             SignedJWT signedJWT = SignedJWT.parse(token);
 
-            if (!signedJWT.verify(verifier)) {
+            if (!signedJWT.verify(this.jwsVerifier)) {
                 throw new BadCredentialsException("Invalid signature for token: " + token);
             }
 

@@ -2,6 +2,7 @@ package dev.starryeye.custom_mac_jwt_issuer_verifier.signature.config;
 
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.KeyLengthException;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.gen.OctetSequenceKeyGenerator;
 import dev.starryeye.custom_mac_jwt_issuer_verifier.signature.JwtGenerator;
@@ -21,7 +22,7 @@ public class SignatureConfig {
     }
 
     @Bean
-    public JwtGenerator tokenGenerator(JWK jwk) {
+    public JwtGenerator tokenGenerator(JWK jwk) throws KeyLengthException {
         return new JwtGenerator(jwk);
     }
 

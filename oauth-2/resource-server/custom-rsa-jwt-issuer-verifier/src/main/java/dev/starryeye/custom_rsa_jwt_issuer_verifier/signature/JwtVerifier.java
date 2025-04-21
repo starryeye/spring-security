@@ -1,7 +1,7 @@
 package dev.starryeye.custom_rsa_jwt_issuer_verifier.signature;
 
 import com.nimbusds.jose.JOSEException;
-import com.nimbusds.jose.crypto.MACVerifier;
+import com.nimbusds.jose.JWSVerifier;
 import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jwt.JWTClaimsSet;
@@ -19,18 +19,17 @@ public class JwtVerifier {
     private static final String CLAIM_USERNAME = "username";
     private static final String CLAIM_AUTHORITY = "authorities";
 
-    // todo, refactoring
-    private final RSASSAVerifier verifier;
+    private final JWSVerifier jwsVerifier;
 
     public JwtVerifier(JWK jwk) throws JOSEException {
-        this.verifier = new RSASSAVerifier(jwk.toRSAKey().toRSAPublicKey());
+        this.jwsVerifier = new RSASSAVerifier(jwk.toRSAKey().toRSAPublicKey());
     }
 
     public UserDetails verify(String token) {
         try {
             SignedJWT signedJWT = SignedJWT.parse(token);
 
-            if (!signedJWT.verify(verifier)) {
+            if (!signedJWT.verify(this.jwsVerifier)) {
                 throw new BadCredentialsException("Invalid signature for token: " + token);
             }
 
