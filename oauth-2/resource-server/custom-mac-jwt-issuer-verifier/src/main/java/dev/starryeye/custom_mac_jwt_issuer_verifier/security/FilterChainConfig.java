@@ -1,7 +1,6 @@
 package dev.starryeye.custom_mac_jwt_issuer_verifier.security;
 
 import dev.starryeye.custom_mac_jwt_issuer_verifier.security.filter.username_password.CustomUsernamePasswordAuthenticationFilter;
-import dev.starryeye.custom_mac_jwt_issuer_verifier.security.filter.jwt_1.JwtVerifierFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -46,9 +45,9 @@ public class FilterChainConfig {
                 .addFilterBefore(customUsernamePasswordAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 
                 // 토큰 검증
-                // jwt_1 방식
+                // mac_jwt_1 방식
 //                .addFilterBefore(jwtVerifierFilter, UsernamePasswordAuthenticationFilter.class)
-                // jwt_2 방식
+                // mac_jwt_2 방식
                 .oauth2ResourceServer(httpSecurityOAuth2ResourceServerConfigurer ->
                         httpSecurityOAuth2ResourceServerConfigurer
                                 .jwt(Customizer.withDefaults()) // JwtDecoderConfig 로 JwtDecoder 는 직접 생성

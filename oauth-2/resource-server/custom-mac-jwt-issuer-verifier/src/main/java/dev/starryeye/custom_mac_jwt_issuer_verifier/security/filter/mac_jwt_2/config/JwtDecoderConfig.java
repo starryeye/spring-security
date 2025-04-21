@@ -1,4 +1,4 @@
-package dev.starryeye.custom_mac_jwt_issuer_verifier.security.filter.jwt_2.config;
+package dev.starryeye.custom_mac_jwt_issuer_verifier.security.filter.mac_jwt_2.config;
 
 import com.nimbusds.jose.jwk.JWK;
 import org.springframework.context.annotation.Bean;
