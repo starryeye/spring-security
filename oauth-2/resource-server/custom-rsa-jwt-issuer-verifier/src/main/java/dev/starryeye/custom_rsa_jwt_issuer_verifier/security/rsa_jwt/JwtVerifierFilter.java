@@ -12,13 +12,13 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-public class RsaJwtVerifierFilter extends OncePerRequestFilter {
+public class JwtVerifierFilter extends OncePerRequestFilter {
 
     private static final String BEARER_TYPE = "Bearer ";
 
     private final AuthenticationManager authenticationManager;
 
-    public RsaJwtVerifierFilter(AuthenticationManager authenticationManager) {
+    public JwtVerifierFilter(AuthenticationManager authenticationManager) {
         this.authenticationManager = authenticationManager;
     }
 

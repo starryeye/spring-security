@@ -1,11 +1,10 @@
 package dev.starryeye.custom_rsa_jwt_issuer_verifier.security;
 
-import dev.starryeye.custom_rsa_jwt_issuer_verifier.security.rsa_jwt.RsaJwtVerifierFilter;
+import dev.starryeye.custom_rsa_jwt_issuer_verifier.security.rsa_jwt.JwtVerifierFilter;
 import dev.starryeye.custom_rsa_jwt_issuer_verifier.security.username_password.CustomUsernamePasswordAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -30,7 +29,7 @@ public class FilterChainConfig {
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             CustomUsernamePasswordAuthenticationFilter customUsernamePasswordAuthenticationFilter,
-            RsaJwtVerifierFilter rsaJwtVerifierFilter
+            JwtVerifierFilter jwtVerifierFilter
     ) throws Exception {
         return http
                 .authorizeHttpRequests(authorizationManagerRequestMatcherRegistry ->
@@ -46,8 +45,8 @@ public class FilterChainConfig {
                 .addFilterBefore(customUsernamePasswordAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 
                 // 토큰 검증
-                // jwt_1 방식
-                .addFilterBefore(rsaJwtVerifierFilter, UsernamePasswordAuthenticationFilter.class)
+                // rsa_jwt 방식
+                .addFilterBefore(jwtVerifierFilter, UsernamePasswordAuthenticationFilter.class)
 
                 .csrf(AbstractHttpConfigurer::disable)
                 .build();
