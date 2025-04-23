@@ -6,6 +6,8 @@ import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import dev.starryeye.custom_rsa_jwt_issuer_verifier.signature.JwtGenerator;
 import dev.starryeye.custom_rsa_jwt_issuer_verifier.signature.JwtVerifier;
+import dev.starryeye.custom_rsa_jwt_issuer_verifier.signature.rsa.RsaJwtGenerator;
+import dev.starryeye.custom_rsa_jwt_issuer_verifier.signature.rsa.RsaJwtVerifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -22,13 +24,13 @@ public class SignatureConfig {
 
     @Bean
     public JwtGenerator tokenGenerator(JWK jwk) {
-        return new JwtGenerator(jwk);
+        return new RsaJwtGenerator(jwk);
     }
 
     @Bean
     public JwtVerifier jwtVerifier(JWK jwk) {
         try {
-            return new JwtVerifier(jwk);
+            return new RsaJwtVerifier(jwk);
         } catch (JOSEException e) {
             throw new RuntimeException(e);
         }

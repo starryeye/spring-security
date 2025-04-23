@@ -7,6 +7,8 @@ import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.gen.OctetSequenceKeyGenerator;
 import dev.starryeye.custom_mac_jwt_issuer_verifier.signature.JwtGenerator;
 import dev.starryeye.custom_mac_jwt_issuer_verifier.signature.JwtVerifier;
+import dev.starryeye.custom_mac_jwt_issuer_verifier.signature.mac.MacJwtGenerator;
+import dev.starryeye.custom_mac_jwt_issuer_verifier.signature.mac.MacJwtVerifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -23,13 +25,13 @@ public class SignatureConfig {
 
     @Bean
     public JwtGenerator tokenGenerator(JWK jwk) throws KeyLengthException {
-        return new JwtGenerator(jwk);
+        return new MacJwtGenerator(jwk);
     }
 
     @Bean
     public JwtVerifier jwtVerifier(JWK jwk) {
         try {
-            return new JwtVerifier(jwk);
+            return new MacJwtVerifier(jwk);
         } catch (JOSEException e) {
             throw new RuntimeException(e);
         }
