@@ -26,6 +26,7 @@ repositories {
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 
 	implementation 'com.nimbusds:nimbus-jose-jwt:10.2' // oauth2-resource-server 에 내포되어있음
 

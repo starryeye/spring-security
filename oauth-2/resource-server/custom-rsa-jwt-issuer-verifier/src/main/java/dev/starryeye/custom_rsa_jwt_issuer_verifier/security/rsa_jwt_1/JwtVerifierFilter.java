@@ -1,6 +1,6 @@
-package dev.starryeye.custom_rsa_jwt_issuer_verifier.security.rsa_jwt;
+package dev.starryeye.custom_rsa_jwt_issuer_verifier.security.rsa_jwt_1;
 
-import dev.starryeye.custom_rsa_jwt_issuer_verifier.security.rsa_jwt.authentication.JwtAuthentication;
+import dev.starryeye.custom_rsa_jwt_issuer_verifier.security.rsa_jwt_1.authentication.JwtAuthentication;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

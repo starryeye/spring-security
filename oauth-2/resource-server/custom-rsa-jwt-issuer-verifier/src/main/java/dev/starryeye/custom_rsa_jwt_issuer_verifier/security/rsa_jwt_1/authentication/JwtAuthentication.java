@@ -1,4 +1,4 @@
-package dev.starryeye.custom_rsa_jwt_issuer_verifier.security.rsa_jwt.authentication;
+package dev.starryeye.custom_rsa_jwt_issuer_verifier.security.rsa_jwt_1.authentication;
 
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 

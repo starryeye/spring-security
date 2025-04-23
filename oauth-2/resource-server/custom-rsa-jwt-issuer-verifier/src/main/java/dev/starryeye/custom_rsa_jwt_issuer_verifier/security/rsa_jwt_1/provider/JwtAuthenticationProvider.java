@@ -1,6 +1,6 @@
-package dev.starryeye.custom_rsa_jwt_issuer_verifier.security.rsa_jwt.provider;
+package dev.starryeye.custom_rsa_jwt_issuer_verifier.security.rsa_jwt_1.provider;
 
-import dev.starryeye.custom_rsa_jwt_issuer_verifier.security.rsa_jwt.authentication.JwtAuthentication;
+import dev.starryeye.custom_rsa_jwt_issuer_verifier.security.rsa_jwt_1.authentication.JwtAuthentication;
 import dev.starryeye.custom_rsa_jwt_issuer_verifier.signature.JwtVerifier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationProvider;
