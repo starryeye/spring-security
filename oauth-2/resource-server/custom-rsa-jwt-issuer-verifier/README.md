@@ -5,6 +5,7 @@
   - JwtDecoder 를 직접 생성해보는 방법
 - rsa_jwt_3 방식
   - public key, private key 를 file 에 저장해놓고 하는 방식
+  - public-key-location 설정과 관련
   - 생략
 - rsa_jwt_4 방식
   - authorization server 가 제공하는 jwk uri 를 사용하는 방법
@@ -12,3 +13,4 @@
   - JwtDecoder 는 OAuth2ResourceServerJwtConfiguration::jwtDecoderByJwkKeySetUri 에서 자동구성에의해 스프링 빈으로 등록됨
   - FilterChainConfig 에서 oauth2ResourceServer() api 를 jwt 로 디폴트 설정하면 바로 동작함.
     - 코드 생략, 코드를 구현해서 실행해도 해당 서버가 발행한 jwt 가 아니라 authorization server 가 발행한 jwt 로 검증해야함.
+  - issuer-uri 설정으로 해도 jwk-set-uri 가 관례적인 path 라면 결과적으로 동일한 동작을 하게 된다.
