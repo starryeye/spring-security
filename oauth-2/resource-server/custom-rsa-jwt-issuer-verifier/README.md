@@ -1,0 +1,14 @@
+###
+- rsa_jwt_1 방식
+  - 검증하는 코드(JwtVerifierFilter)를 직접 구현해보는 방법
+- rsa_jwt_2 방식
+  - JwtDecoder 를 직접 생성해보는 방법
+- rsa_jwt_3 방식
+  - public key, private key 를 file 에 저장해놓고 하는 방식
+  - 생략
+- rsa_jwt_4 방식
+  - authorization server 가 제공하는 jwk uri 를 사용하는 방법
+  - jwk-set-uri 에 해당 서버 요청 uri 를 설정하고 jwk 를 요청으로 얻어온다.
+  - JwtDecoder 는 OAuth2ResourceServerJwtConfiguration::jwtDecoderByJwkKeySetUri 에서 자동구성에의해 스프링 빈으로 등록됨
+  - FilterChainConfig 에서 oauth2ResourceServer() api 를 jwt 로 디폴트 설정하면 바로 동작함.
+    - 코드 생략, 코드를 구현해서 실행해도 해당 서버가 발행한 jwt 가 아니라 authorization server 가 발행한 jwt 로 검증해야함.
