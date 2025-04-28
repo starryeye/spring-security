@@ -20,7 +20,7 @@ public class PhotoController {
                 .build();
     }
 
-    @GetMapping("/photos/private/{photoId}")
+    @GetMapping("/private/photos/{photoId}")
     public Photo getPrivatePhoto(@PathVariable Long photoId) {
 
         return Photo.builder()
