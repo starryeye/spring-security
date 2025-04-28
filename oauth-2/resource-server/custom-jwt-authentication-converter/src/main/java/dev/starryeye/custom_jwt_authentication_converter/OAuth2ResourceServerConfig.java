@@ -16,7 +16,7 @@ public class OAuth2ResourceServerConfig {
      * "/photos/**" 요청은 "SCOPE_photos" 권한이 필요함
      *
      * SecurityFilterChain 을 2개로 설정하여
-     * 첫번째 filterChain 에는 커스텀 jwtAuthenticationConverter 를 설정하여 권한 매핑을 커스텀하게 바꿨다.
+     * 첫번째 filterChain 에는 커스텀 jwtAuthenticationConverter 를 설정하여 권한 매핑을 커스텀하게 바꿨다. (CustomJwtGrantedAuthoritiesConverter 참고)
      * 두번째 filterChain 에는 기본 jwtAuthenticationConverter 을 사용하도록 하여 scope claim 을 보고 "SCOPE_" prefix 로 권한 매핑되도록함.
      */
 
