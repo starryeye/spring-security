@@ -1,1 +1,6 @@
-spring.application.name=custom-jwt-authentication-converter
+spring:
+  security:
+    oauth2:
+      resourceserver: # OAuth2ResourceServerProperties
+        jwt:
+          jwk-set-uri: http://localhost:8090/realms/custom-realm/protocol/openid-connect/certs
