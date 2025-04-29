@@ -165,3 +165,14 @@
   - oauth2-authorized-client-manager-and-filter
   - custom-social-login-client
   - custom-social-login-client-with-form-login
+- oauth-2/resource-server
+  - hello-oauth2-resource-server
+  - authentication-entry-point
+  - oauth2-resource-server-configurer
+  - custom-jwt-decoder
+  - custom-mac-jwt-issuer-verifier
+  - custom-rsa-jwt-issuer-verifier
+  - authentication-and-principal
+  - bearer-token-authentication-filter
+  - custom-jwt-authentication-converter
+  - custom-opaque-token-introspector
