@@ -166,6 +166,7 @@
   - custom-social-login-client
   - custom-social-login-client-with-form-login
 - oauth-2/resource-server
+  - spring-oauth2-resource-server 의존성 알아보기
   - hello-oauth2-resource-server
   - authentication-entry-point
   - oauth2-resource-server-configurer
