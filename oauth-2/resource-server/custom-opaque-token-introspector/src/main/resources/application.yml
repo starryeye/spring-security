@@ -1,1 +1,10 @@
-spring.application.name=custom-opaque-token-introspector
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        opaquetoken:
+          introspection-uri: http://localhost:8090/realms/custom-realm/protocol/openid-connect/token/introspect
+#          client-id: custom-client-app
+#          client-secret: kAjcXgrLnfPZNRcqjdynH5uO0ACiqK6y
+          client-id: custom-client-app-authorization-code
+          client-secret: rCnsYXcDCnCFMygtBQVWpuHT4tWMDNcH

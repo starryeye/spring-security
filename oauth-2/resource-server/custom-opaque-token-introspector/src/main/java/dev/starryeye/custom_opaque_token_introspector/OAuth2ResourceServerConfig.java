@@ -1,0 +1,63 @@
+package dev.starryeye.custom_opaque_token_introspector;
+
+import org.springframework.boot.autoconfigure.security.oauth2.resource.OAuth2ResourceServerProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.oauth2.server.resource.introspection.OpaqueTokenIntrospector;
+import org.springframework.security.oauth2.server.resource.introspection.SpringOpaqueTokenIntrospector;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Configuration
+public class OAuth2ResourceServerConfig {
+
+    /**
+     * oauth2ResourceServer() 설정 api 에서
+     * jwt 설정이 아닌 opaqueToken 설정을 사용하면
+     * Authorization 헤더 값으로 들어온 Bearer 타입 토큰을 자체 검증(JWK 이용) 하는 것이 아닌
+     * authorization server 에 introspect endpoint 요청을 하여 토큰 검증을 위임한다.
+     */
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
+        http
+                .authorizeHttpRequests(authorizationManagerRequestMatcherRegistry ->
+                        authorizationManagerRequestMatcherRegistry
+                                .anyRequest().authenticated()
+                )
+                .oauth2ResourceServer(httpSecurityOAuth2ResourceServerConfigurer ->
+                        httpSecurityOAuth2ResourceServerConfigurer
+                                .opaqueToken(Customizer.withDefaults())
+                )
+                ;
+
+        return http.build();
+    }
+
+    /**
+     * OpaqueTokenIntrospector..
+     *      OAuth2ResourceServerOpaqueTokenConfiguration::opaqueTokenIntrospector() 에서..
+     *          OpaqueTokenIntrospector 빈을 자동 구성 등록하고 있다.
+     *      jwt 설정으로 치면, JwtDecoder 의 역할과 동일하다. (토큰 검증)
+     *      아래와 같이 직접 등록하면 등록한 빈이 사용된다.
+     *
+     * 참고.
+     * resource server 에서 client id/password 를 설정해야하는데.. (application.yml 참고)
+     *      access token 을 발급한 client 에서 사용하는 client id/password 와 달라도 된다.
+     *
+     * 참고.
+     * NimbusOpaqueTokenIntrospector 구현체(spring 의존성에서는 deprecated 됨)를 사용하고 싶다면..
+     *      implementation 'com.nimbusds:oauth2-oidc-sdk:11.23.1' 로 시도해보자..
+     */
+    @Bean
+    public OpaqueTokenIntrospector springOpaqueTokenIntrospector(OAuth2ResourceServerProperties properties) {
+        OAuth2ResourceServerProperties.Opaquetoken opaquetoken = properties.getOpaquetoken();
+        return new SpringOpaqueTokenIntrospector(
+                opaquetoken.getIntrospectionUri(),
+                opaquetoken.getClientId(),
+                opaquetoken.getClientSecret()
+        );
+    }
+}
