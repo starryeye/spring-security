@@ -174,6 +174,8 @@
   - custom-mac-jwt-issuer-verifier
   - custom-rsa-jwt-issuer-verifier
   - authentication-and-principal
+    - jwt 설정 시...
   - bearer-token-authentication-filter
   - custom-jwt-authentication-converter
   - custom-opaque-token-introspector
+    - opaqueToken() 설정 시 전체 흐름 (authentication and principal 포함)
