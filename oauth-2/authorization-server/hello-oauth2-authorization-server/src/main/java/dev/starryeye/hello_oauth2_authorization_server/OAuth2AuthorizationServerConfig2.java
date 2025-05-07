@@ -40,6 +40,7 @@ public class OAuth2AuthorizationServerConfig2 {
      * AuthorizationServerSettings 는 빈 등록이 되지 않아도 실행은 되는데 issuer 정보가 빠진 상태로 초기화 되므로 주의할 것.
      */
 //
+//    // application.yml 설정을 이용하여 자동 구성되도록 하지 않고.. 직접 등록함
 //    @Bean
 //    public RegisteredClientRepository registeredClientRepository() {
 //        RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString())
@@ -58,6 +59,7 @@ public class OAuth2AuthorizationServerConfig2 {
 //        return new InMemoryRegisteredClientRepository(registeredClient);
 //    }
 //
+//    // application.yml 설정을 이용하여 자동 구성되도록 하지 않고.. 직접 등록함
 //    @Bean
 //    public AuthorizationServerSettings authorizationServerSettings() {
 //        return AuthorizationServerSettings.builder()
