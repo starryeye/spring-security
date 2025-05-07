@@ -12,5 +12,7 @@ public class OAuth2AuthorizationServerConfig1 {
      *      OAuth2AuthorizationServerAutoConfiguration 에서 OAuth2AuthorizationServerWebSecurityConfiguration 를 이용해서..
      *      SecurityFilterChain 이 생성된다.
      * application.yml 설정만 해주면 끝
+     *      -> spring boot 는 OAuth2AuthorizationServerAutoConfiguration 에서 OAuth2AuthorizationServerConfiguration 를 이용하는데..
+     *      application.yml 설정을 해주면 RegisteredClientRepository, AuthorizationServerSettings 빈을 자동 구성해준다.
      */
 }
