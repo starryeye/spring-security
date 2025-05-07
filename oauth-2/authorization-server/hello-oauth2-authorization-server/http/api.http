@@ -1,0 +1,5 @@
+### .well-known, OAuth 2.0
+GET http://localhost:8091/.well-known/oauth-authorization-server
+
+### .well-known, OAuth 2.0 + OpenID Connect
+GET http://localhost:8091/.well-known/openid-configuration

@@ -50,7 +50,7 @@ public class OAuth2AuthorizationServerConfig3 {
 
         http
                 .securityMatcher(authorizationServerConfigurer.getEndpointsMatcher()) // authorization server 관련 endpoint 만 다루는 securityFilterChain
-                .with(authorizationServerConfigurer, (oAuth2AuthorizationServerConfigurer) ->
+                .with(authorizationServerConfigurer, oAuth2AuthorizationServerConfigurer ->
                         oAuth2AuthorizationServerConfigurer
                                 .oidc(Customizer.withDefaults())	// 기본적으로 oidc 는 disable 되어있어서 설정해줘야함.
                 )
@@ -103,16 +103,16 @@ public class OAuth2AuthorizationServerConfig3 {
     public AuthorizationServerSettings authorizationServerSettings() {
         return AuthorizationServerSettings.builder()
                 .issuer("http://localhost:8091") // 아래 주석은 기본 값이다.
-//                .authorizationEndpoint("/oauth2/v1/authorize")
-//                .deviceAuthorizationEndpoint("/oauth2/v1/device_authorization")
-//                .deviceVerificationEndpoint("/oauth2/v1/device_verification")
-//                .tokenEndpoint("/oauth2/v1/token")
-//                .tokenIntrospectionEndpoint("/oauth2/v1/introspect")
-//                .tokenRevocationEndpoint("/oauth2/v1/revoke")
-//                .jwkSetEndpoint("/oauth2/v1/jwks")
-//                .oidcLogoutEndpoint("/connect/v1/logout")
-//                .oidcUserInfoEndpoint("/connect/v1/userinfo")
-//                .oidcClientRegistrationEndpoint("/connect/v1/register")
+//                .authorizationEndpoint("/oauth2/authorize")
+//                .deviceAuthorizationEndpoint("/oauth2/device_authorization")
+//                .deviceVerificationEndpoint("/oauth2/device_verification")
+//                .tokenEndpoint("/oauth2/token")
+//                .jwkSetEndpoint("/oauth2/jwks")
+//                .tokenRevocationEndpoint("/oauth2/revoke")
+//                .tokenIntrospectionEndpoint("/oauth2/introspect")
+//                .oidcClientRegistrationEndpoint("/connect/register")
+//                .oidcUserInfoEndpoint("/userinfo")
+//                .oidcLogoutEndpoint("/connect/logout")
                 .build();
     }
 
