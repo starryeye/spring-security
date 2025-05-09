@@ -29,6 +29,7 @@ public class HelloOauth2AuthorizationServerApplication {
 	 * 3.
 	 * 개발자가 SecurityFilterChain 을 직접 만들어 등록한다.
 	 *      @Bean 으로 등록
+	 *      -> hello-oauth2-authorization-server-2 프로젝트를 보자
 	 */
 
 	public static void main(String[] args) {

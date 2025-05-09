@@ -16,7 +16,7 @@ import org.springframework.security.oauth2.server.authorization.settings.ClientS
 import java.util.UUID;
 
 @Configuration
-//@Import(OAuth2AuthorizationServerConfiguration.class)
+@Import(OAuth2AuthorizationServerConfiguration.class)
 public class OAuth2AuthorizationServerConfig2 {
 
     /**
@@ -39,41 +39,41 @@ public class OAuth2AuthorizationServerConfig2 {
      * RegisteredClientRepository 는 빈 등록이 되지 않으면 실행자체가 안되지만..
      * AuthorizationServerSettings 는 빈 등록이 되지 않아도 실행은 되는데 issuer 정보가 빠진 상태로 초기화 되므로 주의할 것.
      */
-//
-//    // application.yml 설정을 이용하여 자동 구성되도록 하지 않고.. 직접 등록함
-//    @Bean
-//    public RegisteredClientRepository registeredClientRepository() {
-//        RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString())
-//                .clientId("my-spring-client")
-//                .clientSecret("{noop}secret")
-//                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
-//                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-//                .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-//                .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
-//                .redirectUri("http://127.0.0.1:8080/login/oauth2/code/my-spring-client")
-//                .scope(OidcScopes.OPENID)
-//                .scope(OidcScopes.PROFILE)
-//                .clientSettings(ClientSettings.builder().requireAuthorizationConsent(true).build())
-//                .build();
-//
-//        return new InMemoryRegisteredClientRepository(registeredClient);
-//    }
-//
-//    // application.yml 설정을 이용하여 자동 구성되도록 하지 않고.. 직접 등록함
-//    @Bean
-//    public AuthorizationServerSettings authorizationServerSettings() {
-//        return AuthorizationServerSettings.builder()
-//                .issuer("http://localhost:8091") // 아래 주석은 기본 값이다.
-////                .authorizationEndpoint("/oauth2/authorize")
-////                .deviceAuthorizationEndpoint("/oauth2/device_authorization")
-////                .deviceVerificationEndpoint("/oauth2/device_verification")
-////                .tokenEndpoint("/oauth2/token")
-////                .jwkSetEndpoint("/oauth2/jwks")
-////                .tokenRevocationEndpoint("/oauth2/revoke")
-////                .tokenIntrospectionEndpoint("/oauth2/introspect")
-////                .oidcClientRegistrationEndpoint("/connect/register")
-////                .oidcUserInfoEndpoint("/userinfo")
-////                .oidcLogoutEndpoint("/connect/logout")
-//                .build();
-//    }
+
+    // application.yml 설정을 이용하여 자동 구성되도록 하지 않고.. 직접 등록함
+    @Bean
+    public RegisteredClientRepository registeredClientRepository() {
+        RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString())
+                .clientId("my-spring-client")
+                .clientSecret("{noop}secret")
+                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+                .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
+                .redirectUri("http://127.0.0.1:8080/login/oauth2/code/my-spring-client")
+                .scope(OidcScopes.OPENID)
+                .scope(OidcScopes.PROFILE)
+                .clientSettings(ClientSettings.builder().requireAuthorizationConsent(true).build())
+                .build();
+
+        return new InMemoryRegisteredClientRepository(registeredClient);
+    }
+
+    // application.yml 설정을 이용하여 자동 구성되도록 하지 않고.. 직접 등록함
+    @Bean
+    public AuthorizationServerSettings authorizationServerSettings() {
+        return AuthorizationServerSettings.builder()
+                .issuer("http://localhost:8091") // 아래 주석은 기본 값이다.
+//                .authorizationEndpoint("/oauth2/authorize")
+//                .deviceAuthorizationEndpoint("/oauth2/device_authorization")
+//                .deviceVerificationEndpoint("/oauth2/device_verification")
+//                .tokenEndpoint("/oauth2/token")
+//                .jwkSetEndpoint("/oauth2/jwks")
+//                .tokenRevocationEndpoint("/oauth2/revoke")
+//                .tokenIntrospectionEndpoint("/oauth2/introspect")
+//                .oidcClientRegistrationEndpoint("/connect/register")
+//                .oidcUserInfoEndpoint("/userinfo")
+//                .oidcLogoutEndpoint("/connect/logout")
+                .build();
+    }
 }
