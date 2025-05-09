@@ -51,11 +51,12 @@ public class AuthorizationServerConfig {
                                 // 기본적으로 oidc 는 disable 되어있어서 설정해줘야함.
                                 .oidc(Customizer.withDefaults())
                 )
-                .oauth2ResourceServer(httpSecurityOAuth2ResourceServerConfigurer ->
-                        httpSecurityOAuth2ResourceServerConfigurer
-                                // authorization server 에도 access token 요청으로 자원을 획득할 수 있도록 설정 (ex. "/userinfo")
-                                .jwt(Customizer.withDefaults())
-                )
+//                .oauth2ResourceServer(httpSecurityOAuth2ResourceServerConfigurer ->
+//                        httpSecurityOAuth2ResourceServerConfigurer
+//                                // authorization server 에도 access token 요청으로 자원을 획득할 수 있도록 설정 (ex. "/userinfo")
+//                                // 과거 버전에서는 필요 했으나 최신 버전에는 필요 없는 듯함.
+//                                .jwt(Customizer.withDefaults())
+//                )
                 .exceptionHandling(httpSecurityExceptionHandlingConfigurer ->
                         httpSecurityExceptionHandlingConfigurer
                                 // 기본 authentication EntryPoint 설정
@@ -87,6 +88,7 @@ public class AuthorizationServerConfig {
                 .redirectUri("http://127.0.0.1:8080/login/oauth2/code/my-spring-client")
                 .scope(OidcScopes.OPENID)
                 .scope(OidcScopes.PROFILE)
+                .scope("custom-scope")
                 .clientSettings(ClientSettings.builder().requireAuthorizationConsent(true).build())
                 .build();
 
