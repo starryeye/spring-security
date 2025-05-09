@@ -34,6 +34,14 @@ import java.util.UUID;
 @Configuration
 public class AuthorizationServerConfig {
 
+    /**
+     * authorization-server 설정에 필요한 필수적인 빈들을 직접 구성해본다.
+     *
+     * https://docs.spring.io/spring-authorization-server/reference/configuration-model.html
+     * 위 링크를 참고하면..
+     * 훨씬더 디테일한 설정을 해볼 수 있다.
+     */
+
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
