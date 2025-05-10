@@ -1,0 +1,2 @@
+### defaultSecurityFilterChain 에 인증(폼 로그인)이 필요해서 웹브라우저 요청할 것.
+GET http://localhost:8091/registered-client

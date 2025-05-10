@@ -30,6 +30,7 @@ import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Configuration
@@ -38,6 +39,20 @@ public class AuthorizationServerConfig {
     /**
      * authorization-server 설정 중..
      * RegisteredClientRepository, RegisteredClient 에 대해 알아본다.
+     *
+     * RegisteredClient..
+     *      authorization server 에 등록된 client 정보 객체이다.
+     *          client id, client secret, redirect url, client name, 권한 부여 방식 등등.. 이 담긴다.
+     *      oauth2-client 의존성에서의 ClientRegistration 객체와 대응된다.
+     *
+     * RegisteredClientRepository..
+     *      authorization server 에 client 를 등록하고, 조회할 수 있는 저장소 클래스이다.
+     *      spring bean 으로 등록되어서 DI 로 참조 가능하다.
+     *      구현체
+     *          InMemoryRegisteredClientRepository
+     *          JdbcRegisteredClientRepository
+     *
+     *
      */
 
     @Bean
@@ -78,23 +93,39 @@ public class AuthorizationServerConfig {
     // application.yml 설정을 이용하여 자동 구성되도록 하지 않고.. 직접 등록함
     @Bean
     public RegisteredClientRepository registeredClientRepository() {
-        RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString())
-                .clientId("my-spring-client")
-                .clientSecret("{noop}secret")
+        RegisteredClient registeredClient1 = RegisteredClient.withId(UUID.randomUUID().toString())
+                .clientId("my-spring-client1")
+                .clientSecret("{noop}secret1")
                 .clientIdIssuedAt(Instant.now())
                 .clientSecretExpiresAt(Instant.MAX)
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
                 .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
-                .redirectUri("http://127.0.0.1:8080/login/oauth2/code/my-spring-client")
+                .redirectUri("http://127.0.0.1:8080/login/oauth2/code/my-spring-client1")
                 .scope(OidcScopes.OPENID)
                 .scope(OidcScopes.PROFILE)
-                .scope("custom-scope")
+                .scope("custom-scope1")
                 .clientSettings(ClientSettings.builder().requireAuthorizationConsent(true).build())
                 .build();
 
-        return new InMemoryRegisteredClientRepository(registeredClient);
+        RegisteredClient registeredClient2 = RegisteredClient.withId(UUID.randomUUID().toString())
+                .clientId("my-spring-client2")
+                .clientSecret("{noop}secret2")
+                .clientIdIssuedAt(Instant.now())
+                .clientSecretExpiresAt(Instant.MAX)
+                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+                .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
+                .redirectUri("http://127.0.0.1:8080/login/oauth2/code/my-spring-client2")
+                .scope(OidcScopes.OPENID)
+                .scope(OidcScopes.PROFILE)
+                .scope("custom-scope2")
+                .clientSettings(ClientSettings.builder().requireAuthorizationConsent(true).build())
+                .build();
+
+        return new InMemoryRegisteredClientRepository(List.of(registeredClient1, registeredClient2));
     }
 
     @Bean
