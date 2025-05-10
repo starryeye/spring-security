@@ -29,6 +29,7 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.time.Instant;
 import java.util.UUID;
 
 @Configuration
@@ -89,6 +90,8 @@ public class AuthorizationServerConfig {
         RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString())
                 .clientId("my-spring-client")
                 .clientSecret("{noop}secret")
+                .clientIdIssuedAt(Instant.now())
+                .clientSecretExpiresAt(Instant.MAX)
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
