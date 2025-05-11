@@ -72,6 +72,11 @@ public class AuthorizationServerConfig {
      *                  authorization code 는 1회성이므로 metadata.invalided 속성을 true 변경한다.
      *
      *
+     * todo..
+     *      1. 1 번에서 consent 동의 하고 OAuth2AuthorizationCodeRequestAuthenticationProvider::authenticate 에서 ..
+     *          authorization code 생성하는 break point 안잡힘..
+     *      2. OAuth2AuthorizationController 에서 OAuth2Authorization 을 리턴했는데 id token 값이 응답 데이터에 없음..
+     *          실제 객체에는 존재함..
      */
 
     @Bean
@@ -113,18 +118,18 @@ public class AuthorizationServerConfig {
     @Bean
     public RegisteredClientRepository registeredClientRepository() {
         RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString())
-                .clientId("my-spring-client1")
-                .clientSecret("{noop}secret1")
+                .clientId("my-spring-client")
+                .clientSecret("{noop}secret")
                 .clientIdIssuedAt(Instant.now())
                 .clientSecretExpiresAt(Instant.MAX)
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
                 .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
-                .redirectUri("http://127.0.0.1:8080/login/oauth2/code/my-spring-client1")
+                .redirectUri("http://127.0.0.1:8080/login/oauth2/code/my-spring-client")
                 .scope(OidcScopes.OPENID)
                 .scope(OidcScopes.PROFILE)
-                .scope("custom-scope1")
+                .scope("custom-scope")
                 .clientSettings(ClientSettings.builder().requireAuthorizationConsent(true).build())
                 .build();
 

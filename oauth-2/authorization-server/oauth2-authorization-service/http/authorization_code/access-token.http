@@ -1,0 +1,7 @@
+### access token 발급
+### Authorization 헤더 (client_id, client_secret), grant_type, redirect_uri(code 발급시 담았던 값 그대로), code 필요
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ=
+
+grant_type=authorization_code&redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client&code=Xciruj-WjxUSMnM9zB3o193aEkBcvHeq9KCf9jo2RF3ME8g5JZOljpjcPpjuocGL6YOEPtazPtDMQoK7JlQiKQ6PkoYJPWpkAWKQ4syhKVxgYisWfPs_4Zr82pxJSasw
