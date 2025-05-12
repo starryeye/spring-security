@@ -56,6 +56,15 @@ public class AuthorizationServerConfig {
 
         OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = OAuth2AuthorizationServerConfigurer.authorizationServer();
 
+//        authorizationServerConfigurer.authorizationEndpoint(oAuth2AuthorizationEndpointConfigurer ->
+//                oAuth2AuthorizationEndpointConfigurer
+//                        .authenticationProvider(null) //
+//                        .authorizationResponseHandler(null) //
+//                        .errorResponseHandler(null) //
+//                        .authorizationRequestConverter(null) //
+//                        .consentPage(null) //
+//        );
+
         http
                 .securityMatcher(authorizationServerConfigurer.getEndpointsMatcher()) // authorization server 에서 제공하는 기본 EndPoint 에 대한 SecurityFilterChain
                 .authorizeHttpRequests(authorizationManagerRequestMatcherRegistry ->
