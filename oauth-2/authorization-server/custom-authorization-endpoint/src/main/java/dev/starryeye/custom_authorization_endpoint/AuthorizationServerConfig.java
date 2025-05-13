@@ -41,6 +41,7 @@ public class AuthorizationServerConfig {
      * OAuth2AuthorizationServerConfigurer::authorizationEndpoint 를 이용하여
      * authorization code 발급 단계를 커스텀 해본다..
      *      authorization server 가 resource owner 에게 요구하는 로그인, 동의(consent) 화면 및 처리와 authorization code 발급이 해당된다.
+     *          관련 flow 정리는 main class 에 정리해놓음..
      *
      * 관련 객체
      * OAuth2AuthorizationEndpointConfigurer
@@ -48,6 +49,7 @@ public class AuthorizationServerConfig {
      *      OAuth2AuthorizationCodeRequestAuthenticationConverter
      *      OAuth2AuthorizationCodeRequestAuthenticationToken
      * OAuth2AuthorizationCodeRequestAuthenticationProvider
+     *      RegisteredClientRepository, RegisteredClient
      */
 
     @Bean
