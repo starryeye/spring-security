@@ -48,8 +48,12 @@ public class AuthorizationServerConfig {
      * OAuth2AuthorizationEndpointFilter
      *      OAuth2AuthorizationCodeRequestAuthenticationConverter
      *      OAuth2AuthorizationCodeRequestAuthenticationToken
+     *      OAuth2AuthorizationConsentAuthenticationToken
      * OAuth2AuthorizationCodeRequestAuthenticationProvider
      *      RegisteredClientRepository, RegisteredClient
+     *      ...
+     * OAuth2AuthorizationConsentAuthenticationProvider
+     *      ...
      */
 
     @Bean
