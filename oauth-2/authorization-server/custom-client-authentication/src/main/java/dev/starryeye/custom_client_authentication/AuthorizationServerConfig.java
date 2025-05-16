@@ -42,18 +42,22 @@ public class AuthorizationServerConfig {
      *      POST "/oauth2/introspect"
      *      POST "/oauth2/revoke"
      *      관련 flow 정리는 main class 에 정리해놓음.. (todo)
+     *      client_secret_basic, client_secret_post, private_key_jwt, client_secret_jwt, none 방식
      *
      * 관련 객체
-     * OAuth2AuthorizationEndpointConfigurer
-     * OAuth2AuthorizationEndpointFilter
-     *      OAuth2AuthorizationCodeRequestAuthenticationConverter
-     *      OAuth2AuthorizationCodeRequestAuthenticationToken
-     *      OAuth2AuthorizationConsentAuthenticationToken
-     * OAuth2AuthorizationCodeRequestAuthenticationProvider
-     *      RegisteredClientRepository, RegisteredClient
-     *      ...
-     * OAuth2AuthorizationConsentAuthenticationProvider
-     *      ...
+     * OAuth2ClientAuthenticationConfigure
+     * OAuth2ClientAuthenticationFilter
+     *      DelegatingAuthenticationConverter
+     *          ClientSecretBasicAuthenticationConverter
+     *          ClientSecretPostAuthenticationConverter
+     *          JwtClientAssertionAuthenticationConverter
+     *          PublicClientAuthenticationConverter
+     *      ProviderManager(AuthenticationManager)
+     *          ClientSecretAuthenticationProvider
+     *          JwtClientAssertionAuthenticationProvider
+     *          PublicClientAuthenticationProvider
+     *      AuthenticationSuccessHandler
+     *      AuthenticationFailureHandler
      */
 
     @Bean
