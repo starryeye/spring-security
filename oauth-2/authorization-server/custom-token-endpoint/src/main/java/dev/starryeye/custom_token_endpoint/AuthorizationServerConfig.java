@@ -65,7 +65,10 @@ public class AuthorizationServerConfig {
      * 참고..
      * POST "/oauth2/token" 요청이 오면 무작정 토큰 발행부터 하지 않고..
      * 먼저 client 인증 절차를 수행한다.
-     * -> OAuth2ClientAuthenticationFilter
+     *      client 인증 필터 : OAuth2ClientAuthenticationFilter
+     *      client 인증 여부 체크 필터 : AuthorizationFilter
+     * OAuth2ClientAuthenticationFilter 를 거쳐서 인증을 수행하고
+     * AuthorizationFilter 필터를 통과해야 토큰 관련 처리를 하는 Filter 목록(OAuth2TokenEndpointFilter 포함)의 순서가 온다.
      */
 
     @Bean
