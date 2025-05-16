@@ -36,21 +36,31 @@ import java.util.UUID;
 public class AuthorizationServerConfig {
 
     /**
-     * OAuth2AuthorizationServerConfigurer::authorizationEndpoint 를 이용하여
-     * authorization code 발급 단계를 커스텀 해본다..
-     *      authorization server 가 resource owner 에게 요구하는 로그인, 동의(consent) 화면 및 처리와 authorization code 발급이 해당된다.
-     *          관련 flow 정리는 main class 에 정리해놓음..
+     * OAuth2AuthorizationServerConfigurer::tokenEndpoint 를 이용하여
+     * access token 발급 단계를 커스텀 해본다..
+     *      POST "/oauth2/token"
+     *      authorization_code
+     *      refresh_token
+     *      client_credential
+     *      관련 flow 정리는 main class 에 정리해놓음..(todo)
      *
-     * 관련 객체
-     * OAuth2AuthorizationEndpointConfigurer
-     * OAuth2AuthorizationEndpointFilter
-     *      OAuth2AuthorizationCodeRequestAuthenticationConverter
-     *      OAuth2AuthorizationCodeRequestAuthenticationToken
-     *      OAuth2AuthorizationConsentAuthenticationToken
-     * OAuth2AuthorizationCodeRequestAuthenticationProvider
-     *      RegisteredClientRepository, RegisteredClient
-     *      ...
-     * OAuth2AuthorizationConsentAuthenticationProvider
+     * 주요 클래스
+     * OAuth2TokenEndpointConfigurer
+     * OAuth2TokenEndpointFilter
+     * 		DelegatingAuthenticationConverter
+     * 			OAuth2AuthorizationCodeAuthenticationConverter
+     * 				OAuth2AuthorizationCodeAuthenticationToken
+     * 			OAuth2RefreshTokenAuthenticationConverter
+     * 				OAuth2RefreshTokenAuthenticationToken
+     * 			OAuth2ClientCredentialsAuthenticationConverter
+     * 				OAuth2ClientCredentialsAuthenticationToken
+     * 		ProviderManager(AuthenticationManager)
+     * 			OAuth2AuthorizationCodeAuthenticationProvider
+     * 			OAuth2RefreshTokenAuthenticationProvider
+     * 			OAuth2ClientCredentialsAuthenticationProvider
+     * 			OAuth2AccessTokenAuthenticationToken(인증 객체)
+     * 		AuthenticationSuccessHandler
+     * 		AuthenticationFailureHandler
      *      ...
      */
 

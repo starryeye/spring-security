@@ -11,25 +11,7 @@ public class CustomTokenEndpointApplication {
 	}
 
 	/**
-	 * access token 을 발행하는 endpoint 에 대해 알아본다.
-	 *
-	 * 주요 클래스
-	 * OAuth2TokenEndpointConfigurer
-	 * OAuth2TokenEndpointFilter
-	 * 		DelegatingAuthenticationConverter
-	 * 			OAuth2AuthorizationCodeAuthenticationConverter
-	 * 				OAuth2AuthorizationCodeAuthenticationToken
-	 * 			OAuth2RefreshTokenAuthenticationConverter
-	 * 				OAuth2RefreshTokenAuthenticationToken
-	 * 			OAuth2ClientCredentialsAuthenticationConverter
-	 * 				OAuth2ClientCredentialsAuthenticationToken
-	 * 		ProviderManager(AuthenticationManager)
-	 * 			OAuth2AuthorizationCodeAuthenticationProvider
-	 * 			OAuth2RefreshTokenAuthenticationProvider
-	 * 			OAuth2ClientCredentialsAuthenticationProvider
-	 * 			OAuth2AccessTokenAuthenticationToken(인증 객체)
-	 * 		AuthenticationSuccessHandler
-	 * 		AuthenticationFailureHandler
+	 * access token 을 발행하는 endpoint 처리 flow 에 대해 알아본다.
 	 */
 
 }
