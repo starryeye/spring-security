@@ -61,7 +61,11 @@ public class AuthorizationServerConfig {
      * 			OAuth2AccessTokenAuthenticationToken(인증 객체)
      * 		AuthenticationSuccessHandler
      * 		AuthenticationFailureHandler
-     *      ...
+     *
+     * 참고..
+     * POST "/oauth2/token" 요청이 오면 무작정 토큰 발행부터 하지 않고..
+     * 먼저 client 인증 절차를 수행한다.
+     * -> OAuth2ClientAuthenticationFilter
      */
 
     @Bean
