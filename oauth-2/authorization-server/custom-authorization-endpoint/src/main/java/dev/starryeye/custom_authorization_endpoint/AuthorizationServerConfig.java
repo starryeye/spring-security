@@ -62,6 +62,11 @@ public class AuthorizationServerConfig {
 
         OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = OAuth2AuthorizationServerConfigurer.authorizationServer();
 
+        /**
+         * OAuth2AuthorizationServerConfigurer::authorizationEndpoint()..
+         * 아래 주석은 client 가 authorization server 에서 authorization code 를 얻기 위한 요청("/oauth2/authorize") endpoint 에 대한 설정을
+         * 커스텀하게 할 수 있도록 제공하는 api 이다.
+         */
 //        authorizationServerConfigurer.authorizationEndpoint(oAuth2AuthorizationEndpointConfigurer ->
 //                oAuth2AuthorizationEndpointConfigurer
 //                        .authenticationProvider(null) //
