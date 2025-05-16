@@ -37,27 +37,32 @@ public class AuthorizationServerConfig {
 
     /**
      * OAuth2AuthorizationServerConfigurer::clientAuthentication 를 이용하여
-     * authorization server 에 client 가 access token 에 관한 요청(발급, 검증, 해지)하면, 가장 먼저 수행하는 것이 client 인증이다.
+     * authorization server 에 client 가 access token 에 관한 요청(발급, 검증, 해지)하면,
+     * 가장 먼저 수행하는 것이 client 인증이다. -> token 관련 요청 필터는 SecurityFilterChain 에서 뒷 순서에 속한다. (필터 중.. AuthorizationFilter 가 token 관련 요청 필터들 앞에 위치하며 client 인증을 받았는지를 체크하는듯)
      *      POST "/oauth2/token"
      *      POST "/oauth2/introspect"
      *      POST "/oauth2/revoke"
-     *      관련 flow 정리는 main class 에 정리해놓음.. (todo)
+     *      POST "/oauth2/device_authorization"
      *      client_secret_basic, client_secret_post, private_key_jwt, client_secret_jwt, none 방식
      *
-     * 관련 객체
-     * OAuth2ClientAuthenticationConfigure
+     * 관련 객체 및 flow
+     * OAuth2ClientAuthenticationConfigurer
      * OAuth2ClientAuthenticationFilter
      *      DelegatingAuthenticationConverter
      *          ClientSecretBasicAuthenticationConverter
+     *              OAuth2ClientAuthenticationToken (미 인증 객체)
      *          ClientSecretPostAuthenticationConverter
      *          JwtClientAssertionAuthenticationConverter
      *          PublicClientAuthenticationConverter
+     *          X509ClientCertificateAuthenticationConverter
      *      ProviderManager(AuthenticationManager)
      *          ClientSecretAuthenticationProvider
+     *              OAuth2ClientAuthenticationToken (인증 객체)
      *          JwtClientAssertionAuthenticationProvider
      *          PublicClientAuthenticationProvider
-     *      AuthenticationSuccessHandler
-     *      AuthenticationFailureHandler
+     *          X509ClientCertificateAuthenticationProvider
+     *      authenticationSuccessHandler
+     *      authenticationFailureHandler
      */
 
     @Bean
