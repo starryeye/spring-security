@@ -54,13 +54,22 @@ public class AuthorizationServerConfig {
      * 				OAuth2RefreshTokenAuthenticationToken
      * 			OAuth2ClientCredentialsAuthenticationConverter
      * 				OAuth2ClientCredentialsAuthenticationToken
+     * 			OAuth2DeviceCodeAuthenticationConverter
+     * 		        OAuth2DeviceCodeAuthenticationToken
+     * 		    OAuth2TokenExchangeAuthenticationConverter
+     * 		        OAuth2TokenExchangeAuthenticationToken
      * 		ProviderManager(AuthenticationManager)
      * 			OAuth2AuthorizationCodeAuthenticationProvider
+     * 		        DelegatingOAuth2TokenGenerator
+     * 					JwtGenerator // JWT 토큰 생성기
+     * 				        JwtEncoder // 전자서명
+     * 					OAuth2AccessTokenGenerator // 단순 String 토큰 생성기
+     * 					OAuth2RefreshTokenGenerator
      * 			OAuth2RefreshTokenAuthenticationProvider
      * 			OAuth2ClientCredentialsAuthenticationProvider
      * 			OAuth2AccessTokenAuthenticationToken(인증 객체)
-     * 		AuthenticationSuccessHandler
-     * 		AuthenticationFailureHandler
+     * 		OAuth2AccessTokenResponseAuthenticationSuccessHandler
+     * 		OAuth2ErrorAuthenticationFailureHandler
      *
      * 참고..
      * POST "/oauth2/token" 요청이 오면 무작정 토큰 발행부터 하지 않고..

@@ -5,4 +5,4 @@ Authorization: Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ=
 
 grant_type=authorization_code&
 redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client&
-code=3jnJ0PYEmjsX5mOFCx5-4TJy75ustk_15PVVIh9kfZNAZ95cLgRHm5nS3cGQBlIPrV9EjYeEB9Gk7Xv9UWSYolJeTn2bz5f93k2eX23D_18HXWP_z4VkmgXmnotPRabA
+code=GUgxXLpv2oK4Hawd-6qdjvQwOELKQF320YHzDYMmYVc4Hhr2-rRSyvsF4-TE339XQCf8K0X8Zv75KlQxPKHxHdnCSvLteE6ChkLFK5bE1kayiqGg00sGGGE3lEhzkBVm
