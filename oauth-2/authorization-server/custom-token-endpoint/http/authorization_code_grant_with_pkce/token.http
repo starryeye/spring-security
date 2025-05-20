@@ -1,0 +1,24 @@
+### For public client, client secret 은 없다.
+### "/oauth2/token" 요청을 하면 authorization server 에서는 토큰 발행 전, Authorization 헤더로 client 인증을 먼저 수행한다.
+###     -> client id + PKCE(code_verifier, code_challenge, code_challenge_method) 로 인증
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code&
+client_id=my-spring-client&
+redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client&
+code=p4cVkJ-aakc9WmAoyzj2YbL-tht_oK2jRwiHbqcGJFn_1IcHJGe1ygeyz9O_i7Rt-S8e67-bm8kd5NI_xoSaebggkMr_S9g_oFXmSi6zISdllcOrONHR2YrvIcxqq3RJ
+code_verifier=bqWDPIgdxBz1khqPvqGjnw4SBH_HwTTqRy2dLmq6OCU
+
+
+### For confidential client, client secret 도 존재한다. (Authorization 으로 제공)
+### "/oauth2/token" 요청을 하면 authorization server 에서는 토큰 발행 전, Authorization 헤더로 client 인증을 먼저 수행한다.
+###     -> client id / client secret + PKCE(code_verifier, code_challenge, code_challenge_method) 로 인증
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ=
+
+grant_type=authorization_code&
+redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client&
+code=1R2kfhT0ufuvt5ynE8Ca-kHnpgFtLNDQjBOb2a8eI3lngdX4ewzOIKf4F0mQWseHsuIE3SxJ8gXnxSPlAEXDgvQG3bQManBtuXgmeCZ8eE9W_gbGO70BoeCh3i6gEKL0
+code_verifier=bqWDPIgdxBz1khqPvqGjnw4SBH_HwTTqRy2dLmq6OCU
