@@ -16,3 +16,8 @@
 ###     응답받은 authorization code 는 1회용이다. 한번 사용되면 폐기됨
 ###     S256 으로 해싱및 인코딩 https://tonyxu-io.github.io/pkce-generator
 GET http://localhost:8090/realms/custom-realm/protocol/openid-connect/auth?response_type=code&client_id=custom-client-app&scope=profile email openid&redirect_uri=http://localhost:8080&code_challenge=t8x3Ro9DrxCsLoiHZ-Myd0oIYQPir0z889kONTcviGU&code_challenge_method=S256
+
+
+### PKCE 참고..
+### PKCE 는 현재 confidential client 로 구분 시켜져 있지만..
+### token 요청에서 client_secret 을 없앤다면.. public client 에서도 사용 가능하다.
