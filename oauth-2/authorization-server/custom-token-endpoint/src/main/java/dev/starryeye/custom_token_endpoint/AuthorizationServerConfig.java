@@ -31,6 +31,7 @@ import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Configuration
@@ -43,7 +44,7 @@ public class AuthorizationServerConfig {
      *      authorization_code
      *      refresh_token
      *      client_credential
-     *      관련 flow 정리는 main class 에 정리해놓음..(todo)
+     *      관련 flow 정리는 main class 에 정리해놓음..
      *
      * 주요 클래스
      * OAuth2TokenEndpointConfigurer
@@ -132,18 +133,35 @@ public class AuthorizationServerConfig {
     // application.yml 설정을 이용하여 자동 구성되도록 하지 않고.. 직접 등록함
     @Bean
     public RegisteredClientRepository registeredClientRepository() {
-        RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString())
+
+        // confidential client 용 (PKCE, authorization code, client credential, refresh token 지원)
+        RegisteredClient registeredClient1 = RegisteredClient.withId(UUID.randomUUID().toString())
                 .clientId("my-spring-client")
                 .clientSecret("{noop}secret")
                 .clientIdIssuedAt(Instant.now())
                 .clientSecretExpiresAt(Instant.MAX)
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
-                .clientAuthenticationMethod(ClientAuthenticationMethod.NONE) // public client 용으로 client id + PKCE 로 client 인증을 위함 (client secret 사용하지않음)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
                 .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
                 .redirectUri("http://127.0.0.1:8080/login/oauth2/code/my-spring-client")
+                .scope(OidcScopes.OPENID)
+                .scope(OidcScopes.PROFILE)
+                .scope("custom-scope")
+                .clientSettings(ClientSettings.builder().requireAuthorizationConsent(true).build()) // authorization code 요청시 resource owner 에게 consent 동의 화면 보여줄 것인지 설정
+                .tokenSettings(TokenSettings.builder().reuseRefreshTokens(false).build()) // refresh token grant 시, refresh token 을 재사용할 것인지 설정 (기본 값 true)
+                .build();
+
+        // public client 용 (PKCE 지원)
+        RegisteredClient registeredClient2 = RegisteredClient.withId(UUID.randomUUID().toString())
+                .clientId("my-public-client")
+                .clientIdIssuedAt(Instant.now())
+                .clientSecretExpiresAt(Instant.MAX)
+                .clientAuthenticationMethod(ClientAuthenticationMethod.NONE) // public client 용으로 client id + PKCE 로 client 인증을 위함 (client secret 사용하지않음)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN) // todo, pkce token 요청시 refresh token 응답 안옴..
+                .redirectUri("http://127.0.0.1:8080/login/oauth2/code/my-public-client")
                 .scope(OidcScopes.OPENID)
                 .scope(OidcScopes.PROFILE)
                 .scope("custom-scope")
@@ -156,7 +174,7 @@ public class AuthorizationServerConfig {
          *      위 설정 외에도.. time to live 등..
          */
 
-        return new InMemoryRegisteredClientRepository(registeredClient);
+        return new InMemoryRegisteredClientRepository(List.of(registeredClient1, registeredClient2));
     }
 
     @Bean
