@@ -1,0 +1,10 @@
+### confidential client
+
+
+
+### public client
+### -> public client 는 client 자체적으로 client secret 을 가질 수 없다.
+###    따라서, public client 가 직접 authorization server 로 introspect 요청을 보낼 수 없음.
+###    -> resource server 로 access token 을 보내고
+###       resource server 가 자신의 client id/secret 으로 요청 받은 access token 을 introspect 요청 할 수 있다.
+###    -> access token 이 JWS 라면, public client 자체적으로 전자서명 검증을 통해 introspect 를 대체할 수 있다.

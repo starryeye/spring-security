@@ -1,0 +1,8 @@
+### "/oauth2/token" 요청을 하면 authorization server 에서는 토큰 발행 전, Authorization 헤더로 client 인증을 먼저 수행한다.
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ=
+
+grant_type=authorization_code&
+redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client&
+code=Yl8xNQr5_1X4MbkY-5qJdmaPhM2oXJWAGlJFjeJyJ1hEC3FsrTK-DeKspahxi9iJWJvUyDwd3yoslZaBSvNtYhOl3_RRU_CsNXr0UCz1mJAikPfx76lwe93ho_d5dadJ
