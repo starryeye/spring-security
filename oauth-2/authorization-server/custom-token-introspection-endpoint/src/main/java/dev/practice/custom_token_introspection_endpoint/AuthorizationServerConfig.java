@@ -47,31 +47,21 @@ public class AuthorizationServerConfig {
      * OAuth2TokenIntrospectionEndpointConfigurer
      * OAuth2TokenIntrospectionEndpointFilter
      * 		DelegatingAuthenticationConverter
-     * 			OAuth2AuthorizationCodeAuthenticationConverter
-     * 				OAuth2AuthorizationCodeAuthenticationToken
-     * 			OAuth2RefreshTokenAuthenticationConverter
-     * 				OAuth2RefreshTokenAuthenticationToken
-     * 			OAuth2ClientCredentialsAuthenticationConverter
-     * 				OAuth2ClientCredentialsAuthenticationToken
-     * 			OAuth2DeviceCodeAuthenticationConverter
-     * 		        OAuth2DeviceCodeAuthenticationToken
-     * 		    OAuth2TokenExchangeAuthenticationConverter
-     * 		        OAuth2TokenExchangeAuthenticationToken
+     * 			OAuth2TokenIntrospectionAuthenticationConverter
+     * 				OAuth2TokenIntrospectionAuthenticationToken
      * 		ProviderManager(AuthenticationManager)
-     * 			OAuth2AuthorizationCodeAuthenticationProvider
-     * 		        DelegatingOAuth2TokenGenerator
-     * 					JwtGenerator // JWT 토큰 생성기
-     * 				        JwtEncoder // 전자서명
-     * 					OAuth2AccessTokenGenerator // 단순 String 토큰 생성기
-     * 					OAuth2RefreshTokenGenerator
-     * 			OAuth2RefreshTokenAuthenticationProvider
-     * 			OAuth2ClientCredentialsAuthenticationProvider
-     * 			OAuth2AccessTokenAuthenticationToken(인증 객체)
-     * 		OAuth2AccessTokenResponseAuthenticationSuccessHandler
+     * 			OAuth2TokenIntrospectionAuthenticationProvider (access token active 검증)
+     * 			    OAuth2TokenIntrospectionAuthenticationToken(인증 객체)
+     * 		authenticationSuccessHandler
      * 		OAuth2ErrorAuthenticationFailureHandler
      *
      * 참고..
      * introspect.http 파일 설명도 볼것.
+     *
+     * 참고..
+     * OAuth2TokenIntrospectionEndpointFilter 로 access token 을 검증하기 전에..
+     * OAuth2ClientAuthenticationFilter 에서 client 를 인증하는 절차를 수행한다. (client id/secret 으로..)
+     * -> 순서 : OAuth2ClientAuthenticationFilter >> AuthorizationFilter >> OAuth2TokenIntrospectionEndpointFilter
      */
 
     @Bean
