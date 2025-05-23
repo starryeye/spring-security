@@ -91,7 +91,7 @@ public class AuthorizationServerConfig {
 
         /**
          * OAuth2AuthorizationServerConfigurer::tokenEndpoint()..
-         * 아래 주석은 client 가 authorization server 에서 authorization code 를 얻기 위한 요청("/oauth2/authorize") endpoint 에 대한 설정을
+         * 아래 주석은 client 가 authorization server 에서 access token 를 얻기 위한 요청("/oauth2/token") endpoint 에 대한 설정을
          * 커스텀하게 할 수 있도록 제공하는 api 이다.
          */
 //        authorizationServerConfigurer.tokenEndpoint(oAuth2TokenEndpointConfigurer ->
