@@ -41,7 +41,6 @@ public class AuthorizationServerConfig {
      * OAuth2AuthorizationServerConfigurer::tokenIntrospectionEndpoint 를 이용하여
      * access token 검증 단계를 커스텀 해본다..
      *      POST "/oauth2/introspect"
-     *      관련 flow 정리는 main class 에 정리해놓음..(todo)
      *
      * 주요 클래스
      * OAuth2TokenIntrospectionEndpointConfigurer
@@ -50,7 +49,7 @@ public class AuthorizationServerConfig {
      * 			OAuth2TokenIntrospectionAuthenticationConverter
      * 				OAuth2TokenIntrospectionAuthenticationToken
      * 		ProviderManager(AuthenticationManager)
-     * 			OAuth2TokenIntrospectionAuthenticationProvider (access token active 검증)
+     * 			OAuth2TokenIntrospectionAuthenticationProvider (access token active 검증, !isInvalidated() && !isExpired() && !isBeforeUse())
      * 			    OAuth2TokenIntrospectionAuthenticationToken(인증 객체)
      * 		authenticationSuccessHandler
      * 		OAuth2ErrorAuthenticationFailureHandler
