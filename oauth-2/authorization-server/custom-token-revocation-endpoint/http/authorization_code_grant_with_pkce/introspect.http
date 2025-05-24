@@ -1,0 +1,26 @@
+### confidential client
+### confidential client 가 authorization server 로 직접 introspect 하는 경우..
+### body 의 token_type_hint 는 Optional 이라 생략함.
+POST http://localhost:8091/oauth2/introspect
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ=
+
+token=eyJraWQiOiIxYTI4MjYxNC0zM2I4LTQzMTQtYWI4Zi0yMWQzNTc2ZGU2MWQiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyIiwiYXVkIjoibXktc3ByaW5nLWNsaWVudCIsIm5iZiI6MTc0ODAwMDc1MCwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSIsImN1c3RvbS1zY29wZSJdLCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwOTEiLCJleHAiOjE3NDgwMDEwNTAsImlhdCI6MTc0ODAwMDc1MCwianRpIjoiNTk2ODg4YjMtYThlNy00ZjcxLWJhZDQtOGJmNDMzZTlmNDBkIn0.nHukOTkFnBO_AhFTSpZ_GnaIMPBcY2WTf4g9zjotSnq4aDiVbF4gJhlKl9-QYpZ88K7w8bTZIJ-WsTlIyI7vlgr6StNqk1WE-j3J1soJugsrMO5EpTM-hUomtJ84Def6xYP3aZfXiMoU7GRNXtbYqcEctTZ03QOgy33BrkSkNnauY3xvs8CG9d0pPp8L6cNr1Z9l2tUPM8i4GKgMm2fO-gvUSg5NpttUzfiQqqau6QYZhGXysuYcjpUl8iCUmT7IQh7NUEVol08d7aXhHTMBJ_JfcMe7qNiMRWvC6ezB21m-4r9tOFykWh_oIzjmW9CGCYR-DiOVqfqbSkbEWX4UlA
+
+
+### resource server
+### client 가 resource server 로 access token 을 포함한 어떤 api 요청을 보내면,
+### resource server 는 access token 을 검증하기 위해 authorization server 로 introspect 요청을 하는 경우..
+POST http://localhost:8091/oauth2/introspect
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktc3ByaW5nLXJlc291cmNlLXNlcnZlcjpzZWNyZXQtcmVzb3VyY2Utc2VydmVy
+
+token=eyJraWQiOiIxYTI4MjYxNC0zM2I4LTQzMTQtYWI4Zi0yMWQzNTc2ZGU2MWQiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyIiwiYXVkIjoibXktc3ByaW5nLWNsaWVudCIsIm5iZiI6MTc0ODAwMDc1MCwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSIsImN1c3RvbS1zY29wZSJdLCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwOTEiLCJleHAiOjE3NDgwMDEwNTAsImlhdCI6MTc0ODAwMDc1MCwianRpIjoiNTk2ODg4YjMtYThlNy00ZjcxLWJhZDQtOGJmNDMzZTlmNDBkIn0.nHukOTkFnBO_AhFTSpZ_GnaIMPBcY2WTf4g9zjotSnq4aDiVbF4gJhlKl9-QYpZ88K7w8bTZIJ-WsTlIyI7vlgr6StNqk1WE-j3J1soJugsrMO5EpTM-hUomtJ84Def6xYP3aZfXiMoU7GRNXtbYqcEctTZ03QOgy33BrkSkNnauY3xvs8CG9d0pPp8L6cNr1Z9l2tUPM8i4GKgMm2fO-gvUSg5NpttUzfiQqqau6QYZhGXysuYcjpUl8iCUmT7IQh7NUEVol08d7aXhHTMBJ_JfcMe7qNiMRWvC6ezB21m-4r9tOFykWh_oIzjmW9CGCYR-DiOVqfqbSkbEWX4UlA
+
+
+### public client
+### -> public client 는 client 자체적으로 client secret 을 가질 수 없다.
+###    따라서, public client 가 직접 authorization server 로 introspect 요청을 보낼 수 없음.
+###    -> resource server 로 access token 을 보내고
+###       resource server 가 자신의 client id/secret 으로 요청 받은 access token 을 introspect 요청 할 수 있다.
+###    -> access token 이 JWS 라면, public client 자체적으로 전자서명 검증을 통해 introspect 를 대체할 수 있다.
