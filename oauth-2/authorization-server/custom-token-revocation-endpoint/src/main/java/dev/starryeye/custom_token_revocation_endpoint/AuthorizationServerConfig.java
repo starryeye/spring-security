@@ -49,7 +49,7 @@ public class AuthorizationServerConfig {
      * 			OAuth2TokenRevocationAuthenticationConverter
      * 				OAuth2TokenRevocationAuthenticationToken
      * 		ProviderManager(AuthenticationManager)
-     * 			OAuth2TokenRevocationAuthenticationProvider (token 폐기)
+     * 			OAuth2TokenRevocationAuthenticationProvider (token 폐기, OAuth2Authorization 객체에서 metadata invalidate 하여 active false 로 만든다.)
      * 			    OAuth2TokenRevocationAuthenticationToken(인증 객체)
      * 		authenticationSuccessHandler
      * 		OAuth2ErrorAuthenticationFailureHandler
