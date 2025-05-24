@@ -38,29 +38,29 @@ import java.util.UUID;
 public class AuthorizationServerConfig {
 
     /**
-     * OAuth2AuthorizationServerConfigurer::tokenIntrospectionEndpoint 를 이용하여
+     * OAuth2AuthorizationServerConfigurer::tokenRevocationEndpoint 를 이용하여
      * access token 검증 단계를 커스텀 해본다..
-     *      POST "/oauth2/introspect"
+     *      POST "/oauth2/revoke"
      *
      * 주요 클래스
-     * OAuth2TokenIntrospectionEndpointConfigurer
-     * OAuth2TokenIntrospectionEndpointFilter
+     * OAuth2TokenRevocationEndpointConfigurer
+     * OAuth2TokenRevocationEndpointFilter
      * 		DelegatingAuthenticationConverter
-     * 			OAuth2TokenIntrospectionAuthenticationConverter
-     * 				OAuth2TokenIntrospectionAuthenticationToken
+     * 			OAuth2TokenRevocationAuthenticationConverter
+     * 				OAuth2TokenRevocationAuthenticationToken
      * 		ProviderManager(AuthenticationManager)
-     * 			OAuth2TokenIntrospectionAuthenticationProvider (access token active 검증, !isInvalidated() && !isExpired() && !isBeforeUse())
-     * 			    OAuth2TokenIntrospectionAuthenticationToken(인증 객체)
+     * 			OAuth2TokenRevocationAuthenticationProvider (token 폐기)
+     * 			    OAuth2TokenRevocationAuthenticationToken(인증 객체)
      * 		authenticationSuccessHandler
      * 		OAuth2ErrorAuthenticationFailureHandler
      *
      * 참고..
-     * introspect.http 파일 설명도 볼것.
+     * revoke.http 파일 설명도 볼것.
      *
      * 참고..
-     * OAuth2TokenIntrospectionEndpointFilter 로 access token 을 검증하기 전에..
+     * OAuth2TokenIntrospectionEndpointFilter 로 access token 또는 refresh token 을 폐기하기 전에..
      * OAuth2ClientAuthenticationFilter 에서 client 를 인증하는 절차를 수행한다. (client id/secret 으로..)
-     * -> 순서 : OAuth2ClientAuthenticationFilter >> AuthorizationFilter >> OAuth2TokenIntrospectionEndpointFilter
+     * -> 순서 : OAuth2ClientAuthenticationFilter >> AuthorizationFilter >> OAuth2TokenRevocationEndpointFilter
      */
 
     @Bean
@@ -70,15 +70,15 @@ public class AuthorizationServerConfig {
         OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = OAuth2AuthorizationServerConfigurer.authorizationServer();
 
         /**
-         * OAuth2AuthorizationServerConfigurer::tokenIntrospectionEndpoint()..
-         * 아래 주석은 client 가 authorization server 에서 access token 을 검증받기 위한 요청("/oauth2/introspect") endpoint 에 대한 설정을
+         * OAuth2AuthorizationServerConfigurer::tokenRevocationEndpoint()..
+         * 아래 주석은 client 가 authorization server 에서 발급 받은 access token 또는 revoke token 을 해지하기 위한 요청("/oauth2/revoke") endpoint 에 대한 설정을
          * 커스텀하게 할 수 있도록 제공하는 api 이다.
          */
-//        authorizationServerConfigurer.tokenIntrospectionEndpoint(oAuth2TokenIntrospectionEndpointConfigurer ->
-//                oAuth2TokenIntrospectionEndpointConfigurer
-//                        .introspectionRequestConverter(null)
+//        authorizationServerConfigurer.tokenRevocationEndpoint(oAuth2TokenRevocationEndpointConfigurer ->
+//                oAuth2TokenRevocationEndpointConfigurer
+//                        .revocationRequestConverter(null)
 //                        .authenticationProvider(null)
-//                        .introspectionResponseHandler(null)
+//                        .revocationResponseHandler(null)
 //                        .errorResponseHandler(null)
 //        );
 

@@ -7,7 +7,7 @@ Authorization: Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ=
 
 grant_type=authorization_code
     &redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client
-    &code=90T2CU6_ODGe_9-mpYC9BXP-My4ilnWbWh7ZxVFEZCa7GUrXtRAbk8epiyeVLrl9NUBDUx9NiMqY59kflF_lefqnxgT1zgXRyOAZQL7zCzgsmxliUecqFEN0ctVIEhSZ
+    &code=F2Q_M_A_de_8V0WKAJpWDd56NQX4zQL1WFg-H2HFAAQrfOAIOO6Y3QmrD9Y-N7FLepWMVJoErQyJ1Ovx4KaR4S-PwWd42GpP1jfcFAgSLjgNLiVyw_XhuiZKyevZg8XP
     &code_verifier=bqWDPIgdxBz1khqPvqGjnw4SBH_HwTTqRy2dLmq6OCU
 
 ### For public client, client secret 은 없다.
@@ -19,5 +19,5 @@ Content-Type: application/x-www-form-urlencoded
 grant_type=authorization_code
     &client_id=my-public-client
     &redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-public-client
-    &code=gbvtJKGK-vWeEL43rpidK_0Opkedeg4a2gg0KEgQdFGEjmlRlHewYnhHxvVGUfQrxNSv6200rAdrR7vbvvAiQivdKQ9TjYNbWG1bTd_iKRdo3mqYcD-_PUpzNgVj9Ttk
+    &code=K8xvyvg3xauxpa7REV5B6gdIlLu_NM-7xL8e5xB-78WgK26GxMXrZYotJg-fvoT0ytw9vHxuWjPev96Miv7uQqBOOw09ThFAWycmkxIcoWuHSTw72EuJ0U01tnaHWtnl
     &code_verifier=bqWDPIgdxBz1khqPvqGjnw4SBH_HwTTqRy2dLmq6OCU
