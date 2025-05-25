@@ -53,6 +53,15 @@ public class AuthorizationServerConfig {
      * OAuth2AuthorizationServerMetadataEndpointFilter 에서..
      * OAuth2AuthorizationServerMetadata 생성할 때, RegisteredClientRepository 를 참조하지는 않기 때문에..
      * 현재 제공되는 기능과 1:1 매칭이 안되는듯..
+     *
+     * 참고
+     * GET "/oauth2/jwks" 는..
+     * public key 를 제공하는 api 로..
+     * NimbusJwkSetEndpointFilter 에서 처리한다.
+     *
+     * 참고.
+     * NimbusJwkSetEndpointFilter..
+     *      JWKSource<SecurityContext> 가 bean 으로 등록되어 있어야 작동한다.
      */
 
     @Bean
