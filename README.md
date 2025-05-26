@@ -179,3 +179,19 @@
   - custom-jwt-authentication-converter
   - custom-opaque-token-introspector
     - opaqueToken() 설정 시 전체 흐름 (authentication and principal 포함)
+- oauth-2/authorization-server
+  - hello-oauth2-authorization-server
+  - hello-oauth2-authorization-server-2
+  - authorization-server-context-filter
+  - registered-client-repository
+  - oauth2-authorization-service
+  - custom-authorization-endpoint
+  - custom-client-authentication
+  - custom-token-endpoint
+  - custom-token-introspection-endpoint
+  - custom-token-revocation-endpoint
+  - custom-authorization-server-metadata-endpoint
+    - authorizationServerMetadataEndpoint(), NimbusJwkSetEndpointFilter
+- oauth-2/authorization-server/oidc
+  - custom-provider-configuration-endpoint
+  - 
