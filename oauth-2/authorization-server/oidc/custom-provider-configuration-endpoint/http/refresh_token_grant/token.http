@@ -1,0 +1,10 @@
+### "/oauth2/token" 요청을 하면 authorization server 에서는 토큰 발행 전, Authorization 헤더로 client 인증을 먼저 수행한다.
+### refresh token 으로 access token (+ id token, refresh token) 을 발급받는다.
+### scope 에서 openid 는 최초에 refresh token 을 발급받을 때의 요청에서 포함되어 있었다면 해당 요청에서 id token 이 포함된다. (현재 요청에서 openid 포함하지 않아도 id token 응답됨)
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ=
+
+grant_type=refresh_token&
+scope=custom-scope&
+refresh_token=mCeIn3kQfL2ehl7mQYSjJI4eCYy9Lq7UeL77UAOG9DvNXkIM4Xh7hfXAPoq2BPrOzqVCAtU29pJzg49M65Y57GuJkxYvdbsvUBLmz2jLFk4jS32_Hgdnnjb2XzfAg-WT

@@ -1,0 +1,2 @@
+### authorization server metadata endpoint
+GET http://localhost:8091/.well-known/oauth-authorization-server
