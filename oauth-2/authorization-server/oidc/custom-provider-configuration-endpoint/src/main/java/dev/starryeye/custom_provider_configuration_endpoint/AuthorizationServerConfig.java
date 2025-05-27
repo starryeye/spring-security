@@ -38,7 +38,7 @@ import java.util.UUID;
 public class AuthorizationServerConfig {
 
     /**
-     * OAuth2AuthorizationServerConfigurer::oidc, providerConfigurationEndpoint() api 를 이용하여
+     * OAuth2AuthorizationServerConfigurer::oidc, OidcConfigurer::providerConfigurationEndpoint() api 를 이용하여
      * OpenID Connect 1.0 Provider Configuration endpoint 를 커스텀해본다.
      *      GET "/.well-known/openid-configuration" (OIDC 관련 엔드포인트 메타데이터 정보를 응답하는 엔드포인트이다.)
      *
@@ -62,7 +62,7 @@ public class AuthorizationServerConfig {
         OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = OAuth2AuthorizationServerConfigurer.authorizationServer();
 
         /**
-         * 아래 주석.. OAuth2AuthorizationServerConfigurer::oidc(), providerConfigurationEndpoint()..
+         * 아래 주석.. OAuth2AuthorizationServerConfigurer::oidc(), OidcConfigurer::providerConfigurationEndpoint()..
          *
          * OIDC 관련 메타데이터를 볼 수 있는 요청("/.well-known/openid-configuration") endpoint 에 대한 설정을
          * 커스텀하게 할 수 있도록 제공하는 api 이다.
