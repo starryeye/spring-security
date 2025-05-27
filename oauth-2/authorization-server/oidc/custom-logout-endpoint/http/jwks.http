@@ -1,0 +1,2 @@
+### 전자 서명된 JWS 를 검증할 수 있는 public key 를 얻을 수 있다.
+GET http://localhost:8091/oauth2/jwks

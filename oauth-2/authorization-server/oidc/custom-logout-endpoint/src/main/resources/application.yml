@@ -1,1 +1,2 @@
-spring.application.name=custom-logout-endpoint
+server:
+  port: 8091

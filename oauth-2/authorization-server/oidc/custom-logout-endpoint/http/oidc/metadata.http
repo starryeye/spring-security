@@ -1,0 +1,2 @@
+### OIDC metadata endpoint
+GET http://localhost:8091/.well-known/openid-configuration
