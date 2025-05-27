@@ -21,6 +21,8 @@ public class CustomLogoutEndpointApplication {
 	 */
 
 	/**
+	 * https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RPLogout
+	 *
 	 * 여러 구현 상황을 보며..
 	 * RP-Initiated Logout 과 Front-channel Logout, Back-channel Logout 에 대해 알아본다.
 	 *

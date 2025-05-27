@@ -1,0 +1,2 @@
+### OpenID Connect RP-Initiated Logout endpoint
+GET http://localhost:8091/connect/logout?id_token_hint

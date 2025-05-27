@@ -38,20 +38,19 @@ import java.util.UUID;
 public class AuthorizationServerConfig {
 
     /**
-     * OAuth2AuthorizationServerConfigurer::oidc, providerConfigurationEndpoint() api 를 이용하여
-     * OpenID Connect 1.0 Provider Configuration endpoint 를 커스텀해본다.
-     *      GET "/.well-known/openid-configuration" (OIDC 관련 엔드포인트 메타데이터 정보를 응답하는 엔드포인트이다.)
+     * 사전 지식 : main 메서드 주석 읽어보기
+     *
+     * OAuth2AuthorizationServerConfigurer::oidc, OidcConfigurer::logoutEndpoint() api 를 이용하여
+     * OpenID Connect RP-Initiated Logout endpoint 를 커스텀해본다.
+     *      GET, POST "/connect/logout"
+     *          client(RP) 에서 authorization server(OP) 로 요청하는 logout uri 로 OP 에서 OP 세션을 종료 시킨다.
      *
      * 주요 클래스
-     * OidcProviderConfigurationEndpointConfigurer
-     * OidcProviderConfigurationEndpointFilter
-     *      AuthorizationServerSettings 를 참조하여 OidcProviderConfiguration 를 생성 후 응답
-     * 	    	OidcProviderConfiguration 생성 시, 개발자가 OAuth2AuthorizationServerConfigurer::authorizationServerMetadataEndpoint() 를 통해 설정한 값으로 덮어쓰기도 함.
+     * OidcLogoutEndpointConfigurer
+     * OidcLogoutEndpointFilter
+     *      DelegatingAuthenticationConverter
+     *          OidcLogoutAuthenticationConverter
      *
-     * 주의 사항..
-     * OAuth2AuthorizationServerMetadataEndpointFilter 에서..
-     * OAuth2AuthorizationServerMetadata 생성할 때, RegisteredClientRepository 를 참조하지는 않기 때문에..
-     * 현재 제공되는 기능과 1:1 매칭이 안되는듯..
      *
      */
 
@@ -62,9 +61,9 @@ public class AuthorizationServerConfig {
         OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = OAuth2AuthorizationServerConfigurer.authorizationServer();
 
         /**
-         * 아래 주석.. OAuth2AuthorizationServerConfigurer::oidc(), providerConfigurationEndpoint()..
+         * 아래 주석.. OAuth2AuthorizationServerConfigurer::oidc(), OidcConfigurer::logoutEndpoint()
          *
-         * OIDC 관련 메타데이터를 볼 수 있는 요청("/.well-known/openid-configuration") endpoint 에 대한 설정을
+         * OpenID Connect RP-Initiated Logout 요청("/connect/logout") endpoint 에 대한 설정을
          * 커스텀하게 할 수 있도록 제공하는 api 이다.
          */
 
@@ -80,17 +79,12 @@ public class AuthorizationServerConfig {
                                 .oidc(Customizer.withDefaults())
 //                                .oidc(oidcConfigurer ->
 //                                        oidcConfigurer
-//                                                .providerConfigurationEndpoint(oidcProviderConfigurationEndpointConfigurer ->
-//                                                        oidcProviderConfigurationEndpointConfigurer
-//                                                                .providerConfigurationCustomizer(oidcProviderConfiguration ->
-//                                                                        oidcProviderConfiguration
-//                                                                                .endSessionEndpoint("")
-//                                                                                .authorizationEndpoint("")
-//                                                                                .idTokenSigningAlgorithm("")
-//                                                                                .subjectType("")
-//                                                                                .userInfoEndpoint("")
-//                                                                                .build()
-//                                                                )
+//                                                .logoutEndpoint(oidcLogoutEndpointConfigurer ->
+//                                                        oidcLogoutEndpointConfigurer
+//                                                                .logoutRequestConverter(null)
+//                                                                .authenticationProvider(null)
+//                                                                .logoutResponseHandler(null)
+//                                                                .errorResponseHandler(null)
 //                                                )
 //                                )
                 )
