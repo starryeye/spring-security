@@ -194,4 +194,4 @@
     - authorizationServerMetadataEndpoint(), NimbusJwkSetEndpointFilter
 - oauth-2/authorization-server/oidc
   - custom-provider-configuration-endpoint
-  - 
+  - custom-logout-endpoint
