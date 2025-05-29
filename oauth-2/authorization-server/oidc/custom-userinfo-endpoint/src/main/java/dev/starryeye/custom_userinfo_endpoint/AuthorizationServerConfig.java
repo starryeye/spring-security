@@ -43,12 +43,21 @@ public class AuthorizationServerConfig {
      *      GET, POST "/userinfo"
      *
      * 주요 클래스
-     * OidcUserInfoEndpointConfigurer
-     * OidcUserInfoEndpointFilter
-     *      DelegatingAuthenticationConverter
-     *          OidcLogoutAuthenticationConverter
+     * OidcUserInfoEndpointFilter 에서 처리하기 전에 BearerTokenAuthenticationFilter 에서 Authorization 헤더의 access token 검증을 통한 인증을 수행한다.
+     * BearerTokenAuthenticationFilter
+     *      BearerTokenAuthenticationToken (요청데이터성 미인증 객체)
      *      ProviderManager(AuthenticationManager)
-     *          OidcLogoutAuthenticationProvider
+     *          JwtAuthenticationProvider
+     *              JwtAuthenticationConverter
+     *                  JwtAuthenticationToken (인증 객체)
+     * OidcUserInfoEndpointConfigurer
+     * OidcUserInfoEndpointFilter (앞선 Filter 에서 인증을 해야 AuthorizationFilter 를 통과하고 OidcUserInfoEndpointFilter 를 수행할 수 있다.)
+     *      DelegatingAuthenticationConverter
+     *          OidcUserInfoEndpointFilter 의 lamda
+     *              OidcUserInfoAuthenticationToken
+     *      ProviderManager(AuthenticationManager)
+     *          OidcUserInfoAuthenticationProvider
+     *              OidcUserInfoAuthenticationToken
      *      authenticationSuccessHandler
      *      authenticationFailureHandler
      *
@@ -86,6 +95,7 @@ public class AuthorizationServerConfig {
 //                                                                .authenticationProvider(null)
 //                                                                .userInfoResponseHandler(null)
 //                                                                .errorResponseHandler(null)
+//                                                                .userInfoMapper(null) // todo
 //                                                )
 //                                )
                 )

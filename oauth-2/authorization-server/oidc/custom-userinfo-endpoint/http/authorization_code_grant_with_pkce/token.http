@@ -7,7 +7,7 @@ Authorization: Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ=
 
 grant_type=authorization_code
     &redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client
-    &code=qMWs0joifajIOPv9cADwfgi4hQXAN7OeXZ5VwZ7uCetAgcbSCaTl8j0lwawpmwXvaX6w3Xo3k6sIuU96cMuepaHILY8hcxZ-bgCz2bv1j6_8f1c5h1VXpo3LUOyne9kR
+    &code=S01218zHIbA3wLVARspJgEtUuKHiYHXeUs153WR5kbbBtumWcnDVSuLDvTAksk_rLGiv-DIDXVtJ8F9yDC7qHmUsbsbtUE8jDgeHBT12vBwSmekPrENTAH6t1g9hW-S4
     &code_verifier=bqWDPIgdxBz1khqPvqGjnw4SBH_HwTTqRy2dLmq6OCU
 
 ### For public client, client secret 은 없다.
