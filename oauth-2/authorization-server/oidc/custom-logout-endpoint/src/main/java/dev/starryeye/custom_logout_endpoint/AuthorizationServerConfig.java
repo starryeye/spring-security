@@ -50,8 +50,13 @@ public class AuthorizationServerConfig {
      * OidcLogoutEndpointFilter
      *      DelegatingAuthenticationConverter
      *          OidcLogoutAuthenticationConverter
+     *      ProviderManager(AuthenticationManager)
+     *          OidcLogoutAuthenticationProvider
+     *      OidcLogoutAuthenticationSuccessHandler
+     *          SecurityContextLogoutHandler (활성화된 session 을 비활성화 한다.)
+     *      authenticationFailureHandler
      *
-     *
+     * http/oidc/logout.http 참고
      */
 
     @Bean
@@ -122,6 +127,7 @@ public class AuthorizationServerConfig {
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
                 .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
                 .redirectUri("http://127.0.0.1:8080/login/oauth2/code/my-spring-client")
+//                .postLogoutRedirectUri("http://127.0.0.1:8080/logout")
                 .scope(OidcScopes.OPENID)
                 .scope(OidcScopes.PROFILE)
                 .scope("custom-scope")
