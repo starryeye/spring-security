@@ -38,6 +38,15 @@ import java.util.UUID;
 public class AuthorizationServerConfig {
 
     /**
+     * todo,
+     *  1. claim 을 커스텀하려면?
+     *  2. userInfoMapper() ?
+     *  3. userinfo 는 resource server 에서 제공한다면..?
+     *  4. JwtDecoder 적용 잘 되고 있는지..?
+     *  5. logout endpoint 인증객체 표기
+     */
+
+    /**
      * OAuth2AuthorizationServerConfigurer::oidc, OidcConfigurer::userInfoEndpoint() api 를 이용하여
      * userinfo 요청 endpoint 를 커스텀해본다.
      *      GET, POST "/userinfo"
