@@ -1,0 +1,27 @@
+### confidential client
+### confidential client 가 authorization server 로 직접 revoke 하는 경우..
+### body 의 token 은 access token 또는 refresh token 값이다.
+### body 의 token_type_hint 는 Optional 이라 생략함.
+POST http://localhost:8091/oauth2/revoke
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ=
+
+token=eyJraWQiOiJiMzEzMjMzNS01ZjdjLTRhMTYtOTc0MS05YmEwY2MzZTQ2MDMiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJteS1zcHJpbmctY2xpZW50IiwiYXVkIjoibXktc3ByaW5nLWNsaWVudCIsIm5iZiI6MTc0ODA5MDU2MCwic2NvcGUiOlsiY3VzdG9tLXNjb3BlIl0sImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3Q6ODA5MSIsImV4cCI6MTc0ODA5MDg2MCwiaWF0IjoxNzQ4MDkwNTYwLCJqdGkiOiJhYzM2YjMzNC01M2Y1LTQ0YmQtOWNlMC0yZjU5YjkzMzllYmEifQ.gJC7ArnMEF0lzELA5AtWQJTWSkHnlRNNEqOyRvv8tAWK5HnmdTS99ukFZW_Lp7YXUH0a9wDzyKVC3tquMatuzRFJmJca6oL8a8VznLzRQjbm4-xK2mZHzqWwirPeSRHxNQo2J8q5Gf0ZKt2Ev_Wdq5LeWfoXEGPtZ-cG1W94e7MURO1s_vrRYcv3LP_W-ONCFCHXqDXL7qyDTNWQmn6Ae28RNQnDmyrOpCXU7GVq88OiBKpqlPuaqz7ZXge8XNTWgMz509aQNhcfsSnYsbT64uwxqSV8B8-AIyGajf4VefHxtzP02Jm97bM83Yk1SHr8zR8_VVwKqCNMP88GXuDgPg
+
+
+### public client
+### -> public client 는 client 자체적으로 client secret 을 가질 수 없다.
+###    하지만, token 사용 주체는 authorization server 로 token 폐기 요청을 보낼 수 있어야한다.
+###    따라서, public client 가 직접 authorization server 로 revoke 요청을 보낼 때는.. client_id 만 포함시켜서 revoke 요청을 보낸다.
+### todo, 이렇게할때는.. 커스텀 객체로 주요 flow 를 바꿔줘야할듯..(현재 동작하지 않음)
+POST http://localhost:8091/oauth2/revoke
+Content-Type: application/x-www-form-urlencoded
+
+token=eyJraWQiOiJiMzEzMjMzNS01ZjdjLTRhMTYtOTc0MS05YmEwY2MzZTQ2MDMiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyIiwiYXVkIjoibXktcHVibGljLWNsaWVudCIsIm5iZiI6MTc0ODA5MDc0NCwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSIsImN1c3RvbS1zY29wZSJdLCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwOTEiLCJleHAiOjE3NDgwOTEwNDQsImlhdCI6MTc0ODA5MDc0NCwianRpIjoiODAwMDIzNWQtOTJiNy00MmM4LWJmMDgtZDA4N2QzNmNkZGVhIn0.ji7i0brAbO3SoDl0DK2GYl3t5uarBREjbNNjvpyBeVY9wm-G0cot97b7xdyl4Gt6NQgiDYjY8GvHsudyGe1VK2hFIm-5A8ocSxNrd3ofOPrB8rdk-iarJLzEtgAdaziqjEO7riKaOboGq66uaGzyTLrK50Mz6Fi6e1N_K2-HKg-dCoimkv6I2OzhkHT6C3UMFi6E5bIzlUtAMLvUAI0Z7WcPhA725cLCpA5AjzNUII-hUSrYiEQ5EVz-JrddE6IvdqWuvkwFsPJxO2qDpXcaUu8tDE75JUHGv8Xrp4ZtDzANyLKh4PJw8WVuJdTa3ypiPBcM2-Mbco6FOZ0BSBazFw
+&client_id=my-public-client
+
+
+
+### resource server
+### resource server는 토큰을 검증(introspect)하는 역할을 담당하고 폐기(revoke)하는 역할은 없다.
+### 다만, 실무에서 이상 행동 감지 시 토큰 강제 폐기하는 커스텀이 있을 수 있다.
