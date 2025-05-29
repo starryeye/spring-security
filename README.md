@@ -195,3 +195,4 @@
 - oauth-2/authorization-server/oidc
   - custom-provider-configuration-endpoint
   - custom-logout-endpoint
+    - OpenID Connect RP-Initiated Logout endpoint
