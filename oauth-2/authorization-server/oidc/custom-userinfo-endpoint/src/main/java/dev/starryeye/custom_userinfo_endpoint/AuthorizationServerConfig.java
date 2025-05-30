@@ -38,15 +38,6 @@ import java.util.UUID;
 public class AuthorizationServerConfig {
 
     /**
-     * todo,
-     *  1. claim 을 커스텀하려면?
-     *  2. userInfoMapper() ?
-     *  3. userinfo 는 resource server 에서 제공한다면..?
-     *  4. JwtDecoder 적용 잘 되고 있는지..?
-     *  5. logout endpoint 인증객체 표기
-     */
-
-    /**
      * OAuth2AuthorizationServerConfigurer::oidc, OidcConfigurer::userInfoEndpoint() api 를 이용하여
      * userinfo 요청 endpoint 를 커스텀해본다.
      *      GET, POST "/userinfo"
@@ -67,6 +58,8 @@ public class AuthorizationServerConfig {
      *      ProviderManager(AuthenticationManager)
      *          OidcUserInfoAuthenticationProvider
      *              userInfoMapper // 기본 객체는 DefaultOidcUserInfoMapper 이며, scope 에 따라 응답해야할 claim 을 선언해놓고 id token claim 중에 선택하여 userinfo 응답에 사용한다.
+     *                                      커스텀 할 때는, DB 에서 실제 user 정보를 scope 에 따라 선택하여 넣고 userinfo 응답에 사용되도록 커스텀 하면 될 듯..
+     *                                          참고로.. id token 발급 할 때 내부 claim 을 정하는 코드를 봤을 때는.. scope 에 따라 선택해서 넣어주는 코드도 없고.. 커스텀 포인트도 딱히 안보인다. 그래서 그대로 두면 될듯..
      *              OidcUserInfoAuthenticationToken
      *      authenticationSuccessHandler
      *      authenticationFailureHandler
