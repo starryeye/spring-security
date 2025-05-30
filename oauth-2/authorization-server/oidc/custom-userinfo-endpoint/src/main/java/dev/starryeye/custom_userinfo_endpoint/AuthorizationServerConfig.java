@@ -52,20 +52,21 @@ public class AuthorizationServerConfig {
      *      GET, POST "/userinfo"
      *
      * 주요 클래스
-     * OidcUserInfoEndpointFilter 에서 처리하기 전에 BearerTokenAuthenticationFilter 에서 Authorization 헤더의 access token 검증을 통한 인증을 수행한다.
-     * BearerTokenAuthenticationFilter
+     * BearerTokenAuthenticationFilter // OidcUserInfoEndpointFilter 에서 처리하기 전에 BearerTokenAuthenticationFilter 에서 Authorization 헤더의 access token 검증을 통한 인증을 수행한다.
      *      BearerTokenAuthenticationToken (요청데이터성 미인증 객체)
      *      ProviderManager(AuthenticationManager)
      *          JwtAuthenticationProvider
+     *              JwtDecoder // access token 검증
      *              JwtAuthenticationConverter
      *                  JwtAuthenticationToken (인증 객체)
      * OidcUserInfoEndpointConfigurer
-     * OidcUserInfoEndpointFilter (앞선 Filter 에서 인증을 해야 AuthorizationFilter 를 통과하고 OidcUserInfoEndpointFilter 를 수행할 수 있다.)
+     * OidcUserInfoEndpointFilter // 앞선 Filter 에서 인증을 해야 AuthorizationFilter 를 통과하고 OidcUserInfoEndpointFilter 를 수행할 수 있다.
      *      DelegatingAuthenticationConverter
      *          OidcUserInfoEndpointFilter 의 lamda
      *              OidcUserInfoAuthenticationToken
      *      ProviderManager(AuthenticationManager)
      *          OidcUserInfoAuthenticationProvider
+     *              userInfoMapper // 기본 객체는 DefaultOidcUserInfoMapper 이며, scope 에 따라 응답해야할 claim 을 선언해놓고 id token claim 중에 선택하여 userinfo 응답에 사용한다.
      *              OidcUserInfoAuthenticationToken
      *      authenticationSuccessHandler
      *      authenticationFailureHandler
@@ -102,9 +103,9 @@ public class AuthorizationServerConfig {
 //                                                        oidcUserInfoEndpointConfigurer
 //                                                                .userInfoRequestConverter(null)
 //                                                                .authenticationProvider(null)
+//                                                                .userInfoMapper(null) // todo
 //                                                                .userInfoResponseHandler(null)
 //                                                                .errorResponseHandler(null)
-//                                                                .userInfoMapper(null) // todo
 //                                                )
 //                                )
                 )
