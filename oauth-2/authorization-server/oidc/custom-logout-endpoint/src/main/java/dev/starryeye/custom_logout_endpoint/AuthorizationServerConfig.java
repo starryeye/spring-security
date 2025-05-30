@@ -50,8 +50,10 @@ public class AuthorizationServerConfig {
      * OidcLogoutEndpointFilter
      *      DelegatingAuthenticationConverter
      *          OidcLogoutAuthenticationConverter
+     *              OidcLogoutAuthenticationToken
      *      ProviderManager(AuthenticationManager)
      *          OidcLogoutAuthenticationProvider
+     *              OidcLogoutAuthenticationToken
      *      OidcLogoutAuthenticationSuccessHandler
      *          SecurityContextLogoutHandler (활성화된 session 을 비활성화 한다.)
      *      authenticationFailureHandler
