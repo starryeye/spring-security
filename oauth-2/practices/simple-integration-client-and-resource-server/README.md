@@ -12,3 +12,14 @@
 
 ### architecture
 <img width="811" alt="Image" src="https://github.com/user-attachments/assets/33e2bd29-557c-486b-9dfa-94a26c011c16" />
+
+
+### api
+- "/"
+  - 인증 전
+    - login 버튼
+  - 인증 완료 후
+    - photo viewer 페이지로 가는 버튼
+    - access token 보는 버튼
+- "/photo-viewer
+  - 
