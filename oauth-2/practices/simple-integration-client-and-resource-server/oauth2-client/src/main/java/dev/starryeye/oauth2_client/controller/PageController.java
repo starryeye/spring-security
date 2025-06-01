@@ -11,8 +11,8 @@ public class PageController {
         return "index";
     }
 
-    @GetMapping("/home")
-    public String home() {
-        return "home";
+    @GetMapping("/photo-viewer")
+    public String photoViewer() {
+        return "photo-viewer";
     }
 }
