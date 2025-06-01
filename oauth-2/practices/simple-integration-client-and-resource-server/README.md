@@ -14,7 +14,7 @@
 <img width="811" alt="Image" src="https://github.com/user-attachments/assets/33e2bd29-557c-486b-9dfa-94a26c011c16" />
 
 
-### api
+### client api
 - "/", permitAll
   - 인증 전
     - login 버튼
@@ -26,3 +26,9 @@
     - access token 으로 resource server 로 요청
   - logout 버튼
     - RP 만 logout 됨 (OP 는 logout X) 
+
+### resource server api
+- "/photos", authenticated and SCOPE_photos
+  - access token 검증 filter 로 인증
+  - SCOPE_photos 권한 있어야 api 호출 가능
+  - Photo List 응답
