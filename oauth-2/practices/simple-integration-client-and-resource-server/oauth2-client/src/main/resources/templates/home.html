@@ -14,15 +14,15 @@
             fragment.appendChild(userId);
 
             const photoId = document.createElement("div");
-            photoId.textContent = `Photo ID: ${photo.photoId}`;
+            photoId.textContent = `Photo ID: ${photo.id}`;
             fragment.appendChild(photoId);
 
             const title = document.createElement("div");
-            title.textContent = `Title: ${photo.photoTitle}`;
+            title.textContent = `Title: ${photo.title}`;
             fragment.appendChild(title);
 
             const description = document.createElement("div");
-            description.textContent = `Description: ${photo.photoDescription}`;
+            description.textContent = `Description: ${photo.description}`;
             fragment.appendChild(description);
 
             fragment.appendChild(document.createElement("hr"));

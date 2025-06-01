@@ -10,7 +10,7 @@ spring:
             client-id: custom-client-app
             client-secret: kAjcXgrLnfPZNRcqjdynH5uO0ACiqK6y
             client-name: My keycloak
-            scope: openid,email,profile
+            scope: openid,email,profile,photos
             redirect-uri: http://localhost:8080/login/oauth2/code/my-keycloak
         provider:
           my-keycloak:
