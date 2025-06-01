@@ -11,3 +11,4 @@
   - spring-boot-starter-oauth2-resource-server
 
 ### architecture
+<img width="811" alt="Image" src="https://github.com/user-attachments/assets/33e2bd29-557c-486b-9dfa-94a26c011c16" />
