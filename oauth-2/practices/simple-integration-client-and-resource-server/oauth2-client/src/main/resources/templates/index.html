@@ -16,8 +16,11 @@
                 })
                 .then(data => {
                     console.log("Received token:", data.tokenValue);
-                    window.localStorage.setItem("access_token", data.tokenValue);
-                    window.location.href = "/home";
+                    // window.localStorage.setItem("access_token", data.tokenValue);
+
+                    // 화면에 표시
+                    const tokenDisplay = document.getElementById("accessTokenDisplay");
+                    tokenDisplay.textContent = data.tokenValue;
                 })
                 .catch(error => {
                     console.error("Token fetch error:", error);
@@ -30,11 +33,13 @@
 <h2>OAuth2.0 Client</h2>
 
 <div sec:authorize="isAnonymous()">
-    <a th:href="@{/oauth2/authorization/my-keycloak}">Login with Keycloak, starting authorize</a>
+    <a th:href="@{/oauth2/authorization/my-keycloak}">Login with Keycloak</a>
 </div>
 
 <div sec:authorize="isAuthenticated()">
     <button type="button" onclick="fetchAccessToken()">Get Access Token</button>
+    <h3>Your Access Token:</h3>
+    <pre id="accessTokenDisplay" style="white-space:pre-wrap; word-break:break-word;"></pre>
 </div>
 </body>
 </html>

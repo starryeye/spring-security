@@ -23,7 +23,7 @@ public class ApiController {
     }
 
     @GetMapping("/token")
-    public OAuth2AccessToken token(@RegisteredOAuth2AuthorizedClient("/my-keycloak") OAuth2AuthorizedClient authorizedClient) {
+    public OAuth2AccessToken token(@RegisteredOAuth2AuthorizedClient("my-keycloak") OAuth2AuthorizedClient authorizedClient) {
 
         return authorizedClient.getAccessToken();
     }

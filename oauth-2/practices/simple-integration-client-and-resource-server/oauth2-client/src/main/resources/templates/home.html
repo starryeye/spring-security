@@ -30,18 +30,18 @@
         }
 
         function photos() {
-            const token = localStorage.getItem("access_token");
-            if (!token) {
-                alert("Access token is missing.");
-                return;
-            }
+            // const token = localStorage.getItem("access_token");
+            // if (!token) {
+            //     alert("Access token is missing.");
+            //     return;
+            // }
 
             fetch("/photos", {
-                method: "GET",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                }
+                method: "GET"
+                // headers: {
+                //     "Authorization": `Bearer ${token}`,
+                //     "Content-Type": "application/json"
+                // }
             })
                 .then(response => response.json())
                 .then(data => {
@@ -60,7 +60,7 @@
 </div>
 
 <form onsubmit="return false;">
-    <p><input type="button" onclick="photos()" value="Load Photos" /></p>
+    <p><input type="button" onclick="photos()" value="Load Photos"/></p>
 </form>
 
 <div id="photos"></div>
