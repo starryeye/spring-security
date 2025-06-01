@@ -15,11 +15,14 @@
 
 
 ### api
-- "/"
+- "/", permitAll
   - 인증 전
     - login 버튼
   - 인증 완료 후
     - photo viewer 페이지로 가는 버튼
     - access token 보는 버튼
-- "/photo-viewer
-  - 
+- "/photo-viewer, authenticated
+  - photos 버튼
+    - access token 으로 resource server 로 요청
+  - logout 버튼
+    - RP 만 logout 됨 (OP 는 logout X) 
