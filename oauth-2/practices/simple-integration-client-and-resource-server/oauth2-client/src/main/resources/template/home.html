@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Photo Viewer</title>
+    <script>
+        function createPhotoElement(photo) {
+            const fragment = document.createDocumentFragment();
+
+            const userId = document.createElement("div");
+            userId.textContent = `User ID: ${photo.userId}`;
+            fragment.appendChild(userId);
+
+            const photoId = document.createElement("div");
+            photoId.textContent = `Photo ID: ${photo.photoId}`;
+            fragment.appendChild(photoId);
+
+            const title = document.createElement("div");
+            title.textContent = `Title: ${photo.photoTitle}`;
+            fragment.appendChild(title);
+
+            const description = document.createElement("div");
+            description.textContent = `Description: ${photo.photoDescription}`;
+            fragment.appendChild(description);
+
+            fragment.appendChild(document.createElement("hr"));
+            return fragment;
+        }
+
+        function photos() {
+            const token = localStorage.getItem("access_token");
+            if (!token) {
+                alert("Access token is missing.");
+                return;
+            }
+
+            fetch("/photos", {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.querySelector("#photos");
+                    container.innerHTML = ''; // clear previous
+                    data.forEach(photo => container.appendChild(createPhotoElement(photo)));
+                })
+                .catch(error => console.error("Photos error:", error));
+        }
+    </script>
+</head>
+<body>
+<div>Welcome</div>
+<div sec:authorize="isAuthenticated()">
+    <a th:href="@{/logout}">Logout</a>
+</div>
+
+<form onsubmit="return false;">
+    <p><input type="button" onclick="photos()" value="Load Photos" /></p>
+</form>
+
+<div id="photos"></div>
+
+</body>
+</html>

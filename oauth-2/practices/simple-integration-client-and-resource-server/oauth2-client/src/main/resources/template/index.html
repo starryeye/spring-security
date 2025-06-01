@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>OAuth2.0 Client</title>
+    <script>
+        function fetchAccessToken() {
+            fetch("/token")
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error("Failed to fetch token");
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Received token:", data.tokenValue);
+                    window.localStorage.setItem("access_token", data.tokenValue);
+                    window.location.href = "/home";
+                })
+                .catch(error => {
+                    console.error("Token fetch error:", error);
+                    alert("Access token 요청 실패: " + error.message);
+                });
+        }
+    </script>
+</head>
+<body>
+<h2>OAuth2.0 Client</h2>
+
+<div sec:authorize="isAnonymous()">
+    <a th:href="@{/oauth2/authorization/my-keycloak}">Login with Keycloak, starting authorize</a>
+</div>
+
+<div sec:authorize="isAuthenticated()">
+    <button type="button" onclick="fetchAccessToken()">Get Access Token</button>
+</div>
+</body>
+</html>
