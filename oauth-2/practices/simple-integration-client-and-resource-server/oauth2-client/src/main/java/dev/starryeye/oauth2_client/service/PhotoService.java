@@ -16,11 +16,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PhotoService {
 
-    private static final String CLIENT_REGISTRATION_ID = "my-keycloak";
-
-    private final OAuth2AuthorizedClientService authorizedClientService;
-
     private final PhotoClient photoClient;
+
+    // todo, client interceptor
+    private static final String CLIENT_REGISTRATION_ID = "my-keycloak";
+    private final OAuth2AuthorizedClientService authorizedClientService;
 
     public List<Photo> getPhotos() {
 
@@ -29,11 +29,10 @@ public class PhotoService {
         return photoClient.findAll(accessToken);
     }
 
+    // todo, client interceptor
     private OAuth2AccessToken getAccessToken() {
         Authentication authentication = SecurityContextHolder.getContextHolderStrategy().getContext().getAuthentication();
-
         OAuth2AuthorizedClient authorizedClient = authorizedClientService.loadAuthorizedClient(CLIENT_REGISTRATION_ID, authentication.getName());
-
         return authorizedClient.getAccessToken();
     }
 }
