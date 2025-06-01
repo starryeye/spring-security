@@ -21,27 +21,36 @@ import java.io.IOException;
 public class AuthorizedClientManagerInterceptor implements ClientHttpRequestInterceptor {
 
     private static final String CLIENT_REGISTRATION_ID = "my-keycloak";
-
     private final OAuth2AuthorizedClientManager oAuth2AuthorizedClientManager;
 
     @Override
     public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        Authentication authentication = SecurityContextHolder.getContextHolderStrategy().getContext().getAuthentication();
-        OAuth2AuthorizeRequest authorizeRequest = OAuth2AuthorizeRequest.withClientRegistrationId(CLIENT_REGISTRATION_ID)
-                .principal(authentication.getName())
-                .build();
-        OAuth2AuthorizedClient authorizedClient = oAuth2AuthorizedClientManager.authorize(authorizeRequest);
+        // 인증된 사용자이고 anonymousUser가 아닐 경우에만 token 설정
+        if (authentication != null && authentication.isAuthenticated()
+                && !"anonymousUser".equals(authentication.getName())) {
 
-        if (authorizedClient == null || authorizedClient.getAccessToken() == null) {
-            throw new IllegalStateException("OAuth2 클라이언트 인증 실패");
+            OAuth2AuthorizeRequest authorizeRequest = OAuth2AuthorizeRequest
+                    .withClientRegistrationId(CLIENT_REGISTRATION_ID)
+                    .principal(authentication)
+                    .build();
+
+            OAuth2AuthorizedClient authorizedClient = oAuth2AuthorizedClientManager.authorize(authorizeRequest);
+
+            if (authorizedClient != null && authorizedClient.getAccessToken() != null) {
+                String token = authorizedClient.getAccessToken().getTokenValue();
+                log.debug("Access token found, setting Authorization header. access token: {}", token);
+                request.getHeaders().setBearerAuth(token);
+            } else {
+                log.debug("No authorized client or access token available. Proceeding without Authorization header.");
+            }
+
+        } else {
+            log.debug("No authenticated user found. Proceeding without Authorization header.");
         }
 
-        String token = authorizedClient.getAccessToken().getTokenValue();
-        log.info("access token: {}", token);
-
-        request.getHeaders().setBearerAuth(token);
-
+        // 항상 요청은 실행됨
         return execution.execute(request, body);
     }
 }
