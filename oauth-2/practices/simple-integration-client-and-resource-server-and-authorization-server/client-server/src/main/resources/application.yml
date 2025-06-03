@@ -1,1 +1,2 @@
-spring.application.name=client-server
+server:
+  port: 8080

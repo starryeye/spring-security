@@ -96,12 +96,12 @@ public class OAuth2AuthorizationServerConfig {
                 .tokenSettings(
                         TokenSettings.builder()
                                 .reuseRefreshTokens(false)
-                                .accessTokenTimeToLive(Duration.ofSeconds(1L))
+                                .accessTokenTimeToLive(Duration.ofSeconds(60L))
                                 .build()
                 )
                 .build();
 
-        return new InMemoryRegisteredClientRepository();
+        return new InMemoryRegisteredClientRepository(registeredClient);
     }
 
     @Bean
