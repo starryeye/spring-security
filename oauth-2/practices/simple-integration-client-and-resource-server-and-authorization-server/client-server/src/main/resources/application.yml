@@ -1,2 +1,22 @@
 server:
   port: 8080
+
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          my-keycloak:
+            client-id: my-spring-client
+            client-secret: secret
+            client-name: My spring client
+            scope: openid,profile,content,comment
+            redirect-uri: http://localhost:8080/login/oauth2/code/my-spring-client
+        provider:
+          my-keycloak:
+            issuer-uri: http://localhost:8090/realms/custom-realm
+            user-name-attribute: sub
+
+logging:
+  level:
+    org.springframework.security: DEBUG
