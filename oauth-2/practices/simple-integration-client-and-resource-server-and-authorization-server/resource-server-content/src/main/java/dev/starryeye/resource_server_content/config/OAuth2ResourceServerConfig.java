@@ -1,4 +1,4 @@
-package dev.starryeye.resource_server_content;
+package dev.starryeye.resource_server_content.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
