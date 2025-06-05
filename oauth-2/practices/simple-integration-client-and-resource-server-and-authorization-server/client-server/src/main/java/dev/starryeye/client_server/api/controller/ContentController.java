@@ -1,5 +1,6 @@
 package dev.starryeye.client_server.api.controller;
 
+import dev.starryeye.client_server.dto.Content;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,7 +13,7 @@ import java.util.List;
 public class ContentController {
 
     @GetMapping("/contents")
-    public List<?> contents() {
+    public List<Content> contents() {
         return List.of();
     }
 
