@@ -1,5 +1,6 @@
 package dev.starryeye.resource_server_article.api.controller;
 
+import dev.starryeye.resource_server_article.api.service.ArticleService;
 import dev.starryeye.resource_server_article.api.service.response.Article;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +15,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ArticleController {
 
+    private final ArticleService articleService;
+
     @GetMapping("/articles")
     public List<Article> articles() {
         return List.of();
@@ -21,6 +24,6 @@ public class ArticleController {
 
     @GetMapping("/articles/{id}")
     public Article article(@PathVariable Long id) {
-        return null;
+        return articleService.getArticleBy(id);
     }
 }
