@@ -7,12 +7,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
 
 import java.util.List;
-import java.util.function.Supplier;
 
 @Slf4j
 @Component
