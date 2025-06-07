@@ -17,10 +17,9 @@ public class CommentClient extends BaseClient{
 
     public CommentClient(
             RestClient.Builder clientBuilder,
-            ObjectMapper objectMapper,
             ClientHttpRequestInterceptor authorizationInterceptor
     ) {
-       super(clientBuilder, "http://localhost:8082", objectMapper, authorizationInterceptor);
+       super(clientBuilder, "http://localhost:8082", authorizationInterceptor);
     }
 
     public List<Comment> getCommentsBy(Long contentId) {

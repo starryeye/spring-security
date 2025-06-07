@@ -15,10 +15,9 @@ public class ArticleClient extends BaseClient {
 
     public ArticleClient(
             RestClient.Builder builder,
-            ObjectMapper objectMapper,
             ClientHttpRequestInterceptor authorizedClientManagerInterceptor
     ) {
-        super(builder, "http://localhost:8081", objectMapper, authorizedClientManagerInterceptor);
+        super(builder, "http://localhost:8081", authorizedClientManagerInterceptor);
     }
 
     public Optional<Article> getArticleBy(Long id) {

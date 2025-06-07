@@ -26,11 +26,10 @@ public abstract class BaseClient {
     protected BaseClient(
             RestClient.Builder builder,
             String baseUrl,
-            ObjectMapper objectMapper,
             ClientHttpRequestInterceptor interceptor
     ) {
 
-        this.objectMapper = objectMapper;
+        this.objectMapper = new ObjectMapper();
         this.restClient = builder
                 .baseUrl(baseUrl)
                 .requestInterceptor(interceptor)
