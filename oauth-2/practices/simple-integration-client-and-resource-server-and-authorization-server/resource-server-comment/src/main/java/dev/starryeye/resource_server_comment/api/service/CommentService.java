@@ -1,7 +1,7 @@
 package dev.starryeye.resource_server_comment.api.service;
 
 import dev.starryeye.resource_server_comment.dto.Comment;
-import dev.starryeye.resource_server_comment.repository.ArticleRepository;
+import dev.starryeye.resource_server_comment.repository.CommentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -9,9 +9,9 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class ArticleService {
+public class CommentService {
 
-    private final ArticleRepository repository;
+    private final CommentRepository repository;
 
     public List<Comment> getCommentsBy(Long contentId) {
 

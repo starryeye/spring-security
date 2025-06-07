@@ -8,11 +8,11 @@ import java.util.List;
 import java.util.Map;
 
 @Repository
-public class ArticleRepository {
+public class CommentRepository {
 
     private final Map<Long, List<Comment>> comments;
 
-    public ArticleRepository() {
+    public CommentRepository() {
         this.comments = new HashMap<>();
     }
 

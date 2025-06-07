@@ -1,7 +1,7 @@
 package dev.starryeye.resource_server_comment.api.controller;
 
-import dev.starryeye.resource_server_comment.api.controller.request.GetArticlesRequest;
-import dev.starryeye.resource_server_comment.api.service.ArticleService;
+import dev.starryeye.resource_server_comment.api.controller.request.GetCommentsRequest;
+import dev.starryeye.resource_server_comment.api.service.CommentService;
 import dev.starryeye.resource_server_comment.dto.Comment;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,12 +12,12 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-public class ArticleController {
+public class CommentController {
 
-    private final ArticleService articleService;
+    private final CommentService commentService;
 
     @PostMapping("/comments")
-    public List<Comment> comments(@RequestBody GetArticlesRequest request) {
-        return articleService.getCommentsBy(request.contentId());
+    public List<Comment> comments(@RequestBody GetCommentsRequest request) {
+        return commentService.getCommentsBy(request.contentId());
     }
 }

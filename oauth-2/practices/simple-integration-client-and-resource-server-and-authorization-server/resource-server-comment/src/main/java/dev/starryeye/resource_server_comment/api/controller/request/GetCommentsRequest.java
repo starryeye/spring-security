@@ -1,6 +1,6 @@
 package dev.starryeye.resource_server_comment.api.controller.request;
 
-public record GetArticlesRequest(
+public record GetCommentsRequest(
         Long contentId
 ) {
 }
