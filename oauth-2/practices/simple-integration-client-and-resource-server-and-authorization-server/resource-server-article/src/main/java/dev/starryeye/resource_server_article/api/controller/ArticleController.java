@@ -11,7 +11,7 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-public class ContentController {
+public class ArticleController {
 
     @GetMapping("/contents")
     public List<Content> contents() {
