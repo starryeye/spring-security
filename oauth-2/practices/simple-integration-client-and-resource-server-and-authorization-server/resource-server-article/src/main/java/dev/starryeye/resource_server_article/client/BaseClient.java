@@ -21,15 +21,13 @@ import java.util.function.Supplier;
 public abstract class BaseClient {
 
     protected final RestClient restClient;
-    private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     protected BaseClient(
             RestClient.Builder builder,
             String baseUrl,
             ClientHttpRequestInterceptor interceptor
     ) {
-
-        this.objectMapper = new ObjectMapper();
         this.restClient = builder
                 .baseUrl(baseUrl)
                 .requestInterceptor(interceptor)
