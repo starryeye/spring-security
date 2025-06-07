@@ -1,4 +1,4 @@
-package dev.starryeye.resource_server_article.dto;
+package dev.starryeye.client_server.dto.element;
 
 import java.time.OffsetDateTime;
 

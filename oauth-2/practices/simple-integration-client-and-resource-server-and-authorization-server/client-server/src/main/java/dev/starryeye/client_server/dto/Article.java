@@ -1,16 +1,11 @@
 package dev.starryeye.client_server.dto;
 
-import java.time.OffsetDateTime;
-import java.util.List;
+import dev.starryeye.client_server.dto.element.Comment;
+import dev.starryeye.client_server.dto.element.Content;
 
 public record Article(
-        Long id,
-        String title,
-        String details,
-        String owner,
-        OffsetDateTime createdAt,
-        OffsetDateTime updatedAt,
-
-        List<Comment> comments
+        Long contentId,
+        Content content,
+        Comment comment
 ) {
 }

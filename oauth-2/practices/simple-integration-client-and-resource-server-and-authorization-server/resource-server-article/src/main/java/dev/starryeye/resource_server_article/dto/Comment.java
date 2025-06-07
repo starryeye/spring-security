@@ -11,8 +11,4 @@ public record Comment(
 
         Long contentId
 ) {
-
-    public static Comment ofDefault(Long contentId) {
-        return new Comment(null, "system","댓글이 없습니다.", null, null, contentId);
-    }
 }
