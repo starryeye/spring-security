@@ -20,7 +20,7 @@ public class CommentService {
         if (comments.isEmpty()) {
             return getFallbackComments(contentId);
         }
-        
+
         return comments;
     }
 
