@@ -19,8 +19,8 @@ public class ArticleController {
         return List.of();
     }
 
-    @GetMapping("/article/{articleId}")
-    public Article article(@PathVariable Long articleId) {
+    @GetMapping("/articles/{id}")
+    public Article article(@PathVariable Long id) {
         return null;
     }
 }
