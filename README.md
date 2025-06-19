@@ -197,3 +197,6 @@
   - custom-logout-endpoint
     - OpenID Connect RP-Initiated Logout endpoint
   - custom-userinfo-endpoint
+- oauth-2/practices
+  - simple-integration-client-and-resource-server
+  - simple-integration-client-and-resource-server-and-authorization-server
