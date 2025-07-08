@@ -39,7 +39,7 @@ public class AuthorizationServerConfig {
 
     /**
      * OAuth2AuthorizationServerConfigurer::tokenRevocationEndpoint 를 이용하여
-     * access token 검증 단계를 커스텀 해본다..
+     * access token 폐기 단계를 커스텀 해본다..
      *      POST "/oauth2/revoke"
      *
      * 주요 클래스
@@ -55,7 +55,7 @@ public class AuthorizationServerConfig {
      * 		OAuth2ErrorAuthenticationFailureHandler
      *
      * 참고..
-     * revoke.http 파일 설명도 볼것.
+     * revoke.http 파일, main class 설명도 볼것.
      *
      * 참고..
      * OAuth2TokenIntrospectionEndpointFilter 로 access token 또는 refresh token 을 폐기하기 전에..
