@@ -17,7 +17,7 @@ public class ArticleController {
 
     @GetMapping("/articles")
     public List<Article> articles() {
-        return List.of();
+        return articleService.getArticles();
     }
 
     @GetMapping("/article/{articleId}")

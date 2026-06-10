@@ -28,4 +28,11 @@ public class ArticleService {
 
         return new Article(contentId, content, comments);
     }
+
+    public List<Article> getArticles() {
+
+        return contentRepository.findAll().stream()
+                .map(content -> new Article(content.id(), content, commentClient.getCommentsBy(content.id())))
+                .toList();
+    }
 }

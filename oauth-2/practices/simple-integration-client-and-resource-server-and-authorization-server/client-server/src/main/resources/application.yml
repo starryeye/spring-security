@@ -6,15 +6,16 @@ spring:
     oauth2:
       client:
         registration:
-          my-keycloak:
+          my-spring-client:
             client-id: my-spring-client
             client-secret: secret
             client-name: My spring client
             scope: openid,profile,content,comment
-            redirect-uri: http://localhost:8080/login/oauth2/code/my-spring-client
+            # authorization server 에 등록된 redirect uri 와 정확히 일치해야한다. (localhost 는 authorization server 에서 허용하지 않으므로 127.0.0.1 사용)
+            redirect-uri: http://127.0.0.1:8080/login/oauth2/code/my-spring-client
         provider:
-          my-keycloak:
-            issuer-uri: http://localhost:8090/realms/custom-realm
+          my-spring-client:
+            issuer-uri: http://localhost:8091
             user-name-attribute: sub
 
 logging:

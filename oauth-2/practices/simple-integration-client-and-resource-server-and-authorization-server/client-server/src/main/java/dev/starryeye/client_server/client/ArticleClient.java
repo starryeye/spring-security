@@ -1,12 +1,13 @@
 package dev.starryeye.client_server.client;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.starryeye.client_server.dto.Article;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.util.List;
 import java.util.Optional;
 
 @Slf4j
@@ -28,6 +29,16 @@ public class ArticleClient extends BaseClient {
                                 .retrieve()
                                 .body(Article.class)
                 )
+        );
+    }
+
+    public List<Article> getArticles() {
+        return executeSafely(() ->
+                restClient.get()
+                        .uri("/articles")
+                        .retrieve()
+                        .body(new ParameterizedTypeReference<List<Article>>() {
+                        })
         );
     }
 }
