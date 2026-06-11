@@ -1,0 +1,20 @@
+server:
+  port: 8091
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/hello_jpa_authorization_server
+    username: root
+    password: 1111
+  jpa:
+    hibernate:
+      # 서버를 재기동해도 client 등록 정보가 유지되는 것을 확인하기 위해 update 로 설정 (create 로 하면 재기동 시 스키마를 새로 만듦)
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: true
+
+logging:
+  level:
+    org.springframework.security: DEBUG

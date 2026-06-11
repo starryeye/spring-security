@@ -1,0 +1,10 @@
+# docker-compose -p hello-jpa-authorization-server up -d
+
+services:
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: 1111
+      MYSQL_DATABASE: hello_jpa_authorization_server
+    ports:
+      - "3306:3306"
