@@ -1,0 +1,10 @@
+### "/oauth2/token" 요청 (public client 라서 Authorization 헤더 없이 client_id + code_verifier 로 인증)
+### code 는 authorize.http 수행 후 redirect 된 url 의 쿼리 파라미터 값으로 교체할 것
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code&
+redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-public-client&
+client_id=my-public-client&
+code_verifier=_zKZCeM7vfHB2E8pPJaEHTohKmFdmk6XK3hcOdn1IefeyAJhoJzilSfoNHj9lf9X&
+code={authorization code}

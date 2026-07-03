@@ -1,0 +1,8 @@
+### "/oauth2/token" 요청, resource server 용 client (client_credentials 전용)
+### Basic bXktc3ByaW5nLXJlc291cmNlLXNlcnZlcjpzZWNyZXQtcmVzb3VyY2Utc2VydmVy = my-spring-resource-server:secret-resource-server
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktc3ByaW5nLXJlc291cmNlLXNlcnZlcjpzZWNyZXQtcmVzb3VyY2Utc2VydmVy
+
+grant_type=client_credentials&
+scope=custom-scope
