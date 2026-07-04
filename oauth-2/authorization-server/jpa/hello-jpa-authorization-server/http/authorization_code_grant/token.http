@@ -1,10 +1,13 @@
-### "/oauth2/token" 요청을 하면 authorization server 에서는 토큰 발행 전, Authorization 헤더로 client 인증을 먼저 수행한다.
+### "/oauth2/token" 요청을 하면 authorization server 에서는 토큰 발행 전 client 인증을 먼저 수행한다.
+###     여기서는 client_id 와 secret 이 등록 API 로 생성한 값이라 Basic 헤더 대신 client_secret_post 방식(요청 본문)으로 인증한다.
 ### client 인증(ClientSecretAuthenticationProvider) 과정에서도 RegisteredClientRepository::findByClientId 가 호출된다. (select 쿼리 확인)
-### code 는 authorize.http 수행 후 redirect 된 url 의 쿼리 파라미터 값으로 교체할 것
+###     또한 이 요청이 성공하고 나면 secret 인코딩 upgrade 로 save 도 호출된다. (RegisteredClientController 주석 참고)
+### client_id, client_secret 은 등록 API(http/api.http) 응답 값으로, code 는 authorize.http 수행 후 redirect 된 url 의 쿼리 파라미터 값으로 교체할 것
 POST http://localhost:8091/oauth2/token
 Content-Type: application/x-www-form-urlencoded
-Authorization: Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ=
 
 grant_type=authorization_code&
 redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client&
+client_id={client id}&
+client_secret={client secret}&
 code={authorization code}

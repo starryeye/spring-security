@@ -38,11 +38,13 @@ public class HelloJpaAuthorizationServerApplication {
 	 *      1. 서버를 재기동해도 client 등록 정보가 DB(MySQL) 에 유지된다. (InMemory 는 휘발)
 	 *      2. authorization code grant 가 진행되는 동안 show-sql 로 select 쿼리가 찍히는 시점을 관찰할 수 있다.
 	 *          client 인증, authorize 요청 검증 등에서 findByClientId 로 조회한다. (registered-client-repository 프로젝트 주석 참고)
+	 *      3. "{noop}" 으로 저장된 secret 이 첫 client 인증 후 "{bcrypt}.." 로 upgrade 되어있다. (RegisteredClientController 주석 참고)
 	 *
 	 * 실행 방법
 	 *      1. docker-compose/docker-compose.yml 로 MySQL 기동
-	 *      2. 서버 기동 후 http/ 의 .http 파일로 authorization code grant 수행
-	 *      3. "/registered-client" 로 DB 에 저장된 client 조회 (http/api.http)
+	 *      2. 서버 기동 후 등록 API 로 client 등록 (http/api.http) -> 응답의 client_id, client_secret 확보
+	 *      3. http/ 의 .http 파일로 authorization code grant 수행
+	 *      4. "/registered-client/{clientId}" 로 DB 에 저장된 client 조회 (http/api.http)
 	 */
 
 	public static void main(String[] args) {

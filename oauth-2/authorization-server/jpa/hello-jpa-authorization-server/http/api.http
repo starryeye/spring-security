@@ -1,3 +1,14 @@
-### DB(MySQL) 에 저장된 client 등록 정보 조회 (관찰용)
+### client 사전 등록(pre-registration), 응답의 clientId / clientSecret(raw, 한번만 노출) 을 확보할 것
+POST http://localhost:8091/registered-client
+Content-Type: application/json
+
+{
+  "clientName": "my-spring-client",
+  "redirectUri": "http://127.0.0.1:8080/login/oauth2/code/my-spring-client",
+  "scopes": ["openid", "profile", "custom-scope"]
+}
+
+### DB 에 저장된 client 등록 정보 조회 (관찰용)
+### 등록 직후에는 secret 이 "{noop}.." 인데, 해당 client 로 인증을 한번 수행하고 다시 조회하면 "{bcrypt}.." 로 upgrade 되어있다.
 ### 서버를 재기동하고 호출해도 동일하게 조회된다. (InMemory 와의 차이점)
-GET http://localhost:8091/registered-client
+GET http://localhost:8091/registered-client/{client id}

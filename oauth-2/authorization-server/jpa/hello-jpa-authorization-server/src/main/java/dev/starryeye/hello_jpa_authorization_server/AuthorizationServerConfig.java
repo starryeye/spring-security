@@ -7,23 +7,17 @@ import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 import dev.starryeye.hello_jpa_authorization_server.jpa.JpaRegisteredClientRepository;
 import dev.starryeye.hello_jpa_authorization_server.jpa.RegisteredClientEntityRepository;
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.oauth2.core.AuthorizationGrantType;
-import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
-import org.springframework.security.oauth2.core.oidc.OidcScopes;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
-import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 
@@ -84,39 +78,14 @@ public class AuthorizationServerConfig {
      * InMemoryRegisteredClientRepository 대신 JPA 구현체를 빈으로 등록한다.
      *      OAuth2ConfigurerUtils::getRegisteredClientRepository 가 getBean 으로 이 빈을 가져가서 사용한다.
      *      즉, 인터페이스 구현체를 빈으로 등록하는 것 외에 프레임워크에 알려줄 것이 없다.
+     *
+     * 참고.
+     * InMemoryRegisteredClientRepository 를 쓸 때는 생성자에 RegisteredClient 를 담아 등록했지만..
+     * DB 저장소에서는 등록 API (RegisteredClientController) 로 client 를 등록하며, 재기동해도 유지된다.
      */
     @Bean
     public RegisteredClientRepository registeredClientRepository(RegisteredClientEntityRepository registeredClientEntityRepository) {
         return new JpaRegisteredClientRepository(registeredClientEntityRepository);
-    }
-
-    /**
-     * InMemoryRegisteredClientRepository 를 쓸 때는 생성자에 RegisteredClient 를 담아 등록했지만..
-     * DB 저장소에서는 없을 때 한번만 저장해주면 재기동해도 유지된다. (admin 기능으로 client 를 등록하는 상황에 해당)
-     */
-    @Bean
-    public CommandLineRunner registeredClientInitializer(RegisteredClientRepository registeredClientRepository) {
-        return args -> {
-            if (registeredClientRepository.findByClientId("my-spring-client") != null) {
-                return;
-            }
-
-            RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString())
-                    .clientId("my-spring-client")
-                    .clientSecret("{noop}secret")
-                    .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
-                    .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                    .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-                    .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
-                    .redirectUri("http://127.0.0.1:8080/login/oauth2/code/my-spring-client")
-                    .scope(OidcScopes.OPENID)
-                    .scope(OidcScopes.PROFILE)
-                    .scope("custom-scope")
-                    .clientSettings(ClientSettings.builder().requireAuthorizationConsent(true).build())
-                    .build();
-
-            registeredClientRepository.save(registeredClient);
-        };
     }
 
     @Bean

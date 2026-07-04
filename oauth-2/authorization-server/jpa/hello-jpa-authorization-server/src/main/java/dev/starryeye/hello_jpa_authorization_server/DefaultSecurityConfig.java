@@ -22,8 +22,13 @@ public class DefaultSecurityConfig {
         http
                 .authorizeHttpRequests(authorizationManagerRequestMatcherRegistry ->
                         authorizationManagerRequestMatcherRegistry
-                                .requestMatchers("/registered-client").permitAll() // DB 저장 상태 관찰용
+                                // client 등록/조회 API.. 학습 편의상 개방, 실제로는 관리자 인증/인가가 필요하다.
+                                .requestMatchers("/registered-client", "/registered-client/*").permitAll()
                                 .anyRequest().authenticated()
+                )
+                .csrf(csrfConfigurer ->
+                        csrfConfigurer
+                                .ignoringRequestMatchers("/registered-client") // POST 등록 API 를 브라우저 세션 없이 호출하기 위함
                 )
                 .formLogin(Customizer.withDefaults())
         ;

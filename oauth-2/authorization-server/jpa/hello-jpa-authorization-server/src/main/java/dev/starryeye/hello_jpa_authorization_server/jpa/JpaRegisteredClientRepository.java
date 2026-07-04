@@ -19,7 +19,9 @@ public class JpaRegisteredClientRepository implements RegisteredClientRepository
      * RegisteredClientRepository 를 JPA 로 직접 구현해본다.
      *
      * 구현해야 할 메서드는 3개 뿐이다.
-     *      save : client 등록 (런타임에 OidcClientRegistrationEndpoint 같은 기능을 켜면 프레임워크도 호출할 수 있으나, 여기서는 초기 등록용)
+     *      save : client 등록/수정
+     *          client 사전 등록(pre-registration) 기능은 프레임워크가 제공하지 않으므로 개발자가 직접 만들어 save 를 호출해야한다. (RegisteredClientController 참고)
+     *          프레임워크가 save 를 호출하는 경우도 두가지 있다.. secret 인코딩 upgrade, OIDC dynamic client registration (RegisteredClientController 주석 참고)
      *      findById : RegisteredClient.id (저장소 식별자) 로 조회
      *      findByClientId : client_id (프로토콜 상의 클라이언트 식별자) 로 조회
      *
