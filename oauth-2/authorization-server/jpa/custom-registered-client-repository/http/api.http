@@ -1,3 +1,37 @@
+### CONFIDENTIAL client 등록 (secret 발급, code + refresh + client_credentials)
+### 응답의 clientId / clientSecret(raw, 한번만 노출) 을 확보할 것, accessTokenTimeToLiveSeconds 는 expires_in 으로 반영 확인용
+POST http://localhost:8091/registered-clients
+Content-Type: application/json
+
+{
+  "clientType": "CONFIDENTIAL",
+  "clientName": "my-spring-client",
+  "redirectUri": "http://127.0.0.1:8080/login/oauth2/code/my-spring-client",
+  "scopes": ["openid", "profile", "custom-scope"],
+  "accessTokenTimeToLiveSeconds": 120
+}
+
+### PUBLIC client 등록 (secret 없음, PKCE 필수)
+POST http://localhost:8091/registered-clients
+Content-Type: application/json
+
+{
+  "clientType": "PUBLIC",
+  "clientName": "my-public-client",
+  "redirectUri": "http://127.0.0.1:8080/login/oauth2/code/my-public-client",
+  "scopes": ["openid", "profile"]
+}
+
+### SERVICE client 등록 (client_credentials 전용, redirectUri 불필요)
+POST http://localhost:8091/registered-clients
+Content-Type: application/json
+
+{
+  "clientType": "SERVICE",
+  "clientName": "my-spring-resource-server",
+  "scopes": ["custom-scope"]
+}
+
 ### RegisteredClient 로 변환된 결과 조회 (comma 문자열/JSON 이 원래 타입으로 복원된 모습)
 GET http://localhost:8091/registered-clients
 

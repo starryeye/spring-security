@@ -1,12 +1,13 @@
-### "/oauth2/token" 요청, client 인증은 client_secret_basic (my-spring-client:secret)
+### "/oauth2/token" 요청, client 인증은 client_secret_post 방식(요청 본문)
 ### DB 에는 "{bcrypt}..." 로 인코딩된 secret 이 저장되어 있지만 요청은 raw secret 으로 한다.
 ###     ClientSecretAuthenticationProvider 가 DelegatingPasswordEncoder::matches 로 검증하기 때문 (main class 주석 참고)
-### 응답의 expires_in 이 기본값 300 이 아니라 TokenSettings 에 설정한 120 인 것도 확인해볼 것
-### code 는 authorize.http 수행 후 redirect 된 url 의 쿼리 파라미터 값으로 교체할 것
+### 응답의 expires_in 이 기본값 300 이 아니라 등록 시 지정한 accessTokenTimeToLiveSeconds(120) 인 것도 확인해볼 것
+### client_id, client_secret 은 등록 API(http/api.http) 응답 값으로, code 는 authorize.http 수행 후 redirect 된 url 의 쿼리 파라미터 값으로 교체할 것
 POST http://localhost:8091/oauth2/token
 Content-Type: application/x-www-form-urlencoded
-Authorization: Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ=
 
 grant_type=authorization_code&
 redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client&
+client_id={client id}&
+client_secret={client secret}&
 code={authorization code}

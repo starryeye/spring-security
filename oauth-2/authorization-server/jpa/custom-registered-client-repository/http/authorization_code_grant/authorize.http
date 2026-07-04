@@ -1,3 +1,4 @@
 ### web browser 에서 수행 (user / 1111 로그인 -> consent 동의 -> redirect uri 로 code 전달됨)
-### "/oauth2/authorize", authorization code 발급 요청 (confidential client)
-GET http://localhost:8091/oauth2/authorize?response_type=code&client_id=my-spring-client&scope=openid profile custom-scope&redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client
+### "/oauth2/authorize", authorization code 발급 요청 (CONFIDENTIAL client)
+### client_id 는 등록 API(http/api.http) 응답 값으로 교체할 것
+GET http://localhost:8091/oauth2/authorize?response_type=code&client_id={client id}&scope=openid profile custom-scope&redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client

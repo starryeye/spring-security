@@ -1,4 +1,5 @@
-### web browser 에서 수행 (public client, PKCE)
+### web browser 에서 수행 (PUBLIC client, PKCE)
+### client_id 는 등록 API(http/api.http) 응답 값으로 교체할 것
 ### code_challenge = BASE64URL(SHA256(code_verifier)), 아래 값은 token.http 의 code_verifier 와 쌍이 맞는 값이다.
 ### 참고. code_challenge 없이 요청하면 requireProofKey(true) 설정에 의해 error=invalid_request (code_challenge) 로 거부된다.
-GET http://localhost:8091/oauth2/authorize?response_type=code&client_id=my-public-client&scope=openid profile&redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-public-client&code_challenge=1stcYq7hUee7Jqd5auqA7Z3O0GEIIqmzTPYjDk1K-gw&code_challenge_method=S256
+GET http://localhost:8091/oauth2/authorize?response_type=code&client_id={client id}&scope=openid profile&redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-public-client&code_challenge=1stcYq7hUee7Jqd5auqA7Z3O0GEIIqmzTPYjDk1K-gw&code_challenge_method=S256
