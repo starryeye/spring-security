@@ -1,0 +1,10 @@
+### "/oauth2/token" 요청 (Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ= = my-spring-client:secret)
+### 이 과정에서 [findByToken](code) 2회 -> [save](code invalidated + 토큰 3종) 호출 시퀀스가 로그로 찍힌다. (main class 관찰 결과 참고)
+### code 는 authorize.http 수행 후 redirect 된 url 의 쿼리 파라미터 값으로 교체할 것
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ=
+
+grant_type=authorization_code&
+redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client&
+code={authorization code}

@@ -1,0 +1,10 @@
+### "/oauth2/token" refresh token grant
+### [findByToken](refresh_token) -> [save](토큰 갱신) 호출 시퀀스가 로그로 찍힌다.
+### 서버를 재기동하고 요청해도 성공한다.. 토큰 상태가 DB 에 영속화되어 있기 때문 (InMemory 였다면 invalid_grant)
+### refresh_token 은 authorization_code_grant/token.http 응답 값으로 교체할 것
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ=
+
+grant_type=refresh_token&
+refresh_token={refresh token}

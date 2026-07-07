@@ -1,0 +1,7 @@
+### access token 값으로 findByToken 조회 (OAuth2Authorization 으로 복원된 모습)
+GET http://localhost:8091/oauth2-authorization?token={access token}
+
+### entity 원문 조회
+### attributes 컬럼의 @class 포함 JSON (Authentication, OAuth2AuthorizationRequest 직렬화 형태)과..
+### code 사용 후 authorization_code_metadata 의 "metadata.token.invalidated":true 를 확인할 수 있다.
+GET http://localhost:8091/oauth2-authorizations/raw
