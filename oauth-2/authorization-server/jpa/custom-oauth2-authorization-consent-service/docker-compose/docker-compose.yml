@@ -1,0 +1,10 @@
+# docker-compose -p custom-oauth2-authorization-consent-service up -d
+
+services:
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: 1111
+      MYSQL_DATABASE: custom_oauth2_authorization_consent_service
+    ports:
+      - "3306:3306"

@@ -1,0 +1,6 @@
+### OAuth2AuthorizationConsent 로 변환된 결과 조회 (authorities 가 GrantedAuthority 로 복원된 모습)
+GET http://localhost:8091/oauth2-authorization-consents
+
+### entity 원문 조회
+### 동의한 scope 가 "SCOPE_{scope}" comma 문자열로 저장된 것을 확인할 수 있다. (예. "SCOPE_openid,SCOPE_profile")
+GET http://localhost:8091/oauth2-authorization-consents/raw

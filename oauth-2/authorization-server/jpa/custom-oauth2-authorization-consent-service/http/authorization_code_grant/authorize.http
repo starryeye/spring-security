@@ -1,0 +1,9 @@
+### web browser 에서 수행 (user / 1111 로그인)
+### "/oauth2/authorize", authorization code 발급 요청
+### 첫 요청은 consent 화면이 뜨고([findById] null 로그 확인), 동의 이후 같은 요청을 반복하면 consent 없이 바로 code 가 발급된다.
+### 서버를 재기동하고 반복해도 consent 가 생략된다.. 동의 기록이 DB 에 영속화되어 있기 때문 (InMemory 였다면 다시 동의 화면)
+GET http://localhost:8091/oauth2/authorize?response_type=code&client_id=my-spring-client&scope=openid profile&redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client
+
+### 기승인 scope 에 custom-scope 를 추가해 요청해보기
+### consent 화면에 custom-scope 만 승인 대상으로 표시되고, 동의하면 기존 기록과 병합되어 save 된다. (main class 관찰 결과 참고)
+GET http://localhost:8091/oauth2/authorize?response_type=code&client_id=my-spring-client&scope=openid profile custom-scope&redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client

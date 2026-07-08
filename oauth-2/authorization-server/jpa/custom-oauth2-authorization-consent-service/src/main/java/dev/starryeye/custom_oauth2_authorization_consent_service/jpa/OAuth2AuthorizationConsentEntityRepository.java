@@ -1,0 +1,6 @@
+package dev.starryeye.custom_oauth2_authorization_consent_service.jpa;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface OAuth2AuthorizationConsentEntityRepository extends JpaRepository<OAuth2AuthorizationConsentEntity, OAuth2AuthorizationConsentEntity.CompositeId> {
+}
