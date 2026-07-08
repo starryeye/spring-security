@@ -1,0 +1,8 @@
+### JWKS 조회.. 현재 키 + 이전 키(공개키만) 두 개의 kid(=keystore alias) 확인
+### 서버를 재기동해도 kid 가 변하지 않는다. (부팅 시 RSA 생성 방식이었다면 재기동마다 변함)
+GET http://localhost:8091/oauth2/jwks
+
+### JWT 서명 검증 (관찰용)
+### 핵심 데모.. 서버를 재기동한 뒤, 재기동 '전'에 발급받은 access token 으로 호출해도 valid=true 이다.
+### 기존 프로젝트들(부팅 시 RSA 생성)이었다면 서명 검증 실패했을 시나리오.
+GET http://localhost:8091/verify-token?token={access token}

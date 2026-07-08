@@ -1,0 +1,15 @@
+server:
+  port: 8091
+
+my:
+  jwk:
+    # keystore 생성 명령은 main class 주석 참고
+    key-store-location: classpath:keystore/token-signing.p12
+    key-store-password: "111111"
+    key-password: "111111"
+    current-key-alias: key-2026-07-08   # 서명에 사용할 현재 키
+    previous-key-alias: key-2026-07-01  # 검증용으로만 노출할 이전 키 (로테이션)
+
+logging:
+  level:
+    org.springframework.security: DEBUG
