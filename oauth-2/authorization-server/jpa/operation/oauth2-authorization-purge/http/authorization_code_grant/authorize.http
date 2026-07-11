@@ -1,0 +1,8 @@
+### web browser 에서 수행 (user / 1111 로그인 -> consent 동의 -> redirect uri 로 code 전달됨)
+### openid 없이 요청.. id token 이 발급되지 않아 refresh 만료(60초) 후 배치에서 row 가 삭제된다.
+GET http://localhost:8091/oauth2/authorize?response_type=code&client_id=my-spring-client&scope=profile custom-scope&redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client
+
+### openid 포함 요청.. id token 만료가 30분 고정이라 refresh 가 만료되어도 row 가 30분간 유지된다. (main class 관찰 결과 참고)
+GET http://localhost:8091/oauth2/authorize?response_type=code&client_id=my-spring-client&scope=openid profile&redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client
+
+### consent 화면까지만 진행하고 이탈해보기.. state 만 있는 row 가 생기고 배치 대상에서 제외되어 계속 남는다.

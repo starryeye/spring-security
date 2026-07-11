@@ -1,0 +1,3 @@
+### oauth2_authorization row 관찰 (grant 로 생성 -> 만료 + 배치 주기 후 삭제)
+### 서버 콘솔의 [purge] 로그와 함께 볼 것
+GET http://localhost:8091/oauth2-authorizations/raw

@@ -1,0 +1,24 @@
+server:
+  port: 8091
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/oauth2_authorization_purge
+    username: root
+    password: 1111
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: true
+
+my:
+  purge:
+    # 삭제 배치 주기(ms).. 관찰을 위해 20초로 짧게 설정 (운영에서는 수 시간~일 단위면 충분)
+    fixed-delay: 20000
+
+logging:
+  level:
+    org.springframework.security: DEBUG
