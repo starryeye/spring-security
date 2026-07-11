@@ -1,0 +1,26 @@
+### "/oauth2/token" 요청 (Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ= = my-spring-client:secret)
+### code 는 authorize.http 수행 후 redirect 된 url 의 쿼리 파라미터 값으로 교체할 것
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ=
+
+grant_type=authorization_code&
+redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client&
+code={authorization code}
+
+### client_credentials grant.. 약 30초 TTL 키들이 생기고 30초 뒤 스스로 사라진다. (api.http 로 관찰)
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ=
+
+grant_type=client_credentials&
+scope=custom-scope
+
+### refresh token grant.. 서버를 재기동하고 요청해도 성공한다. (Redis 에 상태 유지)
+### 주의. refresh token TTL 이 60초라 발급 후 60초 안에 수행할 것 (늦으면 정상적인 만료 거절 invalid_grant)
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ=
+
+grant_type=refresh_token&
+refresh_token={refresh token}

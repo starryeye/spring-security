@@ -1,0 +1,4 @@
+### Redis 에 저장된 인가 상태 키 + TTL 관찰
+### 본체 hash 는 가장 늦게 만료되는 토큰 기준, 역색인은 각 토큰 만료 기준으로 TTL 이 줄어들다가 스스로 사라진다.
+### redis-cli 로도 관찰 가능: docker exec -it custom-redis-oauth2-authorization-service-redis-1 redis-cli keys "oauth2:*"
+GET http://localhost:8091/oauth2-authorizations/raw
