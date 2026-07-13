@@ -1,0 +1,7 @@
+### 세션 공유 데모.. web browser 에서 순서대로 수행 (쿠키는 port 를 구분하지 않는다)
+### 1. 8091 에서 아래 요청 -> 로그인 (user / 1111)
+GET http://localhost:8091/oauth2/authorize?response_type=code&client_id=my-spring-client&scope=openid profile&redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client
+
+### 2. 주소만 8092 로 바꿔 같은 요청 -> 다른 인스턴스인데 재로그인 없이 consent 로 진행된다 ✓
+###    (세션 외부화가 없다면 8092 는 세션이 없어 로그인 페이지로 보냈을 것)
+GET http://localhost:8092/oauth2/authorize?response_type=code&client_id=my-spring-client&scope=openid profile&redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client

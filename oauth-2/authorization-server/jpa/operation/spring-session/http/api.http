@@ -1,0 +1,10 @@
+### 현재 요청을 처리한 인스턴스(port)와 인증 상태 확인
+### 8091 로그인 후 8092 로 호출해보면 다른 인스턴스인데 authenticated=true 인 것을 볼 수 있다.
+GET http://localhost:8091/whoami
+
+###
+GET http://localhost:8092/whoami
+
+### Redis 의 spring:session:* 키와 TTL(세션 타임아웃, 기본 30분) 관찰
+### 인스턴스를 재기동해도 이 키가 남아있어 로그인이 유지된다.
+GET http://localhost:8091/sessions/raw

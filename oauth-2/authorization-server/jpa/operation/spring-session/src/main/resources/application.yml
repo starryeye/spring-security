@@ -1,0 +1,12 @@
+server:
+  port: 8091 # 두번째 인스턴스는 --server.port=8092 로 기동 (main class 주석 참고)
+
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+logging:
+  level:
+    org.springframework.security: DEBUG
