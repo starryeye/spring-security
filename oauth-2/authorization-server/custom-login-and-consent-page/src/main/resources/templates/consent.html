@@ -16,18 +16,19 @@
     <input type="hidden" name="client_id" th:value="${clientId}"/>
     <input type="hidden" name="state" th:value="${state}"/>
 
+    <!-- 태그 안의 profile, custom-scope 텍스트는 정적 미리보기용 예시값.. 서버 렌더링 시 th:text 가 실제 scope 값으로 치환한다 -->
     <div th:if="${!previouslyApprovedScopes.isEmpty()}">
         <h3>이미 동의한 권한</h3>
         <!-- 기승인 scope 는 다시 물어보지 않고 표시만 한다 (disabled 라 제출 값에 포함되지 않아도 기승인은 유지된다) -->
         <p th:each="approvedScope : ${previouslyApprovedScopes}">
-            <label><input type="checkbox" checked disabled/> <span th:text="${approvedScope}">scope</span></label>
+            <label><input type="checkbox" checked disabled/> <span th:text="${approvedScope}">profile</span></label>
         </p>
     </div>
 
     <div th:if="${!scopesToApprove.isEmpty()}">
         <h3>새로 요청된 권한</h3>
         <p th:each="scope : ${scopesToApprove}">
-            <label><input type="checkbox" name="scope" th:value="${scope}"/> <span th:text="${scope}">scope</span></label>
+            <label><input type="checkbox" name="scope" th:value="${scope}"/> <span th:text="${scope}">custom-scope</span></label>
         </p>
     </div>
 
