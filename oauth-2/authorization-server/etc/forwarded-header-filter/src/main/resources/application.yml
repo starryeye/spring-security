@@ -1,0 +1,11 @@
+server:
+  port: 8091
+
+my:
+  forwarded-header-filter:
+    # false 로 바꿔 재기동하면.. 프록시(9000)를 거친 요청의 issuer 가 잘못된 값으로 나오는 것을 대조 관찰할 수 있다. (main class 주석 참고)
+    enabled: true
+
+logging:
+  level:
+    org.springframework.security: DEBUG

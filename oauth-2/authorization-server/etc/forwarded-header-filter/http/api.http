@@ -1,0 +1,6 @@
+### 직접 접근.. issuer 와 endpoint URL 이 http://localhost:8091 기준으로 나온다
+GET http://localhost:8091/.well-known/oauth-authorization-server
+
+### 프록시(nginx) 접근.. ForwardedHeaderFilter 가 X-Forwarded-Host 를 반영해 http://localhost:9000 기준으로 나온다
+### my.forwarded-header-filter.enabled=false 로 재기동하고 다시 호출하면.. 내부 주소(host.docker.internal:8091)가 노출된다 (문제 재현)
+GET http://localhost:9000/.well-known/oauth-authorization-server
