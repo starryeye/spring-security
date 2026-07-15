@@ -1,0 +1,3 @@
+### 발급된 JWT 의 header/claims 관찰
+### access token : "authorities" claim 추가 확인, id token : "nickname" claim 추가 확인 (토큰 타입 분기)
+GET http://localhost:8091/token-claims?token={access token or id token}

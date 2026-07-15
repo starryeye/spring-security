@@ -1,0 +1,10 @@
+### "/oauth2/token" 요청 (Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ= = my-spring-client:secret)
+### 응답의 access_token 과 id_token 을 "/token-claims" 로 관찰해볼 것 (http/api.http)
+### code 는 authorize.http 수행 후 redirect 된 url 의 쿼리 파라미터 값으로 교체할 것
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ=
+
+grant_type=authorization_code&
+redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client&
+code={authorization code}

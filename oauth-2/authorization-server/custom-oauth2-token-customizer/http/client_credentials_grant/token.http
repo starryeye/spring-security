@@ -1,0 +1,7 @@
+### client_credentials grant.. principal 이 client 인증 객체라 access token 의 authorities 가 빈 배열이다. (main class 관찰 결과 참고)
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ=
+
+grant_type=client_credentials&
+scope=custom-scope
