@@ -1,0 +1,8 @@
+### authorization code grant 로 받은 refresh token 으로 갱신.. 토큰 상태가 Redis 에 있으므로 어느 인스턴스가 처리해도 성공한다
+### 두 인스턴스를 모두 재기동한 뒤 수행해도 성공하는 것이 확인 포인트 (InMemory 였다면 invalid_grant)
+POST http://localhost:9000/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic {base64(client id:client secret)}
+
+grant_type=refresh_token&
+refresh_token={refresh token}

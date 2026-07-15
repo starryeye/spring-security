@@ -1,0 +1,10 @@
+### "/oauth2/token" 요청.. {client id}:{client secret} 는 등록 응답 값으로 basic auth 구성 (아래 Authorization 값 교체)
+### code 는 authorize.http 수행 후 redirect 된 url 의 쿼리 파라미터 값으로 교체할 것
+### 응답 access token 의 iss = http://localhost:9000, header 의 kid = key-2026-07-15, claim 에 authorities 포함
+POST http://localhost:9000/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic {base64(client id:client secret)}
+
+grant_type=authorization_code&
+redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client&
+code={authorization code}

@@ -1,0 +1,8 @@
+### server to server 용 grant.. SERVICE 프리셋으로 등록한 client 의 clientId/secret 사용
+### access token 의 sub 는 client_id 이고 authorities 는 빈 배열이다 (custom-oauth2-token-customizer 프로젝트 관찰 결과 참고)
+POST http://localhost:9000/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic {base64(client id:client secret)}
+
+grant_type=client_credentials&
+scope=custom-scope

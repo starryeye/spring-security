@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>My Authorization Server - Login</title>
+</head>
+<body>
+<h2>My Authorization Server</h2>
+<p>커스텀 로그인 페이지 (user / 1111)</p>
+
+<!-- 로그인 처리는 기본값 그대로 POST "/login" (UsernamePasswordAuthenticationFilter), csrf hidden 은 thymeleaf 가 자동 추가 -->
+<form th:action="@{/login}" method="post">
+    <p><label>Username: <input type="text" name="username" autofocus/></label></p>
+    <p><label>Password: <input type="password" name="password"/></label></p>
+    <p><button type="submit">Login</button></p>
+</form>
+</body>
+</html>
