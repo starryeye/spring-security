@@ -1,0 +1,19 @@
+### "/oauth2/token" 요청 (Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ= = my-spring-client:secret)
+### client 인증 성공(OAuth2ClientAuthenticationToken)과 토큰 발급(OAuth2AccessTokenAuthenticationToken) 두 건의 [인증 성공] 로그가 찍힌다.
+### code 는 authorize.http 수행 후 redirect 된 url 의 쿼리 파라미터 값으로 교체할 것
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ=
+
+grant_type=authorization_code&
+redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client&
+code={authorization code}
+
+### client 인증 실패 관찰용 (틀린 secret).. [인증 실패] ProviderNotFoundEvent 로 수신된다 (main class 관찰 결과 참고)
+### Basic bXktc3ByaW5nLWNsaWVudDp3cm9uZ3NlY3JldA== = my-spring-client:wrongsecret
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktc3ByaW5nLWNsaWVudDp3cm9uZ3NlY3JldA==
+
+grant_type=client_credentials&
+scope=custom-scope
