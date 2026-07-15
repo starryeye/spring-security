@@ -8,7 +8,7 @@ public class CustomOauth2TokenCustomizerApplication {
 
 	/**
 	 * OAuth2TokenCustomizer 로 발행되는 토큰의 claim 을 커스텀해본다.
-	 *      jpa/operation/custom-jwk-source 프로젝트에서 kid 지정용으로 스치듯 사용했던 확장 지점의 본편이다.
+	 *      jpa/advance/custom-jwk-source 프로젝트에서 kid 지정용으로 스치듯 사용했던 확장 지점의 본편이다.
 	 *
 	 * 왜 필요한가..
 	 *      기본 access token 의 claim 은 iss, sub, aud, scope, exp 등 표준 값들 뿐이다.
