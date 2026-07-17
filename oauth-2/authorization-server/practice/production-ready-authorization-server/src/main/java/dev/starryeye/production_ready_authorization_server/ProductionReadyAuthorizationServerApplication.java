@@ -32,6 +32,10 @@ public class ProductionReadyAuthorizationServerApplication {
 	 *      인증 이벤트 감사 로그 : 로그인/client 인증/토큰 발급 성공·실패 감사 (etc/authentication-events 이식)
 	 *      공유 SessionRegistry : id token 의 sid/auth_time 이 인스턴스와 무관하게 일관되도록 spring session(redis) 기반으로 구현
 	 *          (기본 InMemory registry 가 다중 인스턴스에서 왜 문제인지는 session/SpringSessionSessionRegistry 참고)
+	 *      request object 거부 : 미지원 파라미터(request/request_uri)를 조용히 무시하지 않고 스펙대로 에러 응답 + discovery 에 미지원 명시
+	 *          (config/RequestObjectRejectingAuthenticationProvider 참고)
+	 *      POST 인가 요청 GET 강등 : 미인증 POST 인가 요청이 로그인 왕복에서 파라미터를 잃지 않도록 entry point 에서 변환
+	 *          (config/PostToGetAuthorizationRequestEntryPoint 참고)
 	 *
 	 * 확인 포인트
 	 *      1. LB(9000) 로 연속 요청하면 "/whoami" 의 instancePort 가 8091/8092 로 번갈아 나온다. (round robin)
@@ -63,12 +67,11 @@ public class ProductionReadyAuthorizationServerApplication {
 	 *      8. 관리자 부트스트랩 동시 기동 경합이 실제로 발생.. 두 인스턴스가 6ms 차이로 둘 다 insert 를 시도했고
 	 *          한쪽이 unique 제약 위반을 잡아 건너뛰며 정상 기동 (예외를 안 잡으면 인스턴스가 내려간다.. AdminAccountInitializer 참고)
 	 *
-	 *      9. OpenID conformance suite(OIDCC Basic OP 플랜, 35개 모듈) 검증 결과.. PASSED 18, WARNING 4, SKIPPED 6, 자동화 한계 5, 부적합 2
-	 *          - 다중 인스턴스 결함 발견: openid token 발급 시 id token 의 auth_time 이 인스턴스별 InMemory SessionRegistry 의
-	 *            세션 시각에서 나와 두 인스턴스가 서로 다른 값을 발급 (단일 인스턴스에서는 재현되지 않는 스펙 위반, 3개 모듈 실패)
-	 *            -> 공유 SessionRegistry(위 조합 요소) 도입 후 3건 모두 통과
-	 *          - 남은 부적합 2건은 프레임워크 영역: request object 파라미터 무시, 미인증 POST authorize 의 파라미터 유실
-	 *          - 실행 방법과 전체 결과는 openid-conformance/README.md 참고
+	 *      9. OpenID conformance suite(OIDCC Basic OP 플랜, 35개 모듈) 검증 결과.. PASSED 19, WARNING 4, SKIPPED 7, 자동화 한계 5, 부적합 0
+	 *          - 부적합 3종이 발견되어 전부 수정: ①다중 인스턴스 auth_time 불일치(공유 SessionRegistry 로 해결)
+	 *            ②request object 파라미터 조용한 무시(거부 provider 로 해결) ③미인증 POST 인가 요청 파라미터 유실(GET 강등 entry point 로 해결)
+	 *          - 부수 발견: sendError 의 "/error" 재디스패치가 authenticated 에 걸리면 에러 응답이 401 로 뒤바뀐다 (permitAll 처리)
+	 *          - 실행 방법과 전체 결과, 각 결함의 메커니즘은 openid-conformance/README.md 참고
 	 *
 	 * 주의. nginx upstream 이름에 underscore 를 쓰면 안 된다..
 	 *      proxy_pass 가 Host 헤더 기본값으로 upstream 이름을 전달하는데..

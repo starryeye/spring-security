@@ -25,6 +25,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationConsentService;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
+import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeRequestAuthenticationProvider;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
@@ -50,7 +51,7 @@ public class AuthorizationServerConfig {
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
-    public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http, RegisteredClientRepository registeredClientRepository) throws Exception {
 
         OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = OAuth2AuthorizationServerConfigurer.authorizationServer();
 
@@ -66,14 +67,37 @@ public class AuthorizationServerConfig {
                                         authorizationEndpointConfigurer
                                                 // 커스텀 consent 페이지 (custom-login-and-consent-page 프로젝트 참고)
                                                 .consentPage("/oauth2/consent")
+                                                // 미지원인 request object 파라미터를 무시하지 않고 스펙대로 거부한다. (RequestObjectRejectingAuthenticationProvider 참고)
+                                                .authenticationProviders(authenticationProviders ->
+                                                        authenticationProviders.replaceAll(authenticationProvider ->
+                                                                authenticationProvider instanceof OAuth2AuthorizationCodeRequestAuthenticationProvider
+                                                                        ? new RequestObjectRejectingAuthenticationProvider(authenticationProvider, registeredClientRepository)
+                                                                        : authenticationProvider
+                                                        )
+                                                )
                                 )
-                                // 기본적으로 oidc 는 disable 되어있어서 설정해줘야함.
-                                .oidc(Customizer.withDefaults())
+                                .oidc(oidcConfigurer ->
+                                        oidcConfigurer // 기본적으로 oidc 는 disable 되어있어서 설정해줘야함.
+                                                .providerConfigurationEndpoint(providerConfigurationEndpointConfigurer ->
+                                                        providerConfigurationEndpointConfigurer
+                                                                /**
+                                                                 * discovery 메타데이터에 request object 미지원을 명시한다..
+                                                                 * request_parameter_supported 는 스펙 기본값이 false 지만..
+                                                                 * request_uri_parameter_supported 는 기본값이 true 라서 명시하지 않으면 지원한다고 광고하는 셈이 된다.
+                                                                 */
+                                                                .providerConfigurationCustomizer(builder ->
+                                                                        builder
+                                                                                .claim("request_parameter_supported", false)
+                                                                                .claim("request_uri_parameter_supported", false)
+                                                                )
+                                                )
+                                )
                 )
                 .exceptionHandling(httpSecurityExceptionHandlingConfigurer ->
                         httpSecurityExceptionHandlingConfigurer
                                 // 미인증 시 커스텀 로그인 페이지로 보낸다. (DefaultSecurityConfig 의 loginPage 설정과 짝)
-                                .authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login"))
+                                // 단, 미인증 "POST 인가 요청" 은 GET 으로 강등시켜 로그인 왕복을 견디게 한다. (PostToGetAuthorizationRequestEntryPoint 참고)
+                                .authenticationEntryPoint(new PostToGetAuthorizationRequestEntryPoint(new LoginUrlAuthenticationEntryPoint("/login")))
                 )
         ;
 

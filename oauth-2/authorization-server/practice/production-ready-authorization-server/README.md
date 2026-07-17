@@ -59,9 +59,11 @@ client ──> nginx LB (localhost:9000, round robin)
 
 ### OpenID conformance 검증
 - OpenID Foundation 의 공식 적합성 테스트(conformance suite, OIDCC Basic OP 플랜 35개 모듈)를 self-host 로 돌려 표준 적합성을 검증했다.
-- 이 과정에서 **다중 인스턴스 결함을 실제로 발견**했다.. id token 의 auth_time 이 인스턴스별 InMemory SessionRegistry 에서 나와
-  두 인스턴스가 서로 다른 값을 발급 (3개 모듈 실패) -> redis(spring session) 기반 공유 SessionRegistry 로 수정 후 통과.
-- 실행 방법, 전체 결과표, 발견/수정 상세: [openid-conformance/README.md](openid-conformance/README.md)
+- 부적합 3종이 발견되어 전부 수정했다 (자동 검증 기준 부적합 0건 도달)..
+  1. **다중 인스턴스 auth_time 불일치** — 인스턴스별 InMemory SessionRegistry 가 원인 -> redis(spring session) 기반 공유 SessionRegistry
+  2. **request object 파라미터 조용한 무시** -> request_not_supported 에러 응답 + discovery 미지원 명시
+  3. **미인증 POST 인가 요청 파라미터 유실** -> POST 를 GET redirect 로 강등하는 entry point
+- 실행 방법, 전체 결과표, 각 결함의 메커니즘: [openid-conformance/README.md](openid-conformance/README.md)
 
 ### 주의
 - redirect uri 의 host 로 localhost 는 허용되지 않으므로 127.0.0.1 로 등록해야 한다.

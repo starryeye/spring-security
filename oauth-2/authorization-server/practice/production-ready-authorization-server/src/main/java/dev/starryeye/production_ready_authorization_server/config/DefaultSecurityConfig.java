@@ -37,6 +37,12 @@ public class DefaultSecurityConfig {
                                 .requestMatchers("/registered-clients/**", "/users/**").hasRole("ADMIN")
                                 // 로드밸런싱 관찰용
                                 .requestMatchers("/whoami").permitAll()
+                                /**
+                                 * 에러 응답 경로 개방..
+                                 * sendError(400 등)는 boot 의 "/error" 로 재디스패치되는데, 이 경로가 authenticated 에 걸리면
+                                 * 미인증 사용자의 에러 응답이 원래 상태코드 대신 401 로 뒤바뀐다. (인가 요청 에러 페이지가 대표 사례)
+                                 */
+                                .requestMatchers("/error").permitAll()
                                 // consent 페이지("/oauth2/consent")는 로그인 후 도달하므로 authenticated 에 포함되면 된다.
                                 .anyRequest().authenticated()
                 )

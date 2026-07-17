@@ -29,19 +29,19 @@
    ```
    - 로그인 상호작용은 config 의 browser 자동화(suite 내장 selenium)가 처리한다.
 
-## 최종 결과 (35 모듈)
+## 최종 결과 (35 모듈, 부적합 3건 수정 완료 기준)
 
 | 결과 | 수 | 모듈 |
 |---|---|---|
-| PASSED | 18 | userinfo(get/post-header), nonce 생략, display 계열, prompt-none 계열, max-age-10000, id-token-hint, login-hint, ui/claims-locales, code 재사용 거부 계열, client_secret_post, refresh token, PKCE 등 |
+| PASSED | 19 | userinfo(get/post-header), nonce 생략, display 계열, prompt-none 계열, max-age-10000, id-token-hint, login-hint, ui/claims-locales, code 재사용 거부 계열, client_secret_post, refresh token, PKCE, **POST 인가 요청** 등 |
 | WARNING | 4 | 아래 "경고 해석" |
-| SKIPPED | 6 | scope-profile/email/address/phone/all 등.. discovery 의 scopes_supported 에 openid 만 선언되어 조건 미충족 (프로필 claim 소스가 없는 우리 구성에선 스펙상 정직한 상태) |
-| FAILED (자동화 한계) | 5 | 에러 페이지 스크린샷 업로드형 3건 + "재로그인 됐는지" 수동 확인형 2건.. 서버 동작 자체는 curl 로 적합함을 확인 (아래) |
-| FAILED (실제 부적합) | 2 | 아래 "남은 부적합" |
+| SKIPPED | 7 | scope-profile/email/address/phone/all 등.. discovery 의 scopes_supported 에 openid 만 선언되어 조건 미충족 (프로필 claim 소스가 없는 우리 구성에선 스펙상 정직한 상태) + request object 미지원 선언에 따른 스킵 1건 (아래 수정 2) |
+| FAILED (자동화 한계) | 5 | 에러 페이지 스크린샷 업로드형 3건 + "재로그인 됐는지" 수동 확인형 2건.. 서버 동작 자체는 curl 로 적합함을 확인했다 |
+| FAILED (실제 부적합) | 0 | 처음 실행에서 3종(아래)이 발견되었고 전부 수정했다 |
 
-## suite 가 잡아준 결함과 수정 (이 실습의 최대 수확)
+## suite 가 잡아준 부적합 3종과 수정 (이 실습의 최대 수확)
 
-**id token 의 auth_time 이 인스턴스마다 다르게 발급되는 다중 인스턴스 결함** — 3건 실패(prompt-none-logged-in, max-age-10000, id-token-hint)로 발견 → 수정 후 전부 PASSED.
+### 1. id token 의 auth_time 이 인스턴스마다 다르게 발급되는 다중 인스턴스 결함 (3개 모듈 실패 -> PASSED)
 
 - 메커니즘 (spring authorization server 1.4.3 바이트코드로 확인)..
   - openid scope 의 token 발급 시 JwtGenerator 가 SessionInformation 에서 sid 와 auth_time(getLastRequest())을 id token 에 넣는다.
@@ -53,14 +53,26 @@
 - 수정.. `SpringSessionSessionRegistry` (세션의 진실인 spring session/redis 로 조회 위임) + 로그인 성공 시각을 세션에 기록해
   auth_time 으로 반환. `spring.session.redis.repository-type=indexed` 전제. (해당 클래스 주석 참고)
 
-## 남은 부적합 2건 (스프링 프레임워크 영역, 기록만)
+### 2. request 파라미터(JWT request object)를 조용히 무시 (1개 모듈 실패 -> 미지원 선언에 따른 SKIPPED)
 
-1. **request 파라미터(JWT request object) 무시** — spring authorization server 는 request object 미지원인데,
-   스펙은 미지원 시 request_not_supported 에러를 요구한다. 실측: 파라미터를 조용히 무시하고 쿼리 파라미터로 진행
-   -> request object 안의 state/nonce 와 불일치로 실패 판정.
-2. **미인증 POST authorize 요청의 파라미터 유실** — OIDC 는 authorize endpoint 의 GET/POST 모두 지원을 요구한다.
-   실측: 인증된 세션의 POST authorize 는 정상 code 발급. 그러나 미인증 POST -> 로그인 -> saved request 재현 과정에서
-   POST form 파라미터가 유실되어 400. (spring security 의 saved request 가 GET 재현이기 때문)
+- spring authorization server 는 request object(OIDC Core 6)를 지원하지 않으며 거부 로직도 없다.. 파라미터를 무시하고
+  쿼리 파라미터만으로 인가를 진행하므로, client 는 request object 안의 값이 반영됐다고 믿게 된다. (조용한 무시가 무는 위험)
+- 스펙은 미지원 OP 가 해당 파라미터를 받으면 request_not_supported(request_uri_not_supported) 에러를 요구한다.
+- 수정.. `RequestObjectRejectingAuthenticationProvider` (기본 provider 래핑, 등록된 redirect uri 일 때만 error redirect)
+  + discovery 에 request_parameter_supported/request_uri_parameter_supported=false 명시.
+- suite 판정: "request_not_supported 에러는 허용되는 동작(permitted behaviour)" 으로 인정되어 해당 모듈이 SKIPPED 처리된다.
+
+### 3. 미인증 POST 인가 요청의 파라미터 유실 (1개 모듈 실패 -> PASSED)
+
+- OIDC 는 authorize endpoint 의 GET/POST 모두 지원을 요구하는데.. 인증된 세션의 POST 는 정상이지만
+  미인증 POST 는 로그인 후 saved request 가 GET 으로 재현되며 form 파라미터가 유실되어 400 이 된다.
+  (spring authorization server 의 converter 가 GET 에서 query string 파라미터만 읽기 때문)
+- 수정.. `PostToGetAuthorizationRequestEntryPoint` (미인증 POST 인가 요청을 form 파라미터를 query 로 옮긴 GET redirect 로 강등)
+
+### 부수 발견: 에러 응답이 401 로 뒤바뀌는 문제
+
+- sendError(400 등)는 boot 의 "/error" 로 재디스패치되는데 이 경로가 authenticated 규칙에 걸리면
+  미인증 사용자의 에러 응답이 원래 상태코드 대신 401 이 된다. -> "/error" permitAll (DefaultSecurityConfig)
 
 ## 경고(WARNING) 해석
 
