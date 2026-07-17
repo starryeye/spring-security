@@ -30,7 +30,7 @@ actor_token={actor token}&
 actor_token_type=urn:ietf:params:oauth:token-type:access_token&
 scope=custom-scope
 
-### 부정 1. subject token 에 없는 scope 요청 -> invalid_scope
+### 부정 1. 교환 client 의 등록 scope 에 없는 scope(email) 요청 -> invalid_scope (main class 의 scope 결정 규칙 참고)
 POST http://localhost:8091/oauth2/token
 Content-Type: application/x-www-form-urlencoded
 Authorization: Basic bXktZXhjaGFuZ2UtY2xpZW50OmV4Y2hhbmdlLXNlY3JldA==

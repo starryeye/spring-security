@@ -30,6 +30,12 @@ public class TokenExchangeApplication {
 	 *      -> 이 서버가 발급하고 "저장해둔" 토큰만 교환할 수 있다. (introspect 와 같은 저장소 조회 원리.. jpa/custom-oauth2-authorization-service 참고)
 	 *      subject token 에 may_act claim 이 있으면 actor 를 제한하는 검증도 수행한다. (RFC 8693 4.4)
 	 *
+	 * scope 결정 규칙.. (OAuth2TokenExchangeAuthenticationProvider)
+	 *      교환 요청의 scope 파라미터를 지정하면 -> 그 scope 로 발급하되, "교환 client 의 등록 scope" 를 벗어나면 invalid_scope
+	 *      생략하면 -> subject token 의 authorized scopes 를 그대로 승계
+	 *      즉 축소는 교환 client 가 요청하는 것이고, 서버가 강제하는 상한은 (subject 의 scope 가 아니라) 교환 client 의 등록 scope 다.
+	 *      -> 교환 client 의 등록 scope 를 "대상 서버 호출에 필요한 최소" 로 관리하는 것이 축소를 구조적으로 강제하는 방법이다.
+	 *
 	 * 확인 포인트
 	 *      1. code grant 로 받은 사용자 access token 을 subject 로 교환 -> 새 토큰의 sub 는 여전히 사용자다. (client 가 바뀌어도 사용자 신원 유지)
 	 *      2. actor_token(교환 client 자신의 client_credentials 토큰)을 함께 제출하면 act claim 이 남는다. (delegation)
@@ -44,7 +50,7 @@ public class TokenExchangeApplication {
 	 *      교환(delegation, actor_token=교환 client 의 client_credentials 토큰) :
 	 *          act={"iss": "http://localhost:8091", "sub": "my-exchange-client"} -> "my-exchange-client 가 user 대신 행동 중" 이 토큰에 남는다
 	 *      부정 케이스..
-	 *          subject 에 없는 scope(email) 요청 -> invalid_scope
+	 *          등록 scope 에 없는 scope(email) 요청 -> invalid_scope (검증 기준은 교환 client 의 등록 scope.. 위 scope 결정 규칙)
 	 *          exchange grant 없는 client(my-spring-client)의 교환 시도 -> unauthorized_client
 	 *          이 서버가 발급하지 않은 subject_token -> invalid_grant (저장소 조회 실패.. 서명이 유효해도 저장소에 없으면 교환 불가)
 	 *
