@@ -1,0 +1,62 @@
+{
+  "alias": "sas-prod-ready",
+  "description": "spring authorization server production-ready practice (LB + 2 instances)",
+  "server": {
+    "discoveryUrl": "http://host.docker.internal:9000/.well-known/openid-configuration"
+  },
+  "client": {
+    "client_id": "{admin API 로 등록한 client1 의 clientId}",
+    "client_secret": "{client1 의 clientSecret}"
+  },
+  "client_secret_post": {
+    "client_id": "{client3 의 clientId}",
+    "client_secret": "{client3 의 clientSecret}"
+  },
+  "client2": {
+    "client_id": "{client2 의 clientId}",
+    "client_secret": "{client2 의 clientSecret}"
+  },
+  "browser": [
+    {
+      "match": "http://host.docker.internal:9000/oauth2/authorize*",
+      "tasks": [
+        {
+          "task": "Login",
+          "optional": true,
+          "match": "http://host.docker.internal:9000/login*",
+          "commands": [
+            [
+              "text",
+              "name",
+              "username",
+              "user"
+            ],
+            [
+              "text",
+              "name",
+              "password",
+              "1111"
+            ],
+            [
+              "click",
+              "css",
+              "button[type=submit]"
+            ]
+          ]
+        },
+        {
+          "task": "Verify Complete",
+          "match": "*/test/a/*/callback*",
+          "commands": [
+            [
+              "wait",
+              "id",
+              "submission_complete",
+              10
+            ]
+          ]
+        }
+      ]
+    }
+  ]
+}

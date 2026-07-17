@@ -57,6 +57,12 @@ client ──> nginx LB (localhost:9000, round robin)
 5. 감사 로그([인증 성공] 등)가 처리 인스턴스의 로그에만 찍힌다 -> 두 로그를 대조하면 분배가 보인다.
 6. admin API(/users, /registered-clients)는 관리자 basic 인증으로만 성공한다. (일반 사용자는 403, 틀린 비밀번호는 401 + 감사 로그)
 
+### OpenID conformance 검증
+- OpenID Foundation 의 공식 적합성 테스트(conformance suite, OIDCC Basic OP 플랜 35개 모듈)를 self-host 로 돌려 표준 적합성을 검증했다.
+- 이 과정에서 **다중 인스턴스 결함을 실제로 발견**했다.. id token 의 auth_time 이 인스턴스별 InMemory SessionRegistry 에서 나와
+  두 인스턴스가 서로 다른 값을 발급 (3개 모듈 실패) -> redis(spring session) 기반 공유 SessionRegistry 로 수정 후 통과.
+- 실행 방법, 전체 결과표, 발견/수정 상세: [openid-conformance/README.md](openid-conformance/README.md)
+
 ### 주의
 - redirect uri 의 host 로 localhost 는 허용되지 않으므로 127.0.0.1 로 등록해야 한다.
 - 브라우저 흐름과 .http 파일 모두 http://localhost:9000 (LB) 기준이다.

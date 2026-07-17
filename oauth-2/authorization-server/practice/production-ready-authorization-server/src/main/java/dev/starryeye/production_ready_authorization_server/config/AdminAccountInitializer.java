@@ -21,10 +21,11 @@ public class AdminAccountInitializer implements ApplicationRunner {
      *      keycloak 이 최초 admin 을 환경변수(KEYCLOAK_ADMIN)로 만드는 것과 같은 이유의 장치다.
      *
      * 이미 존재하면 건너뛰므로 재기동에서 멱등이다.
-     *      다중 인스턴스 "동시" 기동은 존재 확인만으로 부족하다.. (실제 겪은 경합)
-     *      두 인스턴스가 거의 동시에 "없음" 을 확인하고 둘 다 insert 하여 한쪽이 unique 제약 위반이 났는데..
-     *      ApplicationRunner 의 예외는 애플리케이션 기동 실패로 이어져 인스턴스가 통째로 내려가버렸다.
-     *      -> unique 제약 위반(DataIntegrityViolationException)은 "다른 인스턴스가 먼저 만들었다" 는 뜻이므로 잡아서 건너뛴다.
+     *
+     * 주의. 다중 인스턴스 "동시" 기동은 존재 확인만으로 막을 수 없다..
+     *      두 인스턴스가 거의 동시에 "없음" 을 확인하고 둘 다 insert 를 시도할 수 있다. (check-then-act 경합)
+     *      ApplicationRunner 에서 예외가 나면 애플리케이션 기동 실패로 이어져 인스턴스가 통째로 내려가므로..
+     *      unique 제약 위반(DataIntegrityViolationException)은 "다른 인스턴스가 먼저 만들었다" 는 뜻으로 받아들여 잡아서 건너뛴다.
      */
 
     private final UserEntityRepository repository;

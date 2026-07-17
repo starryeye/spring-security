@@ -66,14 +66,14 @@ public class RegisteredClientController {
                     .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
                     .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
                     .redirectUri(requiredRedirectUri(request))
-                    .clientSettings(ClientSettings.builder().requireAuthorizationConsent(true).build())
+                    .clientSettings(ClientSettings.builder().requireAuthorizationConsent(request.requireAuthorizationConsentOrDefault()).build())
                     .tokenSettings(tokenSettingsBuilder.reuseRefreshTokens(false).build());
             case PUBLIC -> builder
                     .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
                     .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                     .redirectUri(requiredRedirectUri(request))
                     .clientSettings(ClientSettings.builder()
-                            .requireAuthorizationConsent(true)
+                            .requireAuthorizationConsent(request.requireAuthorizationConsentOrDefault())
                             .requireProofKey(true) // PKCE 필수화
                             .build()
                     )

@@ -84,11 +84,13 @@ public class AuthorizationServerConfig {
      * issuer 를 로드밸런서 주소로 고정한다.
      *      미설정 시 요청 기반으로 유도되는데(etc/forwarded-header-filter 프로젝트 참고)..
      *      운영에서는 인스턴스가 무엇이든 토큰의 iss 와 메타데이터 URL 이 항상 대표 주소여야 하므로 고정이 자연스럽다.
+     *      설정값(my.issuer)으로 뺀 것은 환경마다 대표 주소가 다르기 때문이다. (기본값은 로컬 LB 주소..
+     *      docker 컨테이너가 접근해야 하는 환경이라면 host.docker.internal 주소로 오버라이드하여 기동한다. openid-conformance/README.md 참고)
      */
     @Bean
-    public AuthorizationServerSettings authorizationServerSettings() {
+    public AuthorizationServerSettings authorizationServerSettings(@Value("${my.issuer}") String issuer) {
         return AuthorizationServerSettings.builder()
-                .issuer("http://localhost:9000")
+                .issuer(issuer)
                 .build();
     }
 

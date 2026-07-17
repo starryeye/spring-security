@@ -2,12 +2,20 @@ package dev.starryeye.production_ready_authorization_server.config;
 
 import dev.starryeye.production_ready_authorization_server.jpa.JpaUserDetailsService;
 import dev.starryeye.production_ready_authorization_server.jpa.UserEntityRepository;
+import dev.starryeye.production_ready_authorization_server.session.SpringSessionSessionRegistry;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
+import org.springframework.session.FindByIndexNameSessionRepository;
+import org.springframework.session.Session;
+
+import java.time.Instant;
 
 @Configuration
 public class DefaultSecurityConfig {
@@ -39,7 +47,7 @@ public class DefaultSecurityConfig {
                 /**
                  * admin API 를 curl 등에서 세션 없이 호출할 수 있도록 http basic 을 함께 허용한다..
                  * 인증 자체는 form login 과 동일하게 DaoAuthenticationProvider (JPA UserDetailsService + password 검증) 를 탄다.
-                 * 미인증 진입점은 두 방식이 공존하므로 DelegatingAuthenticationEntryPoint 가 Accept 헤더로 협상한다.. (관찰 결과)
+                 * 미인증 진입점은 두 방식이 공존하므로 DelegatingAuthenticationEntryPoint 가 Accept 헤더로 협상한다..
                  *      브라우저(text/html) -> 로그인 페이지 redirect(302), curl 처럼 Accept 에 html 이 없으면 -> 401 (http basic 진입점)
                  */
                 .httpBasic(Customizer.withDefaults())
@@ -47,11 +55,36 @@ public class DefaultSecurityConfig {
                         httpSecurityFormLoginConfigurer
                                 // 커스텀 로그인 페이지 (custom-login-and-consent-page 프로젝트 참고).. 로그인 처리 POST 는 기본값 그대로
                                 .loginPage("/login")
+                                // 로그인 시각을 세션에 기록.. id token 의 auth_time 재료가 된다 (아래 authTimeMarkingSuccessHandler 참고)
+                                .successHandler(authTimeMarkingSuccessHandler())
                                 .permitAll()
                 )
         ;
 
         return http.build();
+    }
+
+    /**
+     * 로그인 성공 시각을 세션에 기록하고, 이후 동작은 기본 success handler 에 위임한다.
+     *      기본 handler(SavedRequestAwareAuthenticationSuccessHandler)를 위임으로 유지해야
+     *      로그인 후 원래 요청(authorize)으로 돌아가는 saved request 동작이 그대로 보존된다.
+     *      기록된 시각은 SpringSessionSessionRegistry 가 id token 의 auth_time 으로 반환한다.
+     */
+    private AuthenticationSuccessHandler authTimeMarkingSuccessHandler() {
+        SavedRequestAwareAuthenticationSuccessHandler delegate = new SavedRequestAwareAuthenticationSuccessHandler();
+        return (request, response, authentication) -> {
+            request.getSession().setAttribute(SpringSessionSessionRegistry.AUTH_TIME_ATTRIBUTE, Instant.now());
+            delegate.onAuthenticationSuccess(request, response, authentication);
+        };
+    }
+
+    /**
+     * 다중 인스턴스 공유 SessionRegistry.. (왜 필요한지는 SpringSessionSessionRegistry 주석 참고)
+     *      spring authorization server 는 이 빈이 있으면 인스턴스별 InMemory(SessionRegistryImpl) 대신 사용한다.
+     */
+    @Bean
+    public SessionRegistry sessionRegistry(FindByIndexNameSessionRepository<? extends Session> sessionRepository) {
+        return new SpringSessionSessionRegistry(sessionRepository);
     }
 
     /**

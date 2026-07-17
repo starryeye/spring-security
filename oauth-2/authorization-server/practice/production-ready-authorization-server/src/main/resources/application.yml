@@ -18,9 +18,14 @@ spring:
     redis:
       host: localhost
       port: 6379
+  session:
+    redis:
+      # principal 이름으로 세션을 찾을 수 있는 인덱스 저장 방식.. 공유 SessionRegistry 의 전제 (SpringSessionSessionRegistry 참고)
+      repository-type: indexed
 
 # keystore 기반 JWKSource 설정 (jpa/advance/custom-jwk-source 프로젝트 참고)
 my:
+  issuer: http://localhost:9000 # 대표 주소(LB).. 토큰의 iss 와 메타데이터 URL 에 쓰인다 (AuthorizationServerConfig 참고)
   bootstrap-admin:
     username: admin # 최초 관리자 계정 (AdminAccountInitializer.. 운영이라면 환경변수/secret 으로 주입)
     password: "1234"
