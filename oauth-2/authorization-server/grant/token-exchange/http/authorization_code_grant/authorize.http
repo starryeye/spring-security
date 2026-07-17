@@ -1,0 +1,2 @@
+### web browser 에서 수행 (user / 1111).. subject token(사용자 access token)을 만들기 위한 일반 code grant
+GET http://localhost:8091/oauth2/authorize?response_type=code&client_id=my-spring-client&scope=openid profile custom-scope&redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-spring-client

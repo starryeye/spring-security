@@ -1,0 +1,2 @@
+### 발급된 토큰의 claim 관찰.. 교환 전/후 토큰의 sub, aud, scope, act 를 비교해볼 것
+GET http://localhost:8091/token-claims?token={access token}

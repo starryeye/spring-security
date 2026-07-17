@@ -1,0 +1,59 @@
+### 교환 1. impersonation (actor 없음).. Basic bXktZXhjaGFuZ2UtY2xpZW50OmV4Y2hhbmdlLXNlY3JldA== = my-exchange-client:exchange-secret
+### {subject token} 은 authorization_code_grant/token.http 응답의 access_token 으로 교체
+### 발급된 토큰: sub 는 여전히 user, aud 는 my-exchange-client, scope 는 요청대로 축소, act 없음 (main class 관찰 결과 참고)
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktZXhjaGFuZ2UtY2xpZW50OmV4Y2hhbmdlLXNlY3JldA==
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange&
+subject_token={subject token}&
+subject_token_type=urn:ietf:params:oauth:token-type:access_token&
+scope=custom-scope
+
+### actor token 발급.. delegation 관찰용 (교환 client 자신의 client_credentials 토큰)
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktZXhjaGFuZ2UtY2xpZW50OmV4Y2hhbmdlLXNlY3JldA==
+
+grant_type=client_credentials&
+scope=custom-scope
+
+### 교환 2. delegation (actor_token 제출).. 발급된 토큰에 act claim(누가 대신 행동하는가)이 남는다
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktZXhjaGFuZ2UtY2xpZW50OmV4Y2hhbmdlLXNlY3JldA==
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange&
+subject_token={subject token}&
+subject_token_type=urn:ietf:params:oauth:token-type:access_token&
+actor_token={actor token}&
+actor_token_type=urn:ietf:params:oauth:token-type:access_token&
+scope=custom-scope
+
+### 부정 1. subject token 에 없는 scope 요청 -> invalid_scope
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktZXhjaGFuZ2UtY2xpZW50OmV4Y2hhbmdlLXNlY3JldA==
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange&
+subject_token={subject token}&
+subject_token_type=urn:ietf:params:oauth:token-type:access_token&
+scope=email
+
+### 부정 2. exchange grant 가 없는 client 로 시도 -> unauthorized_client (Basic 은 my-spring-client:secret)
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktc3ByaW5nLWNsaWVudDpzZWNyZXQ=
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange&
+subject_token={subject token}&
+subject_token_type=urn:ietf:params:oauth:token-type:access_token
+
+### 부정 3. 이 서버가 발급하지 않은(저장소에 없는) subject_token -> invalid_grant
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktZXhjaGFuZ2UtY2xpZW50OmV4Y2hhbmdlLXNlY3JldA==
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange&
+subject_token=eyJhbGciOiJub25lIn0.eyJzdWIiOiJ4In0.&
+subject_token_type=urn:ietf:params:oauth:token-type:access_token
