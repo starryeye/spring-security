@@ -1,0 +1,20 @@
+server:
+  port: 8081
+
+spring:
+  security:
+    oauth2:
+      resourceserver: # OAuth2ResourceServerProperties
+        jwt:
+          jwk-set-uri: http://localhost:8091/oauth2/jwks
+
+# comment 서버 호출용 토큰을 교환 발급받기 위한 설정 (TokenExchangeClient)
+my:
+  token-exchange:
+    token-uri: http://localhost:8091/oauth2/token
+    client-id: my-article-client
+    client-secret: article-secret
+
+logging:
+  level:
+    org.springframework.security: DEBUG

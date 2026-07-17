@@ -1,0 +1,23 @@
+server:
+  port: 8080
+
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          my-spring-client:
+            client-id: my-spring-client
+            client-secret: secret
+            client-name: My spring client
+            scope: openid,profile,content # relay 버전과 달리 comment scope 가 없다.. comment 용 권한은 article 이 token exchange 로 얻는다
+            # authorization server 에 등록된 redirect uri 와 정확히 일치해야한다. (localhost 는 authorization server 에서 허용하지 않으므로 127.0.0.1 사용)
+            redirect-uri: http://127.0.0.1:8080/login/oauth2/code/my-spring-client
+        provider:
+          my-spring-client:
+            issuer-uri: http://localhost:8091
+            user-name-attribute: sub
+
+logging:
+  level:
+    org.springframework.security: DEBUG

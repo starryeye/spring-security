@@ -1,0 +1,13 @@
+server:
+  port: 8082
+
+spring:
+  security:
+    oauth2:
+      resourceserver: # OAuth2ResourceServerProperties
+        jwt:
+          jwk-set-uri: http://localhost:8091/oauth2/jwks
+
+logging:
+  level:
+    org.springframework.security: DEBUG
