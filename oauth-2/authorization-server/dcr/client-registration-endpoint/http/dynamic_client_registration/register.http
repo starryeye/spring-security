@@ -1,0 +1,30 @@
+### 동적 client 등록.. {initial access token} 은 client_credentials_grant/token.http 응답의 access_token 으로 교체
+### 응답: 서버가 생성한 client_id/client_secret + registration_access_token(조회용) + registration_client_uri
+POST http://localhost:8091/connect/register
+Content-Type: application/json
+Authorization: Bearer {initial access token}
+
+{
+  "client_name": "My dynamic client",
+  "grant_types": ["authorization_code", "refresh_token"],
+  "redirect_uris": ["http://127.0.0.1:8080/login/oauth2/code/my-dynamic-client"],
+  "scope": "openid profile"
+}
+
+### 등록 정보 조회.. 등록 응답의 registration_client_uri 로 GET, Bearer 는 registration_access_token (initial access token 아님)
+GET http://localhost:8091/connect/register?client_id={등록 응답의 client_id}
+Authorization: Bearer {등록 응답의 registration_access_token}
+
+### 권한 관찰.. registration_access_token(scope client.read)으로 "등록" 을 시도하면 client.create 가 아니라 거부된다
+POST http://localhost:8091/connect/register
+Content-Type: application/json
+Authorization: Bearer {등록 응답의 registration_access_token}
+
+{
+  "client_name": "should be rejected",
+  "grant_types": ["authorization_code"],
+  "redirect_uris": ["http://127.0.0.1:8080/callback"]
+}
+
+### 저장소에 저장된 모습 관찰 (RegisteredClient 전체.. ClientSettings/TokenSettings 기본값 확인)
+GET http://localhost:8091/registered-client?client_id={등록 응답의 client_id}

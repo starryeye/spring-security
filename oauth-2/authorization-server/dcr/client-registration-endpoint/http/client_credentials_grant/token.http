@@ -1,0 +1,8 @@
+### initial access token 발급.. registrar client 로 client_credentials grant (Basic bXktcmVnaXN0cmFyLWNsaWVudDpzZWNyZXQ= = my-registrar-client:secret)
+### 응답 access token 이 등록 요청(register.http)의 Bearer 가 된다. scope 는 등록 엔드포인트가 요구하는 client.create
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktcmVnaXN0cmFyLWNsaWVudDpzZWNyZXQ=
+
+grant_type=client_credentials&
+scope=client.create

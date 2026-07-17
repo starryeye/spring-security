@@ -1,0 +1,11 @@
+### "/oauth2/token" 요청.. Basic 은 동적 등록 응답의 client_id:client_secret 를 base64 인코딩해 교체
+### code 는 authorize.http 수행 후 redirect 된 url 의 쿼리 파라미터 값으로 교체할 것
+### code_verifier 는 authorize.http 의 code_challenge 와 짝이 되는 예시 값이다 (PKCE 검증)
+POST http://localhost:8091/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic {base64(client_id:client_secret)}
+
+grant_type=authorization_code&
+redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-dynamic-client&
+code={authorization code}&
+code_verifier=MyDcrExampleCodeVerifier-1234567890-1234567890-ABC

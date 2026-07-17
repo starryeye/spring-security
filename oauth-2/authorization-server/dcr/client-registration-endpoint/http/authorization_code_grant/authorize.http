@@ -1,0 +1,4 @@
+### web browser 에서 수행 (user / 1111).. {client id} 는 동적 등록 응답의 client_id 로 교체
+### 동적으로 등록된 client 는 require-proof-key=true 라 PKCE(code_challenge) 없이는 invalid_request 로 거부된다 (main class 관찰 결과 2)
+### 아래 code_challenge 는 token.http 의 예시 code_verifier(MyDcrExampleCodeVerifier-1234567890-1234567890-ABC)를 S256 해시한 값
+GET http://localhost:8091/oauth2/authorize?response_type=code&client_id={client id}&scope=openid profile&redirect_uri=http://127.0.0.1:8080/login/oauth2/code/my-dynamic-client&code_challenge=yiY1Mw4vD3GAPuQiwlTOA14Rwm-ZVwh0f1dgZhADuOc&code_challenge_method=S256
