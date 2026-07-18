@@ -1,0 +1,13 @@
+server:
+  port: 8083
+
+my:
+  signing:
+    key-store-location: classpath:keystore/signing.p12
+    key-store-password: "111111"
+    key-password: "111111"
+    key-alias: signing-key-2026
+
+logging:
+  level:
+    dev.starryeye: DEBUG
