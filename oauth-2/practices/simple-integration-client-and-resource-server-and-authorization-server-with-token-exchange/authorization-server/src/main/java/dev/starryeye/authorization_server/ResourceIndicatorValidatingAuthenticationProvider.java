@@ -37,6 +37,11 @@ public class ResourceIndicatorValidatingAuthenticationProvider implements Authen
      *          (token 단계에는 resource 가 authorization 저장소 안에 있어 여기서 걸러두는 것이 단순하다.. refresh 재발급도 검증된 값의 재사용)
      *      token exchange : token 단계(OAuth2TokenExchangeAuthenticationToken)에서 getResources() 를 검증한다.
      *      에러 전달.. authorize 단계는 등록된 redirect uri 일 때만 error redirect (open redirect 방지), token 단계는 400 JSON.
+     *
+     * 경계 조건..
+     *      resource 파라미터가 없는 요청은 검증 대상이 아니다.. 대상 지정이 없으므로 기본 aud(요청 client 의 client_id)로 발급된다.
+     *          (그 토큰은 aud 를 검증하는 resource server 에서는 어차피 수락되지 않는다)
+     *      허용 목록에 등록되지 않은 client 가 resource 를 지정하면 무조건 거부된다.. 기본값은 "전부 허용" 이 아니라 "전부 거부" 다.
      */
 
     private static final String ERROR_URI = "https://datatracker.ietf.org/doc/html/rfc8707";
