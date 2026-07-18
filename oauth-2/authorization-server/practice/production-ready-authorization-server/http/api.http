@@ -24,7 +24,20 @@ Authorization: Basic YWRtaW46MTIzNA==
   "clientType": "CONFIDENTIAL",
   "clientName": "My spring client",
   "redirectUri": "http://127.0.0.1:8080/login/oauth2/code/my-spring-client",
-  "scopes": ["openid", "profile", "custom-scope"]
+  "scopes": ["openid", "profile", "custom-scope"],
+  "allowedResources": ["https://article.example.com"]
+}
+
+### client 등록 (EXCHANGE.. token exchange 전용, 허용 자원 목록은 DB 의 client_settings 에 저장된다)
+POST http://localhost:9000/registered-clients
+Content-Type: application/json
+Authorization: Basic YWRtaW46MTIzNA==
+
+{
+  "clientType": "EXCHANGE",
+  "clientName": "My article exchange client",
+  "scopes": ["custom-scope"],
+  "allowedResources": ["https://comment.example.com"]
 }
 
 ### client 등록 (SERVICE.. client credentials 전용)

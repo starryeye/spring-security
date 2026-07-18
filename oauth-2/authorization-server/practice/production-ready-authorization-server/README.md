@@ -24,6 +24,8 @@ client ──> nginx LB (localhost:9000, round robin)
 | client 등록 | admin API (clientType 프리셋, bcrypt) | jpa/custom-registered-client-repository |
 | 사용자 저장소 | JPA + MySQL (UserDetailsService 직접 구현) + 등록 admin API | 이 프로젝트에서 추가 |
 | admin API 보호 | ROLE_ADMIN + http basic, 최초 관리자 부팅 시 부트스트랩 | 이 프로젝트에서 추가 |
+| token exchange | EXCHANGE 프리셋 client 의 교환 grant (sub 유지, scope 축소) | grant/token-exchange |
+| resource indicator | RFC 8707.. client 별 허용 자원은 **DB(client_settings JSON)** 관리, 위반 시 invalid_target, 허용 시 aud 반영 | practices/simple-integration-...-with-token-exchange |
 | 프록시 대응 | ForwardedHeaderFilter + issuer 고정 | etc/forwarded-header-filter |
 | 감사 로그 | 인증 이벤트 리스너 | etc/authentication-events |
 
@@ -56,6 +58,8 @@ client ──> nginx LB (localhost:9000, round robin)
 4. 두 인스턴스 모두 재기동해도.. 세션 유지, refresh token grant 성공, 재인가 시 기승인 동의 표시, 기존 JWT 검증 유지
 5. 감사 로그([인증 성공] 등)가 처리 인스턴스의 로그에만 찍힌다 -> 두 로그를 대조하면 분배가 보인다.
 6. admin API(/users, /registered-clients)는 관리자 basic 인증으로만 성공한다. (일반 사용자는 403, 틀린 비밀번호는 401 + 감사 로그)
+7. resource indicator.. 등록 시 지정한 허용 자원(allowedResources)을 벗어난 resource 요청은 invalid_target 으로 거부되고,
+   허용된 요청은 access token 의 aud 에 대상 자원이 반영된다. (token exchange 는 EXCHANGE 프리셋 client 로 수행)
 
 ### OpenID conformance 검증
 - OpenID Foundation 의 공식 적합성 테스트(conformance suite, OIDCC Basic OP 플랜 35개 모듈)를 self-host 로 돌려 표준 적합성을 검증했다.

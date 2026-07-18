@@ -25,7 +25,11 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationConsentService;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeRequestAuthenticationProvider;
+import org.springframework.security.oauth2.server.authorization.authentication.OAuth2TokenExchangeAuthenticationProvider;
+import org.springframework.security.oauth2.server.authorization.authentication.OAuth2TokenExchangeAuthenticationToken;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
@@ -37,6 +41,7 @@ import org.springframework.security.web.authentication.LoginUrlAuthenticationEnt
 
 import java.io.InputStream;
 import java.security.KeyStore;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -67,11 +72,28 @@ public class AuthorizationServerConfig {
                                         authorizationEndpointConfigurer
                                                 // 커스텀 consent 페이지 (custom-login-and-consent-page 프로젝트 참고)
                                                 .consentPage("/oauth2/consent")
-                                                // 미지원인 request object 파라미터를 무시하지 않고 스펙대로 거부한다. (RequestObjectRejectingAuthenticationProvider 참고)
+                                                /**
+                                                 * 기본 provider 를 이중으로 감싼다..
+                                                 * 1. 미지원 request object 파라미터를 스펙대로 거부 (RequestObjectRejectingAuthenticationProvider 참고)
+                                                 * 2. resource indicator(RFC 8707) 의 발급 측 검증.. invalid_target (ResourceIndicatorValidatingAuthenticationProvider 참고)
+                                                 */
                                                 .authenticationProviders(authenticationProviders ->
                                                         authenticationProviders.replaceAll(authenticationProvider ->
                                                                 authenticationProvider instanceof OAuth2AuthorizationCodeRequestAuthenticationProvider
-                                                                        ? new RequestObjectRejectingAuthenticationProvider(authenticationProvider, registeredClientRepository)
+                                                                        ? new ResourceIndicatorValidatingAuthenticationProvider(
+                                                                                new RequestObjectRejectingAuthenticationProvider(authenticationProvider, registeredClientRepository),
+                                                                                registeredClientRepository)
+                                                                        : authenticationProvider
+                                                        )
+                                                )
+                                )
+                                // token exchange 의 resource 파라미터도 발급 측 검증을 거친다. (EXCHANGE 프리셋 client 가 사용.. RegisteredClientController 참고)
+                                .tokenEndpoint(tokenEndpointConfigurer ->
+                                        tokenEndpointConfigurer
+                                                .authenticationProviders(authenticationProviders ->
+                                                        authenticationProviders.replaceAll(authenticationProvider ->
+                                                                authenticationProvider instanceof OAuth2TokenExchangeAuthenticationProvider
+                                                                        ? new ResourceIndicatorValidatingAuthenticationProvider(authenticationProvider, registeredClientRepository)
                                                                         : authenticationProvider
                                                         )
                                                 )
@@ -194,6 +216,35 @@ public class AuthorizationServerConfig {
                         .map(GrantedAuthority::getAuthority)
                         .collect(Collectors.toSet());
                 context.getClaims().claim("authorities", authorities);
+
+                /**
+                 * client 가 요청한 resource indicator(RFC 8707)를 aud 에 반영한다.. (practices/simple-integration-...-with-token-exchange 이식)
+                 *      기본 aud 는 "요청 client 의 client_id" 하나이고 resource 파라미터는 발급에 반영되지 않는다.
+                 *      값은 ResourceIndicatorValidatingAuthenticationProvider 가 검증을 마친 것들이다.
+                 *      code grant 의 resource 는 authorization 에 저장된 authorize 요청에서 읽으므로 refresh 재발급에도 유지된다.
+                 *      (code grant 만 분기하면 refresh 재발급에서 aud 가 기본값으로 되돌아가는 함정.. 이식 원본 참고)
+                 */
+                List<String> requestedResources = new ArrayList<>();
+                if (context.getAuthorizationGrant() instanceof OAuth2TokenExchangeAuthenticationToken exchangeToken) {
+                    requestedResources.addAll(exchangeToken.getResources());
+                } else if (AuthorizationGrantType.AUTHORIZATION_CODE.equals(context.getAuthorizationGrantType())
+                        || AuthorizationGrantType.REFRESH_TOKEN.equals(context.getAuthorizationGrantType())) {
+                    OAuth2AuthorizationRequest authorizationRequest = context.getAuthorization()
+                            .getAttribute(OAuth2AuthorizationRequest.class.getName());
+                    if (authorizationRequest != null) {
+                        Object resource = authorizationRequest.getAdditionalParameters().get("resource");
+                        if (resource instanceof String value) {
+                            requestedResources.add(value);
+                        } else if (resource instanceof String[] values) { // resource 는 반복 지정이 허용된다 (RFC 8707)
+                            requestedResources.addAll(List.of(values));
+                        }
+                    }
+                }
+                if (!requestedResources.isEmpty()) {
+                    List<String> audience = new ArrayList<>(List.of(context.getRegisteredClient().getClientId()));
+                    audience.addAll(requestedResources);
+                    context.getClaims().audience(audience); // 기본 aud(client_id)를 유지하며 요청된 대상을 더한다.
+                }
             }
 
             if (OidcParameterNames.ID_TOKEN.equals(context.getTokenType().getValue())) {

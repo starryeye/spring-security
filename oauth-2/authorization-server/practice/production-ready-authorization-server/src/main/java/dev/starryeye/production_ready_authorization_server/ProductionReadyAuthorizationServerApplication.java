@@ -36,6 +36,9 @@ public class ProductionReadyAuthorizationServerApplication {
 	 *          (config/RequestObjectRejectingAuthenticationProvider 참고)
 	 *      POST 인가 요청 GET 강등 : 미인증 POST 인가 요청이 로그인 왕복에서 파라미터를 잃지 않도록 entry point 에서 변환
 	 *          (config/PostToGetAuthorizationRequestEntryPoint 참고)
+	 *      token exchange + resource indicator : EXCHANGE 프리셋 client 의 교환 grant 와 RFC 8707 대상 지정/검증(invalid_target)/aud 반영
+	 *          client 별 허용 자원 목록은 DB 로 관리한다.. ClientSettings 커스텀 설정으로 client_settings JSON 컬럼에 저장 (별도 테이블 불필요)
+	 *          (grant/token-exchange, practices/simple-integration-...-with-token-exchange 이식.. config/ResourceIndicatorValidatingAuthenticationProvider 참고)
 	 *
 	 * 확인 포인트
 	 *      1. LB(9000) 로 연속 요청하면 "/whoami" 의 instancePort 가 8091/8092 로 번갈아 나온다. (round robin)
@@ -72,6 +75,15 @@ public class ProductionReadyAuthorizationServerApplication {
 	 *            ②request object 파라미터 조용한 무시(거부 provider 로 해결) ③미인증 POST 인가 요청 파라미터 유실(GET 강등 entry point 로 해결)
 	 *          - 부수 발견: sendError 의 "/error" 재디스패치가 authenticated 에 걸리면 에러 응답이 401 로 뒤바뀐다 (permitAll 처리)
 	 *          - 실행 방법과 전체 결과, 각 결함의 메커니즘은 openid-conformance/README.md 참고
+	 *
+	 *      10. token exchange + resource indicator.. code grant(resource=article 자원) 토큰은 aud=[client_id, 자원 URI], sub=user 로 발급되고
+	 *          교환(resource=comment 자원) 토큰은 aud 가 교환 client 와 대상 자원으로 바뀌며 sub 는 유지된다.
+	 *          허용 목록을 벗어난 resource 요청은 authorize 단계는 error redirect, token 단계는 400 JSON 으로 invalid_target.
+	 *          허용 목록은 client_settings JSON 컬럼에 "my.allowed-resources" 로 저장된 것이 DB 에서 확인된다.
+	 *
+	 * 주의. ClientSettings 커스텀 설정에 컬렉션을 담을 때는 역직렬화 allowlist 에 있는 타입(ArrayList)이어야 한다..
+	 *      List.of/List.copyOf 의 ImmutableCollections 타입은 @class 로 저장된 뒤 조회 시 역직렬화가 거부되어 전 client 조회가 깨진다.
+	 *      (RegisteredClientController::validatedResources 참고)
 	 *
 	 * 주의. nginx upstream 이름에 underscore 를 쓰면 안 된다..
 	 *      proxy_pass 가 Host 헤더 기본값으로 upstream 이름을 전달하는데..

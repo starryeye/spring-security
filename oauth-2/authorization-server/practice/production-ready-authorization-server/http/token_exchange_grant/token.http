@@ -1,0 +1,22 @@
+### token exchange (EXCHANGE 프리셋 client).. Basic 은 EXCHANGE 등록 응답의 client_id:client_secret 를 base64 인코딩해 교체
+### {subject token} 은 authorization_code_grant 로 받은 사용자 access token
+### resource 는 등록 시 지정한 allowedResources 안의 값이어야 한다.. 발급 토큰은 sub 유지 + aud 에 대상 자원 반영
+POST http://localhost:9000/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic {base64(client_id:client_secret)}
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange&
+subject_token={subject token}&
+subject_token_type=urn:ietf:params:oauth:token-type:access_token&
+scope=custom-scope&
+resource=https://comment.example.com
+
+### 허용 목록을 벗어난 resource 요청 -> 400 invalid_target (발급 측 통제.. RFC 8707)
+POST http://localhost:9000/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic {base64(client_id:client_secret)}
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange&
+subject_token={subject token}&
+subject_token_type=urn:ietf:params:oauth:token-type:access_token&
+resource=https://article.example.com
