@@ -1,6 +1,9 @@
 package dev.starryeye.signing;
 
+import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSObject;
+import com.nimbusds.jose.crypto.RSASSAVerifier;
+import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jwt.SignedJWT;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class SignControllerTest {
 
 	@Autowired MockMvc mockMvc;
+	@Autowired JwkKeyProvider provider;
 
 	@Test
 	void signReturnsValidRs256Jwt() throws Exception {
@@ -35,6 +39,13 @@ class SignControllerTest {
 		SignedJWT parsed = SignedJWT.parse(jwt);
 		org.assertj.core.api.Assertions.assertThat(parsed.getState()).isEqualTo(JWSObject.State.SIGNED);
 		org.assertj.core.api.Assertions.assertThat(parsed.getJWTClaimsSet().getSubject()).isEqualTo("user");
+
+		// Verify actual RS256 signature using public key
+		RSAKey publicKey = provider.getPublicJwkSet().getKeys().get(0).toRSAKey();
+		org.assertj.core.api.Assertions.assertThat(parsed.verify(new RSASSAVerifier(publicKey.toRSAPublicKey()))).isTrue();
+
+		// Verify algorithm is RS256
+		org.assertj.core.api.Assertions.assertThat(parsed.getHeader().getAlgorithm()).isEqualTo(JWSAlgorithm.RS256);
 	}
 
 	@Test
