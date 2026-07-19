@@ -1,0 +1,15 @@
+server:
+  port: 8082
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+my:
+  issuer: http://localhost:9000
+  signing-base-url: http://localhost:8083
+  client-registry-base-url: http://localhost:8085
+  access-token-ttl-seconds: 300
+logging:
+  level:
+    dev.starryeye: DEBUG
