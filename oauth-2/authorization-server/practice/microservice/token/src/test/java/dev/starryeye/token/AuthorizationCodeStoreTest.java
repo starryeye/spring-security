@@ -16,7 +16,7 @@ class AuthorizationCodeStoreTest {
 		StringRedisTemplate redis = mock(StringRedisTemplate.class);
 		ValueOperations<String, String> ops = mock(ValueOperations.class);
 		when(redis.opsForValue()).thenReturn(ops);
-		when(ops.get("auth:code:abc")).thenReturn(
+		when(ops.getAndDelete("auth:code:abc")).thenReturn(
 				"{\"clientId\":\"my-client\",\"redirectUri\":\"http://127.0.0.1:8080/callback\",\"scope\":\"openid profile\",\"sub\":\"user-sub-0001\",\"codeChallenge\":\"chal\"}");
 
 		AuthorizationCodeStore store = new AuthorizationCodeStore(redis);
@@ -24,7 +24,7 @@ class AuthorizationCodeStoreTest {
 
 		assertThat(result).isPresent();
 		assertThat(result.get().sub()).isEqualTo("user-sub-0001");
-		verify(redis).delete("auth:code:abc");
+		verify(ops).getAndDelete("auth:code:abc");
 	}
 
 	@Test
@@ -32,7 +32,7 @@ class AuthorizationCodeStoreTest {
 		StringRedisTemplate redis = mock(StringRedisTemplate.class);
 		ValueOperations<String, String> ops = mock(ValueOperations.class);
 		when(redis.opsForValue()).thenReturn(ops);
-		when(ops.get("auth:code:none")).thenReturn(null);
+		when(ops.getAndDelete("auth:code:none")).thenReturn(null);
 
 		AuthorizationCodeStore store = new AuthorizationCodeStore(redis);
 		assertThat(store.consume("none")).isEmpty();

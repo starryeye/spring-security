@@ -23,11 +23,10 @@ public class AuthorizationCodeStore {
 
 	public Optional<AuthorizationCodeData> consume(String code) {
 		String key = KEY_PREFIX + code;
-		String json = redisTemplate.opsForValue().get(key);
+		String json = redisTemplate.opsForValue().getAndDelete(key); // 원자적 조회+삭제(Redis GETDEL).. code 재사용(replay) 방지 (RFC 6749 4.1.2)
 		if (json == null) {
 			return Optional.empty();
 		}
-		redisTemplate.delete(key); // 1회용 소비
 		try {
 			return Optional.of(objectMapper.readValue(json, AuthorizationCodeData.class));
 		} catch (Exception e) {
