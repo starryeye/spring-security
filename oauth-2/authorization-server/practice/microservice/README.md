@@ -27,6 +27,55 @@
  Redis : authorization code, 로그인 세션(Spring Session)
 ```
 
+### 아키텍처 모듈 다이어그램
+
+```mermaid
+flowchart TB
+    browser["브라우저 / 클라이언트"]
+
+    subgraph edge["에지"]
+        gateway["gateway<br/>nginx :9000<br/>경로 라우팅"]
+    end
+
+    subgraph front["front-channel"]
+        auth["auth :8081<br/>로그인 · authorize · code 발급"]
+    end
+
+    subgraph back["back-channel"]
+        token["token :8082<br/>token · jwks 프록시 · discovery"]
+    end
+
+    subgraph internal["내부 서비스 (/internal/*, 외부 비노출)"]
+        signing["signing :8083<br/>JWT 서명 전담 · 개인키 독점"]
+        userdir["user-directory :8084<br/>사용자 · credential"]
+        clientreg["client-registry :8085<br/>client 메타 · Caffeine 캐시"]
+    end
+
+    subgraph stores["저장소"]
+        mysql[("MySQL<br/>users · clients")]
+        redis[("Redis<br/>auth code · 세션")]
+        keystore["keystore PKCS12<br/>(signing 만 보유)"]
+    end
+
+    browser -->|"/oauth2/authorize, /login"| gateway
+    browser -->|"/oauth2/token, /oauth2/jwks, /.well-known"| gateway
+    gateway --> auth
+    gateway --> token
+
+    auth -->|"credential 검증 위임"| userdir
+    auth -->|"client 조회"| clientreg
+    auth -->|"code write (TTL 60s)"| redis
+    auth -->|"로그인 세션"| redis
+
+    token -->|"client 인증(bcrypt) 조회"| clientreg
+    token -->|"code 원자 소비 GETDEL"| redis
+    token -->|"서명 위임 / jwks 프록시"| signing
+
+    userdir --> mysql
+    clientreg --> mysql
+    signing --- keystore
+```
+
 ## 서비스별 책임과 소유 데이터
 
 | 서비스 | 포트 | 책임 | 소유 데이터 |
@@ -71,6 +120,91 @@
 3. authorize 재요청 → auth 가 client/redirect_uri/PKCE/scope 검증 후 code 발급(Redis 저장) → redirect_uri 로 302
 4. `POST /oauth2/token` (Basic my-client:secret, code, code_verifier) → token 이 client 인증 → code 원자 소비 → 바인딩/PKCE 검증 → claim 구성 → signing 에 서명 위임 → access token(JWT)
 5. client 의 등록 grantTypes 를 authorize/token 양쪽에서 강제한다 — 등록된 grantTypes 에 `authorization_code` 가 없으면 authorize 는 `unauthorized_client` 로 redirect, token 은 `unauthorized_client`(400) 로 거부한다.
+
+## API 별 시퀀스 다이어그램
+
+### `GET /oauth2/authorize` + `POST /login` — front-channel (로그인 → code 발급)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor B as 브라우저
+    participant G as gateway · nginx
+    participant A as auth
+    participant U as user-directory
+    participant C as client-registry
+    participant R as Redis
+
+    B->>G: GET /oauth2/authorize?client_id&redirect_uri&scope&state<br/>&code_challenge&code_challenge_method=S256
+    G->>A: proxy
+    A-->>B: 302 /login (미인증 — Spring Security)
+
+    B->>G: GET /login
+    G->>A: proxy
+    A-->>B: 로그인 폼
+
+    B->>G: POST /login (username=user, password=1111)
+    G->>A: proxy
+    A->>U: POST /internal/users/authenticate {username, password}
+    Note over U: bcrypt 검증(해시는 이 안에 가둠)
+    U-->>A: 200 {sub, authorities}
+    Note over A: 세션 확립 (principal = sub), Redis 세션 저장
+    A-->>B: 302 → /oauth2/authorize (saved request)
+
+    B->>G: GET /oauth2/authorize (인증됨)
+    G->>A: proxy
+    A->>C: GET /internal/clients/{client_id}
+    C-->>A: 200 {redirectUris, scopes, grantTypes, ...}
+    Note over A: 검증 순서<br/>1. redirect_uri 정확 일치 (실패 → 400, redirect 안 함 = open redirect 방지)<br/>2. grantTypes 에 authorization_code (실패 → unauthorized_client)<br/>3. response_type=code, PKCE(S256) 필수, scope ⊆ 등록 scope
+    A->>R: SET auth:code:{code} {clientId, redirectUri, scope, sub, codeChallenge} EX 60
+    A-->>B: 302 {redirect_uri}?code={code}&state={state}
+```
+
+### `POST /oauth2/token` — back-channel (code → access token)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor CL as 클라이언트
+    participant G as gateway · nginx
+    participant T as token
+    participant C as client-registry
+    participant R as Redis
+    participant S as signing
+
+    CL->>G: POST /oauth2/token<br/>Basic(client_id:secret), grant_type=authorization_code,<br/>code, redirect_uri, code_verifier
+    G->>T: proxy
+    Note over T: Basic 파싱 (잘못된 base64 → invalid_client)
+    T->>C: GET /internal/clients/{client_id}
+    C-->>T: 200 {clientSecretHash, grantTypes, ...}
+    Note over T: client 인증 bcrypt.matches (실패 → invalid_client 401)<br/>grantTypes 에 authorization_code (실패 → unauthorized_client 400)
+    T->>R: GETDEL auth:code:{code}  (원자적 1회 소비)
+    R-->>T: {clientId, redirectUri, scope, sub, codeChallenge}
+    Note over T: code 없음/재사용 → invalid_grant 400<br/>바인딩 검증(clientId, redirect_uri 일치) → 불일치 시 invalid_grant<br/>PKCE: S256(code_verifier) == codeChallenge → 불일치 시 invalid_grant<br/>claim 구성 iss/sub/aud/iat/exp/scope
+    T->>S: POST /internal/sign {claims}
+    Note over S: 개인키로 RS256 서명, kid = 키 alias<br/>(signing 이 헤더 전적 소유)
+    S-->>T: {jwt}
+    T-->>CL: 200 {access_token, token_type=Bearer, expires_in, scope}
+```
+
+### `GET /oauth2/jwks` — 공개키 노출 (프록시)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor V as 검증자(resource server 등)
+    participant G as gateway · nginx
+    participant T as token
+    participant S as signing
+
+    V->>G: GET /oauth2/jwks
+    G->>T: proxy
+    T->>S: GET /oauth2/jwks
+    Note over S: 공개키만 노출(개인키 d 없음)
+    S-->>T: JWKSet {keys:[{kid, kty, n, e}]}
+    T-->>V: JWKSet
+    Note over V: 캐시해두면 signing 이 다운돼도<br/>기존 JWT 검증은 계속된다 (graceful degradation)
+```
 
 ## 검증된 성공 기준 (e2e, 게이트웨이 경유)
 
