@@ -1,5 +1,6 @@
 package dev.starryeye.token;
 
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
 public record AuthorizationCodeData(
 		String clientId,
 		String redirectUri,

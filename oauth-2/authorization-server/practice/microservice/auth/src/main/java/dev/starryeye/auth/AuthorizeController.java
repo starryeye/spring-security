@@ -52,6 +52,9 @@ public class AuthorizeController {
 		}
 
 		// 여기서부터의 오류는 redirect_uri 로 error 를 실어 보낸다.
+		if (!client.grantTypes().contains("authorization_code")) {
+			return errorRedirect(redirectUri, "unauthorized_client", state);
+		}
 		if (!"code".equals(responseType)) {
 			return errorRedirect(redirectUri, "unsupported_response_type", state);
 		}

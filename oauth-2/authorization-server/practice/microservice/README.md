@@ -70,6 +70,7 @@
 2. `POST /login` (user/1111) → auth 가 user-directory 에 credential 검증 위임, 성공 시 세션 확립(principal = sub)
 3. authorize 재요청 → auth 가 client/redirect_uri/PKCE/scope 검증 후 code 발급(Redis 저장) → redirect_uri 로 302
 4. `POST /oauth2/token` (Basic my-client:secret, code, code_verifier) → token 이 client 인증 → code 원자 소비 → 바인딩/PKCE 검증 → claim 구성 → signing 에 서명 위임 → access token(JWT)
+5. client 의 등록 grantTypes 를 authorize/token 양쪽에서 강제한다 — 등록된 grantTypes 에 `authorization_code` 가 없으면 authorize 는 `unauthorized_client` 로 redirect, token 은 `unauthorized_client`(400) 로 거부한다.
 
 ## 검증된 성공 기준 (e2e, 게이트웨이 경유)
 

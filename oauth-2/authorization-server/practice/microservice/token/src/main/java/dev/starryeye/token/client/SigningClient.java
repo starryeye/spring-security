@@ -20,7 +20,7 @@ public class SigningClient {
 	}
 
 	public String sign(Map<String, Object> claims) {
-		Map<String, Object> body = Map.of("claims", claims, "header", Map.of());
+		Map<String, Object> body = Map.of("claims", claims);
 		Map<?, ?> response = restClient.post().uri("/internal/sign").body(body).retrieve().body(Map.class);
 		return (String) response.get("jwt");
 	}

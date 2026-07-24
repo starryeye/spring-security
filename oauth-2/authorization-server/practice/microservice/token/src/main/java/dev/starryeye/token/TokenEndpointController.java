@@ -64,6 +64,9 @@ public class TokenEndpointController {
 		if (client == null || !passwordEncoder.matches(credentials[1], client.clientSecretHash())) {
 			return error(HttpStatus.UNAUTHORIZED, "invalid_client", "bad client credentials");
 		}
+		if (!client.grantTypes().contains("authorization_code")) {
+			return error(HttpStatus.BAD_REQUEST, "unauthorized_client", "client not authorized for authorization_code grant");
+		}
 
 		// 2. code 소비 (1회용, 원자적)
 		Optional<AuthorizationCodeData> maybeData = (code == null) ? Optional.empty() : codeStore.consume(code);

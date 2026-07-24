@@ -20,6 +20,7 @@ public class UserDirectoryClient {
 		this.restClient = builder.baseUrl(baseUrl).build();
 	}
 
+	@com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
 	public record AuthenticatedUser(String sub, List<String> authorities) {
 	}
 

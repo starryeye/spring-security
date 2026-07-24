@@ -27,7 +27,7 @@ class SignControllerTest {
 	@Test
 	void signReturnsValidRs256Jwt() throws Exception {
 		String body = """
-			{"claims":{"sub":"user","iss":"http://localhost:9000"},"header":{"kid":"signing-key-2026"}}
+			{"claims":{"sub":"user","iss":"http://localhost:9000"}}
 			""";
 		String json = mockMvc.perform(post("/internal/sign")
 						.contentType(MediaType.APPLICATION_JSON).content(body))

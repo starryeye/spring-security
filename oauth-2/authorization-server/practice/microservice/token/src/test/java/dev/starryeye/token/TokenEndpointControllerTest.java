@@ -96,6 +96,21 @@ class TokenEndpointControllerTest {
 				.andExpect(jsonPath("$.error").value("invalid_grant"));
 	}
 
+	// 등록된 grantTypes 에 authorization_code 가 없으면 client 인증 성공 이후에도 unauthorized_client (Finding #5)
+	@Test
+	void grantTypeNotAuthorizedReturnsUnauthorizedClient() throws Exception {
+		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfoWithoutAuthorizationCodeGrant());
+
+		mockMvc.perform(post("/oauth2/token")
+						.header("Authorization", BASIC)
+						.param("grant_type", "authorization_code")
+						.param("code", "x")
+						.param("redirect_uri", "http://127.0.0.1:8080/callback")
+						.param("code_verifier", "v"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("unauthorized_client"));
+	}
+
 	// 잘못된 base64 Authorization 헤더 -> 500 이 아니라 invalid_client (Fix 1a 회귀)
 	@Test
 	void malformedBasicHeaderReturnsInvalidClient() throws Exception {
@@ -116,5 +131,13 @@ class TokenEndpointControllerTest {
 		return new ClientInfo("my-client",
 				List.of("http://127.0.0.1:8080/callback"),
 				List.of("openid", "profile"), hash, List.of("authorization_code"));
+	}
+
+	private ClientInfo clientInfoWithoutAuthorizationCodeGrant() {
+		String hash = org.springframework.security.crypto.factory.PasswordEncoderFactories
+				.createDelegatingPasswordEncoder().encode("secret");
+		return new ClientInfo("my-client",
+				List.of("http://127.0.0.1:8080/callback"),
+				List.of("openid", "profile"), hash, List.of("client_credentials"));
 	}
 }
