@@ -60,6 +60,55 @@ class TokenEndpointControllerTest {
 				.andExpect(jsonPath("$.error").value("invalid_client"));
 	}
 
+	// code 바인딩: 다른 client 명의로 발급된 code 도용 차단 (code injection 방어)
+	@Test
+	void codeBoundToDifferentClientReturnsInvalidGrant() throws Exception {
+		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
+		when(codeStore.consume("code123")).thenReturn(java.util.Optional.of(
+				new AuthorizationCodeData("other-client", "http://127.0.0.1:8080/callback", "openid", "user-sub-0001", "chal")));
+
+		mockMvc.perform(post("/oauth2/token")
+						.header("Authorization", BASIC)
+						.param("grant_type", "authorization_code")
+						.param("code", "code123")
+						.param("redirect_uri", "http://127.0.0.1:8080/callback")
+						.param("code_verifier", "whatever"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("invalid_grant"));
+	}
+
+	// PKCE 실패: 저장된 challenge 와 안 맞는 verifier 는 거부 (실 PkceValidator 사용)
+	// RFC 7636 부록 B 벡터: challenge E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM 는 verifier dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk 에 대응. 다른 verifier 를 보낸다.
+	@Test
+	void wrongCodeVerifierReturnsInvalidGrant() throws Exception {
+		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
+		when(codeStore.consume("code123")).thenReturn(java.util.Optional.of(
+				new AuthorizationCodeData("my-client", "http://127.0.0.1:8080/callback", "openid", "user-sub-0001",
+						"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")));
+
+		mockMvc.perform(post("/oauth2/token")
+						.header("Authorization", BASIC)
+						.param("grant_type", "authorization_code")
+						.param("code", "code123")
+						.param("redirect_uri", "http://127.0.0.1:8080/callback")
+						.param("code_verifier", "the-wrong-verifier"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("invalid_grant"));
+	}
+
+	// 잘못된 base64 Authorization 헤더 -> 500 이 아니라 invalid_client (Fix 1a 회귀)
+	@Test
+	void malformedBasicHeaderReturnsInvalidClient() throws Exception {
+		mockMvc.perform(post("/oauth2/token")
+						.header("Authorization", "Basic $$$not-base64$$$")
+						.param("grant_type", "authorization_code")
+						.param("code", "x")
+						.param("redirect_uri", "http://127.0.0.1:8080/callback")
+						.param("code_verifier", "v"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("invalid_client"));
+	}
+
 	private ClientInfo clientInfo() {
 		// secret "secret" 의 bcrypt 해시
 		String hash = org.springframework.security.crypto.factory.PasswordEncoderFactories

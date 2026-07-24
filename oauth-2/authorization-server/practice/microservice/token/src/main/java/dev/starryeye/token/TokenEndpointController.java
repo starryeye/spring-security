@@ -118,7 +118,12 @@ public class TokenEndpointController {
 		if (authorization == null || !authorization.startsWith("Basic ")) {
 			return null;
 		}
-		String decoded = new String(Base64.getDecoder().decode(authorization.substring(6)));
+		String decoded;
+		try {
+			decoded = new String(Base64.getDecoder().decode(authorization.substring(6)), java.nio.charset.StandardCharsets.UTF_8);
+		} catch (IllegalArgumentException e) {
+			return null; // 잘못된 base64 -> invalid_client
+		}
 		int idx = decoded.indexOf(':');
 		if (idx < 0) {
 			return null;
