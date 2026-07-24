@@ -1,0 +1,23 @@
+# docker compose -p microservice-as up -d
+# gateway(nginx 9000) + mysql + redis. 5개 Spring 서비스는 호스트에서 java -jar 로 기동한다.
+
+services:
+  nginx:
+    image: nginx:1.27
+    ports:
+      - "9000:80"
+    volumes:
+      - ../gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: 1111
+      MYSQL_DATABASE: microservice_as
+    ports:
+      - "3306:3306"
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
