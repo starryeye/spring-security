@@ -9,6 +9,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.view.RedirectView;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.security.Principal;
 
@@ -66,19 +67,21 @@ public class AuthorizeController {
 
 		String code = codeIssuer.issue(clientId, redirectUri, effectiveScope, principal.getName(), codeChallenge);
 
-		StringBuilder location = new StringBuilder(redirectUri).append("?code=").append(code);
+		UriComponentsBuilder builder =
+				UriComponentsBuilder.fromUriString(redirectUri).queryParam("code", code);
 		if (StringUtils.hasText(state)) {
-			location.append("&state=").append(state);
+			builder.queryParam("state", state);
 		}
-		return new RedirectView(location.toString());
+		return new RedirectView(builder.encode().build().toUriString());
 	}
 
 	private RedirectView errorRedirect(String redirectUri, String error, String state) {
-		StringBuilder location = new StringBuilder(redirectUri).append("?error=").append(error);
+		UriComponentsBuilder builder =
+				UriComponentsBuilder.fromUriString(redirectUri).queryParam("error", error);
 		if (StringUtils.hasText(state)) {
-			location.append("&state=").append(state);
+			builder.queryParam("state", state);
 		}
-		return new RedirectView(location.toString());
+		return new RedirectView(builder.encode().build().toUriString());
 	}
 
 	private ResponseEntity<String> errorPage(String message) {
