@@ -1,0 +1,23 @@
+### token 교환. Basic bXktY2xpZW50OnNlY3JldA== = my-client:secret
+### {code} 는 authorize flow 로 받은 값, {code_verifier} 는 authorize 의 code_challenge 와 짝이 되는 원본.
+### 응답: access token(JWT). iss=http://localhost:9000, sub=user-sub-0001, aud=my-client, header kid=signing-key-2026.
+POST http://localhost:9000/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bXktY2xpZW50OnNlY3JldA==
+
+grant_type=authorization_code&
+code={code}&
+redirect_uri=http://127.0.0.1:8080/callback&
+code_verifier={code_verifier}
+
+### 관찰 1. 같은 code 재사용 -> invalid_grant (Redis GETDEL 로 원자적 1회 소비)
+
+### 관찰 2. 틀린 code_verifier -> invalid_grant (PKCE 검증 실패)
+
+### 관찰 3. 틀린 client secret -> invalid_client (401). Basic bXktY2xpZW50Ondyb25n = my-client:wrong
+
+### jwks (게이트웨이가 token 으로, token 이 signing 으로 프록시). 공개키만 노출(개인키 d 없음).
+GET http://localhost:9000/oauth2/jwks
+
+### discovery 메타데이터
+GET http://localhost:9000/.well-known/oauth-authorization-server

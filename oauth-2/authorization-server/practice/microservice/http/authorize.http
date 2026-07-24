@@ -1,0 +1,18 @@
+### 관통 flow 는 브라우저 상호작용(로그인)이 필요해 .http 단독으로는 완주하기 어렵다.
+### 아래는 각 단계의 요청 형태 참고용. 실제 e2e 는 README 의 절차(또는 curl 스크립트)를 따른다.
+### 모든 요청은 gateway(:9000) 경유.
+
+### 1. authorize 요청 (미인증이면 /login 으로 redirect)
+### code_challenge 는 code_verifier 를 S256(BASE64URL(SHA256(verifier))) 한 값이어야 한다.
+GET http://localhost:9000/oauth2/authorize?response_type=code&client_id=my-client&redirect_uri=http://127.0.0.1:8080/callback&scope=openid profile&state=xyz789&code_challenge={S256 challenge}&code_challenge_method=S256
+
+### 2. 로그인 (브라우저에서 user / 1111). auth 가 user-directory 에 credential 검증을 위임한다.
+### POST http://localhost:9000/login (username, password, _csrf)
+
+### 3. 인증 후 authorize 재요청 -> redirect_uri?code=...&state=... 로 302
+
+### 보안 관찰 1. 미등록 redirect_uri -> 400, redirect 하지 않음 (open redirect 방지)
+GET http://localhost:9000/oauth2/authorize?response_type=code&client_id=my-client&redirect_uri=https://evil.example.com/steal&scope=openid&code_challenge={S256 challenge}&code_challenge_method=S256
+
+### 보안 관찰 2. PKCE(code_challenge) 누락 -> redirect_uri?error=invalid_request (첫 슬라이스는 PKCE S256 필수)
+GET http://localhost:9000/oauth2/authorize?response_type=code&client_id=my-client&redirect_uri=http://127.0.0.1:8080/callback&scope=openid
