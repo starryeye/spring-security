@@ -1,0 +1,17 @@
+server:
+  port: 8081
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  session:
+    store-type: redis
+my:
+  user-directory-base-url: http://localhost:8084
+  client-registry-base-url: http://localhost:8085
+  authorization-code-ttl-seconds: 60
+logging:
+  level:
+    dev.starryeye: DEBUG
+    org.springframework.security: DEBUG
