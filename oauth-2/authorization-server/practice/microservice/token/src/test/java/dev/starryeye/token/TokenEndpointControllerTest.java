@@ -16,7 +16,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
@@ -186,6 +186,47 @@ class TokenEndpointControllerTest {
 				.andExpect(jsonPath("$.id_token").doesNotExist());
 
 		verify(idTokenIssuer, never()).issue(any(), any(), any(), any(), anyLong(), any());
+	}
+
+	// discovery metadata: openid-configuration 엔드포인트가 구현된 capability 들을 정확히 광고하는지 검증
+	@Test
+	void openidConfigurationAdvertisesImplementedCapabilities() throws Exception {
+		String issuer = "http://localhost:9000";
+
+		mockMvc.perform(get("/.well-known/openid-configuration"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.issuer").value(issuer))
+				.andExpect(jsonPath("$.authorization_endpoint").value(issuer + "/oauth2/authorize"))
+				.andExpect(jsonPath("$.token_endpoint").value(issuer + "/oauth2/token"))
+				.andExpect(jsonPath("$.jwks_uri").value(issuer + "/oauth2/jwks"))
+				.andExpect(jsonPath("$.userinfo_endpoint").value(issuer + "/userinfo"))
+				.andExpect(jsonPath("$.response_types_supported[0]").value("code"))
+				.andExpect(jsonPath("$.grant_types_supported[0]").value("authorization_code"))
+				.andExpect(jsonPath("$.code_challenge_methods_supported[0]").value("S256"))
+				.andExpect(jsonPath("$.subject_types_supported[0]").value("public"))
+				.andExpect(jsonPath("$.id_token_signing_alg_values_supported[0]").value("RS256"))
+				.andExpect(jsonPath("$.scopes_supported[0]").value("openid"))
+				.andExpect(jsonPath("$.scopes_supported[1]").value("profile"))
+				.andExpect(jsonPath("$.scopes_supported[2]").value("email"))
+				.andExpect(jsonPath("$.scopes_supported.length()").value(3));
+	}
+
+	// discovery metadata: 두 표준 경로 (oauth-authorization-server, openid-configuration) 가 동일한 문서를 서빙하는지 검증
+	@Test
+	void bothDiscoveryPathsReturnIdenticalDocument() throws Exception {
+		String oauth2Path = mockMvc.perform(get("/.well-known/oauth-authorization-server"))
+				.andExpect(status().isOk())
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+
+		String openidPath = mockMvc.perform(get("/.well-known/openid-configuration"))
+				.andExpect(status().isOk())
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+
+		assertThat(oauth2Path).isEqualTo(openidPath);
 	}
 
 	private ClientInfo clientInfo() {
