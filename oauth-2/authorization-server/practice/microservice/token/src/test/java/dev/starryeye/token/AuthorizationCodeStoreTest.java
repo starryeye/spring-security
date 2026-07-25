@@ -24,6 +24,8 @@ class AuthorizationCodeStoreTest {
 
 		assertThat(result).isPresent();
 		assertThat(result.get().sub()).isEqualTo("user-sub-0001");
+		assertThat(result.get().nonce()).isEqualTo("nonce-1");
+		assertThat(result.get().authTime()).isEqualTo(1700000000L);
 		verify(ops).getAndDelete("auth:code:abc");
 	}
 

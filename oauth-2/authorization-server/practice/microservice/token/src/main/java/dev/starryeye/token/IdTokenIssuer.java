@@ -89,7 +89,7 @@ public class IdTokenIssuer {
 		try {
 			profile = userDirectoryClient.getUser(sub);
 		} catch (Exception e) {
-			log.warn("user-directory 조회 실패.. 프로필 claim 없이 id token 을 발급한다. sub={}", sub);
+			log.warn("user-directory 조회 실패. 프로필 claim 없이 id token 을 발급한다. sub={}", sub);
 			return;
 		}
 		if (profile == null) {

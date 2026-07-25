@@ -4,6 +4,7 @@ import dev.starryeye.token.client.ClientInfo;
 import dev.starryeye.token.client.ClientRegistryClient;
 import dev.starryeye.token.client.SigningClient;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -13,7 +14,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 import java.util.Optional;
 
-import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -123,6 +125,67 @@ class TokenEndpointControllerTest {
 						.param("code_verifier", "v"))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.error").value("invalid_client"));
+	}
+
+	// 성공 경로: openid scope 요청 시 access_token 과 함께 id_token 이 발급되고, idTokenIssuer 가 올바른 인자로 호출된다
+	// PKCE 는 wrongCodeVerifierReturnsInvalidGrant 와 동일한 RFC 7636 부록 B 벡터를 재사용한다.
+	@Test
+	void openidScopeIssuesIdToken() throws Exception {
+		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
+		when(codeStore.consume("code123")).thenReturn(java.util.Optional.of(
+				new AuthorizationCodeData("my-client", "http://127.0.0.1:8080/callback", "openid profile", "user-sub-0001",
+						"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", "nonce-abc", 1700000000L)));
+		when(signingClient.sign(any())).thenReturn("signed-access-token");
+		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any())).thenReturn("signed-id-token");
+
+		mockMvc.perform(post("/oauth2/token")
+						.header("Authorization", BASIC)
+						.param("grant_type", "authorization_code")
+						.param("code", "code123")
+						.param("redirect_uri", "http://127.0.0.1:8080/callback")
+						.param("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.access_token").exists())
+				.andExpect(jsonPath("$.id_token").exists());
+
+		ArgumentCaptor<String> subCaptor = ArgumentCaptor.forClass(String.class);
+		ArgumentCaptor<String> clientIdCaptor = ArgumentCaptor.forClass(String.class);
+		ArgumentCaptor<String> scopeCaptor = ArgumentCaptor.forClass(String.class);
+		ArgumentCaptor<String> nonceCaptor = ArgumentCaptor.forClass(String.class);
+		ArgumentCaptor<Long> authTimeCaptor = ArgumentCaptor.forClass(Long.class);
+		ArgumentCaptor<String> accessTokenCaptor = ArgumentCaptor.forClass(String.class);
+		verify(idTokenIssuer).issue(subCaptor.capture(), clientIdCaptor.capture(), scopeCaptor.capture(),
+				nonceCaptor.capture(), authTimeCaptor.capture(), accessTokenCaptor.capture());
+
+		assertThat(subCaptor.getValue()).isEqualTo("user-sub-0001");
+		assertThat(clientIdCaptor.getValue()).isEqualTo("my-client");
+		assertThat(scopeCaptor.getValue()).isEqualTo("openid profile");
+		assertThat(nonceCaptor.getValue()).isEqualTo("nonce-abc");
+		assertThat(authTimeCaptor.getValue()).isEqualTo(1700000000L);
+		// at_hash 는 access token 으로 계산돼야 하므로, signingClient.sign(...) 이 방금 반환한 access token 과 같아야 한다
+		assertThat(accessTokenCaptor.getValue()).isEqualTo("signed-access-token");
+	}
+
+	// 성공 경로: openid 가 없는 scope 는 id_token 을 발급하지 않고 idTokenIssuer 를 호출하지도 않는다
+	@Test
+	void nonOpenidScopeOmitsIdToken() throws Exception {
+		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
+		when(codeStore.consume("code123")).thenReturn(java.util.Optional.of(
+				new AuthorizationCodeData("my-client", "http://127.0.0.1:8080/callback", "profile", "user-sub-0001",
+						"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", null, 1700000000L)));
+		when(signingClient.sign(any())).thenReturn("signed-access-token");
+
+		mockMvc.perform(post("/oauth2/token")
+						.header("Authorization", BASIC)
+						.param("grant_type", "authorization_code")
+						.param("code", "code123")
+						.param("redirect_uri", "http://127.0.0.1:8080/callback")
+						.param("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.access_token").exists())
+				.andExpect(jsonPath("$.id_token").doesNotExist());
+
+		verify(idTokenIssuer, never()).issue(any(), any(), any(), any(), anyLong(), any());
 	}
 
 	private ClientInfo clientInfo() {
