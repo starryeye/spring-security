@@ -134,7 +134,7 @@ flowchart TB
 4. `POST /oauth2/consent` (pending_id, 체크된 scope) → auth 가 pending 을 소비(1회성)하고, 제출값과 pending 의 교집합만 승인 처리 → consent 에 저장(합집합 병합) → code 발급(Redis 저장, nonce·authTime 포함) → redirect_uri 로 302. 승인 scope 가 하나도 없으면 `error=access_denied` 로 302.
 5. 이미 승인된 scope 의 부분집합만 요청하면 3번에서 미승인 scope 가 없으므로 **동의 화면 없이 바로 code** 가 발급된다.
 6. `POST /oauth2/token` (Basic my-client:secret, code, code_verifier) → token 이 client 인증 → code 원자 소비 → 바인딩/PKCE 검증 → claim 구성 → signing 에 access token 서명 위임 → **scope 에 `openid` 가 있으면** id token 도 함께 발급한다(nonce·auth_time·at_hash, profile/email scope 면 user-directory 조회 후 name/email 등 claim 추가) → `{access_token, id_token, ...}`
-7. `GET /userinfo` (Bearer access token) → token 이 jwks 로 access token 자체 검증 후 scope 에 대응하는 claim 만 돌려준다 (`openid` 없으면 403).
+7. `GET` 또는 `POST /userinfo` (Bearer access token) → token 이 jwks 로 access token 자체 검증 후 scope 에 대응하는 claim 만 돌려준다 (`openid` 없으면 403). `profile`/`email` scope 가 없으면 user-directory 를 조회하지 않는다.
 8. client 의 등록 grantTypes 를 authorize/token 양쪽에서 강제한다 — 등록된 grantTypes 에 `authorization_code` 가 없으면 authorize 는 `unauthorized_client` 로 redirect, token 은 `unauthorized_client`(400) 로 거부한다.
 
 ## API 별 시퀀스 다이어그램
@@ -247,7 +247,9 @@ sequenceDiagram
             T->>U: GET /internal/users/{sub}
             alt 조회 성공
                 U-->>T: 200 {name, nickname, preferredUsername, email, emailVerified}
-            else 조회 실패(다운 등)
+            else 404 (사용자 삭제 — 확정된 부재)
+                Note over T: id token 발급 중단 → invalid_grant 400.<br/>존재하지 않는 주체에 대한 인증 주장을 서명할 수 없다.<br/>code 는 이미 소비돼 재시도로 우회되지 않는다
+            else 일시 장애 (연결 실패·5xx — 존재 여부 미확정)
                 Note over T: 프로필 claim 없이 id token 발급 계속 (필수 claim 만으로도 유효)
             end
         end
@@ -276,9 +278,13 @@ sequenceDiagram
     S-->>T: JWKSet {keys:[{kid, kty, n, e}]}
     T-->>V: JWKSet
     Note over V: 캐시해두면 signing 이 다운돼도<br/>기존 JWT 검증은 계속된다 (graceful degradation)
+    Note over T: 주의. 이 degradation 은 jwks 를 캐시하는 검증자에게만 성립한다.<br/>이 서버의 /userinfo 는 캐시가 없어 signing 이 죽으면 500 이다 (알려진 한계 참고)
 ```
 
-### `GET /userinfo` — access token 으로 scope 에 대응하는 claim 조회
+### `GET`/`POST /userinfo` — access token 으로 scope 에 대응하는 claim 조회
+
+OIDC Core 5.3.1 이 GET·POST 를 모두 요구하므로(MUST) 둘 다 받는다. 토큰 전달은 **Authorization 헤더 우선**이고,
+없으면 form-encoded POST 의 `access_token` 파라미터를 본다(RFC 6750 2.2). 두 방식을 동시에 쓰면 400 `invalid_request` 다.
 
 ```mermaid
 sequenceDiagram
@@ -289,21 +295,30 @@ sequenceDiagram
     participant S as signing
     participant U as user-directory
 
-    CL->>G: GET /userinfo<br/>Authorization: Bearer {access_token}
+    CL->>G: GET /userinfo (Authorization: Bearer {access_token})<br/>또는 POST /userinfo (form: access_token={access_token})
     G->>T: proxy
-    Note over T: Authorization 헤더 없거나 Bearer 형식 아니면 401 (WWW-Authenticate: Bearer)
+    Note over T: 토큰 추출: Authorization 헤더 우선 → 없으면 form-encoded POST 의 access_token<br/>둘 다 있으면 400 invalid_request / 둘 다 없으면 401 (WWW-Authenticate: Bearer)<br/>(RFC 6750 이 권장하지 않는 쿼리 파라미터 전달은 받지 않는다)
     T->>S: GET /oauth2/jwks
     Note over T: 매 요청마다 조회한다 (캐시 없음 — 알려진 한계 참고)
-    S-->>T: JWKSet
-    Note over T: 서명 검증(jwks) + exp + iss 확인.<br/>실패 → 401 (WWW-Authenticate: Bearer error="invalid_token")
-    Note over T: scope 에 openid 없으면 → 403 (WWW-Authenticate: Bearer error="insufficient_scope")
-    T->>U: GET /internal/users/{sub}
-    alt 조회 성공
-        U-->>T: 200 {name, nickname, preferredUsername, email, emailVerified}
-    else 조회 실패(다운 등)
-        Note over T: 프로필 없이 sub 만으로 200 응답 (표준 필수 claim 인 sub 까지 막지 않는다)
+    alt jwks 확보 성공
+        S-->>T: JWKSet
+    else signing 장애 (연결 실패·5xx)
+        Note over T: 500 server_error 로 끝낸다.<br/>"키를 못 구했다"를 401 invalid_token 으로 내면<br/>RP 가 멀쩡한 토큰을 폐기하고 재인증을 돌린다
     end
-    Note over T: scope 에 profile 있으면 name/nickname/preferred_username<br/>scope 에 email 있으면 email/email_verified 만 추가 (openid 만 있으면 sub 뿐)
+    Note over T: 서명 검증(jwks) + exp + iss 확인. 실패(미공개 kid 포함)<br/>→ 401 (WWW-Authenticate: Bearer error="invalid_token")
+    Note over T: scope 에 openid 없으면 → 403 (WWW-Authenticate: Bearer error="insufficient_scope")
+
+    opt scope 에 profile 또는 email 포함
+        T->>U: GET /internal/users/{sub}
+        alt 조회 성공
+            U-->>T: 200 {name, nickname, preferredUsername, email, emailVerified}
+        else 404 (사용자 삭제 — 확정된 부재)
+            Note over T: 401 invalid_token. 주체가 사라진 토큰은 실효다
+        else 일시 장애 (연결 실패·5xx — 존재 여부 미확정)
+            Note over T: 프로필 없이 sub 만으로 200 응답 (표준 필수 claim 인 sub 까지 막지 않는다)
+        end
+    end
+    Note over T: scope 에 profile 있으면 name/nickname/preferred_username<br/>scope 에 email 있으면 email/email_verified (email 값이 없으면 둘 다 생략)<br/>openid 만 있으면 sub 뿐이고 user-directory 를 호출하지도 않는다<br/>매핑은 id token 과 같은 ProfileClaimMapper 를 쓴다
     T-->>CL: 200 {sub, [name, nickname, preferred_username], [email, email_verified]}
 ```
 
@@ -314,6 +329,7 @@ sequenceDiagram
 1. 로그인 → code → token → JWT 발급 완주. access token: `iss=http://localhost:9000`, `sub=user-sub-0001`, `aud=my-client`, header `kid=signing-key-2026`, `alg=RS256`.
 2. 발급 JWT 를 `/oauth2/jwks`(signing 공개키)로 RS256 서명 검증 통과. jwks 에 개인키(d) 없음.
 3. **graceful degradation** — signing 을 내리면 신규 토큰 발급은 `server_error`(OAuth2 포맷)로 실패하지만, **이미 발급된 JWT 는 캐시된 공개키로 계속 검증**된다. (키 격리 + JWT 자가검증의 운영 가치)
+   - 주의. 이것은 공개키를 미리 받아둔 **외부 검증자** 기준이다. 이 서버의 `/userinfo` 는 jwks 캐시가 없어 signing 장애 시 500 `server_error` 다 (알려진 한계 참고).
 4. code 재사용 → `invalid_grant` (Redis GETDEL 원자 소비).
 5. PKCE verifier 변조 → `invalid_grant`.
 6. 보안 경계: 미등록 redirect_uri / unknown client → **400, redirect 하지 않음(open redirect 방지)**. PKCE 누락 → `invalid_request`. 틀린 client secret → `invalid_client`(401).
@@ -336,9 +352,11 @@ refresh token, introspection, back-channel logout(sid), admin 등록 API(현재 
 
 - **프록시 헤더(ForwardedHeaderFilter) 미적용** — auth 의 로그인 redirect Location 이 게이트웨이 포트(:9000)를 잃고 `http://localhost/...` 로 나온다. curl e2e 는 절대 URL 로 우회해 통과하지만, 실제 브라우저 flow 는 auth 에 ForwardedHeaderFilter 를 추가해 X-Forwarded-Host(포트 포함)를 반영해야 한다. (production-ready-authorization-server 의 방식 참고)
 - **내부 REST 호출 무인증** — /internal/* 은 gateway 라우팅에서만 제외될 뿐 네트워크로 접근 가능하면 무방비다. 서비스 간 인증(API 키/mTLS)이 추후 개선 1순위.
-- **AuthorizeController 자동화 테스트 부재** — open redirect 방지/PKCE 강제는 위 e2e(curl)로 검증했으나 MockMvc 통합 테스트로 고정하는 것이 좋다.
-- **userinfo 가 jwks 를 매 요청 조회한다** — `AccessTokenVerifier` 가 access token 검증마다 signing 의 `/oauth2/jwks` 를 호출한다(캐시 없음). 트래픽이 늘면 signing 에 부하가 집중된다. jwks 응답을 kid 기준으로 캐시(TTL)하는 것이 다음 개선.
-- **`auth_time` 이 로그인 시각이 아니다** — id token 의 `auth_time` 은 `AuthorizeController` 가 authorize 요청을 처리한 시각(`Instant.now()`)이며, 실제 `POST /login` 이 성공한 시각이 아니다. 세션에 로그인 시각을 저장해두지 않기 때문. SSO 재사용 시나리오(로그인은 예전에 했고 이번엔 세션만 재사용)에서 `auth_time` 이 매 authorize 마다 갱신되는 것으로 보일 수 있다.
+- **jwks 캐시 부재는 성능이 아니라 가용성 한계다** — `AccessTokenVerifier` 가 access token 검증마다 signing 의 `/oauth2/jwks` 를 호출한다(캐시 없음). 부하가 signing 에 집중되는 것도 문제지만, 더 큰 문제는 **signing 이 죽으면 `/userinfo` 가 통째로 500 `server_error` 가 된다**는 점이다. 슬라이스 1 의 graceful degradation("이미 발급된 JWT 는 캐시된 공개키로 계속 검증된다")은 jwks 를 캐시하는 외부 검증자에게만 성립하고 이 서버의 `/userinfo` 에는 성립하지 않는다. jwks 를 kid 기준으로 캐시(TTL)하면 성능과 가용성이 함께 해결된다. 다음 개선.
+  - 주의. 이때 500 대신 401 `invalid_token` 을 주면 안 된다. RP 는 그것을 "토큰이 죽었다"로 읽고 멀쩡한 토큰을 폐기한 뒤 재인증을 돌리므로, signing 장애 한 번이 전 RP 의 동시 재인증 폭풍으로 증폭된다. 그래서 `AccessTokenVerifier` 는 "키 확보 실패"와 "토큰 무효"를 다른 예외로 갈라 던진다.
+- **`auth_time` 이 로그인 시각이 아니다** — id token 의 `auth_time` 은 `AuthorizeController` 가 authorize 요청을 처리한 시각(`Instant.now()`)이며, 실제 `POST /login` 이 성공한 시각이 아니다. 세션에 로그인 시각을 저장해두지 않기 때문. 표준의 `auth_time` 은 최종 인증 시각이므로 RP 가 `max_age` 로 재인증을 강제할 때 이 값으로는 판단할 수 없다. SSO 재사용 시나리오(로그인은 예전에 했고 이번엔 세션만 재사용)에서 `auth_time` 이 매 authorize 마다 갱신되는 것으로 보인다.
+- **access token 의 `scope` claim 이 JSON 배열이다** — RFC 9068 2.2.3 은 `scope` 를 공백 구분 **문자열**로 규정하지만 이 구현은 `["openid","profile"]` 배열로 낸다(슬라이스 1 부터의 선택). `AccessTokenVerifier` 가 같은 형식을 읽으므로 내부적으로는 일관되지만, RFC 9068 을 기대하는 외부 resource server 는 scope 를 파싱하지 못한다.
+- **access token 과 id token 을 구분할 수 있는 표식이 없다** — 둘 다 signing 의 같은 키로 서명되고 `iss`·`sub` 도 같으며 `typ` 헤더 구분이 없다. 지금은 id token 에 `scope` claim 이 없어 `/userinfo` 에 id token 을 들이밀면 `openid` scope 가 없다고 403 이 나므로 토큰 타입 혼동이 성립하지 않는다. 다만 그 방어는 우연에 가깝다 — **id token 에 `scope` 를 싣는 순간 혼동이 성립한다.** 정석은 RFC 9068 의 `typ: at+jwt` 헤더로 access token 을 명시하고 검증 시 그 값을 강제하는 것이다. signing 의 서명 API 계약(헤더를 signing 이 전적으로 소유한다)을 바꿔야 하므로 이번 슬라이스에서는 구현하지 않는다. 다음 슬라이스 대상.
 - HA(다중 인스턴스), 키 로테이션, purge 등은 production-ready-authorization-server 에서 다룬 주제.
 
 ## 설계/계획 문서
