@@ -37,7 +37,10 @@ public class UserController {
 	public UserResponse getUser(@PathVariable String sub) {
 		UserEntity user = repository.findBySub(sub)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-		return new UserResponse(user.getSub(), user.getUsername(), toList(user.getAuthorities()));
+		return new UserResponse(
+				user.getSub(), user.getUsername(), toList(user.getAuthorities()),
+				user.getName(), user.getNickname(), user.getPreferredUsername(),
+				user.getEmail(), user.isEmailVerified());
 	}
 
 	private List<String> toList(String commaDelimited) {

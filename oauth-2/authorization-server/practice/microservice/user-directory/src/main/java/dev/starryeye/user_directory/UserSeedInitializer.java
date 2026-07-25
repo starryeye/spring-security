@@ -28,6 +28,11 @@ public class UserSeedInitializer implements ApplicationRunner {
 				.username("user")
 				.password(PasswordEncoderFactories.createDelegatingPasswordEncoder().encode("1111"))
 				.authorities("ROLE_USER")
+				.name("Star Rye")
+				.nickname("starry")
+				.preferredUsername("starryeye")
+				.email("starryeye@example.com")
+				.emailVerified(true)
 				.build());
 	}
 }

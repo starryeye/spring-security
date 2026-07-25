@@ -34,7 +34,10 @@ class UserControllerTest {
 	private UserEntity seedUser(String authorities) {
 		return UserEntity.builder()
 				.sub("user-sub-0001").username("user")
-				.password(encoder.encode("1111")).authorities(authorities).build();
+				.password(encoder.encode("1111")).authorities(authorities)
+				.name("Star Rye").nickname("starry").preferredUsername("starryeye")
+				.email("starryeye@example.com").emailVerified(true)
+				.build();
 	}
 
 	@Test
@@ -75,8 +78,22 @@ class UserControllerTest {
 
 		mockMvc.perform(get("/internal/users/user-sub-0001"))
 				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.sub").value("user-sub-0001"))
 				.andExpect(jsonPath("$.username").value("user"))
 				.andExpect(jsonPath("$.authorities", hasSize(2)));
+	}
+
+	@Test
+	void getUserReturnsProfileClaims() throws Exception {
+		when(repository.findBySub("user-sub-0001")).thenReturn(Optional.of(seedUser("ROLE_USER")));
+
+		mockMvc.perform(get("/internal/users/user-sub-0001"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.name").value("Star Rye"))
+				.andExpect(jsonPath("$.nickname").value("starry"))
+				.andExpect(jsonPath("$.preferredUsername").value("starryeye"))
+				.andExpect(jsonPath("$.email").value("starryeye@example.com"))
+				.andExpect(jsonPath("$.emailVerified").value(true));
 	}
 
 	@Test
