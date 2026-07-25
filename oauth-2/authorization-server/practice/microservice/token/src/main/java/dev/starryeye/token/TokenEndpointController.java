@@ -113,15 +113,22 @@ public class TokenEndpointController {
 		return signingClient.jwks();
 	}
 
-	@GetMapping("/.well-known/oauth-authorization-server")
+	@GetMapping({"/.well-known/oauth-authorization-server", "/.well-known/openid-configuration"})
 	public Map<String, Object> metadata() {
 		Map<String, Object> metadata = new LinkedHashMap<>();
 		metadata.put("issuer", issuer);
 		metadata.put("token_endpoint", issuer + "/oauth2/token");
 		metadata.put("authorization_endpoint", issuer + "/oauth2/authorize");
 		metadata.put("jwks_uri", issuer + "/oauth2/jwks");
+		metadata.put("userinfo_endpoint", issuer + "/userinfo");
 		metadata.put("code_challenge_methods_supported", List.of("S256"));
 		metadata.put("grant_types_supported", List.of("authorization_code"));
+		metadata.put("response_types_supported", List.of("code"));
+		metadata.put("subject_types_supported", List.of("public"));
+		metadata.put("id_token_signing_alg_values_supported", List.of("RS256"));
+		metadata.put("scopes_supported", List.of("openid", "profile", "email"));
+		metadata.put("claims_supported", List.of("sub", "iss", "aud", "exp", "iat", "auth_time", "nonce",
+				"name", "nickname", "preferred_username", "email", "email_verified"));
 		return metadata;
 	}
 

@@ -23,7 +23,7 @@ public class ClientSeedInitializer implements ApplicationRunner {
 				.clientId("my-client")
 				.clientSecretHash(PasswordEncoderFactories.createDelegatingPasswordEncoder().encode("secret"))
 				.redirectUris("http://127.0.0.1:8080/callback")
-				.scopes("openid,profile")
+				.scopes("openid,profile,email")
 				.grantTypes("authorization_code")
 				.build());
 	}
