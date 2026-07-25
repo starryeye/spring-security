@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>동의 요청</title>
+</head>
+<body>
+<h1>동의 요청</h1>
+<p><span th:text="${clientId}">client</span> 이(가) 아래 권한을 요청합니다.</p>
+
+<form method="post" th:action="@{/oauth2/consent}">
+    <input type="hidden" name="pending_id" th:value="${pendingId}"/>
+
+    <div th:if="${not #lists.isEmpty(grantedScopes)}">
+        <p>이미 승인한 권한</p>
+        <ul>
+            <li th:each="granted : ${grantedScopes}" th:text="${granted}">openid</li>
+        </ul>
+    </div>
+
+    <p>새로 요청된 권한</p>
+    <ul>
+        <li th:each="requested : ${requestedScopes}">
+            <label>
+                <input type="checkbox" name="scope" th:value="${requested}" checked/>
+                <span th:text="${requested}">profile</span>
+            </label>
+        </li>
+    </ul>
+
+    <button type="submit">동의</button>
+</form>
+</body>
+</html>

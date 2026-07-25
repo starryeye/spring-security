@@ -23,7 +23,8 @@ class AuthorizationCodeIssuerTest {
 		when(redis.opsForValue()).thenReturn(ops);
 
 		AuthorizationCodeIssuer issuer = new AuthorizationCodeIssuer(redis, new ObjectMapper(), 60);
-		String code = issuer.issue("my-client", "http://127.0.0.1:8080/callback", "openid profile", "user-sub-0001", "chal");
+		String code = issuer.issue("my-client", "http://127.0.0.1:8080/callback", "openid profile",
+				"user-sub-0001", "chal", "n-0S6_WzA2Mj", 1700000000L);
 
 		assertThat(code).isNotBlank();
 
@@ -39,6 +40,8 @@ class AuthorizationCodeIssuerTest {
 				.containsEntry("redirectUri", "http://127.0.0.1:8080/callback")
 				.containsEntry("scope", "openid profile")
 				.containsEntry("sub", "user-sub-0001")
-				.containsEntry("codeChallenge", "chal");
+				.containsEntry("codeChallenge", "chal")
+				.containsEntry("nonce", "n-0S6_WzA2Mj")
+				.containsEntry("authTime", 1700000000);
 	}
 }

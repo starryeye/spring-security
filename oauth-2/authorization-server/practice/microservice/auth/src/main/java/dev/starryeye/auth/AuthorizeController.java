@@ -2,9 +2,11 @@ package dev.starryeye.auth;
 
 import dev.starryeye.auth.client.ClientInfo;
 import dev.starryeye.auth.client.ClientRegistryClient;
+import dev.starryeye.auth.client.ConsentClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -12,6 +14,8 @@ import org.springframework.web.servlet.view.RedirectView;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.security.Principal;
+import java.util.ArrayList;
+import java.util.List;
 
 @Controller
 @RequiredArgsConstructor
@@ -27,6 +31,8 @@ public class AuthorizeController {
 
 	private final ClientRegistryClient clientRegistryClient;
 	private final AuthorizationCodeIssuer codeIssuer;
+	private final ConsentClient consentClient;
+	private final PendingAuthorizationStore pendingStore;
 
 	@GetMapping("/oauth2/authorize")
 	public Object authorize(
@@ -37,7 +43,9 @@ public class AuthorizeController {
 			@RequestParam(value = "scope", required = false) String scope,
 			@RequestParam(value = "state", required = false) String state,
 			@RequestParam(value = "code_challenge", required = false) String codeChallenge,
-			@RequestParam(value = "code_challenge_method", required = false) String codeChallengeMethod
+			@RequestParam(value = "code_challenge_method", required = false) String codeChallengeMethod,
+			@RequestParam(value = "nonce", required = false) String nonce,
+			Model model
 	) {
 		ClientInfo client;
 		try {
@@ -68,7 +76,31 @@ public class AuthorizeController {
 			}
 		}
 
-		String code = codeIssuer.issue(clientId, redirectUri, effectiveScope, principal.getName(), codeChallenge);
+		// 동의 확인.. consent 서비스가 이 사용자/client 에 대해 이미 승인한 scope 를 조회한다
+		List<String> granted = consentClient.getGrantedScopes(principal.getName(), clientId);
+		List<String> requested = List.of(effectiveScope.split(" "));
+		List<String> missing = new ArrayList<>();
+		for (String requestedScope : requested) {
+			if (!granted.contains(requestedScope)) {
+				missing.add(requestedScope);
+			}
+		}
+
+		long authTime = java.time.Instant.now().getEpochSecond();
+
+		if (!missing.isEmpty()) {
+			// 미승인 scope 가 있으면 동의 화면으로 보낸다. 진행 중 인가는 서버(Redis)에 두고 화면에는 불투명 id 만 노출한다.
+			String pendingId = pendingStore.save(new PendingAuthorization(
+					clientId, redirectUri, effectiveScope, principal.getName(), codeChallenge, state, nonce, authTime));
+			model.addAttribute("pendingId", pendingId);
+			model.addAttribute("clientId", clientId);
+			model.addAttribute("requestedScopes", missing);
+			model.addAttribute("grantedScopes", granted);
+			return "consent";
+		}
+
+		String code = codeIssuer.issue(clientId, redirectUri, effectiveScope, principal.getName(), codeChallenge,
+				nonce, authTime);
 
 		UriComponentsBuilder builder =
 				UriComponentsBuilder.fromUriString(redirectUri).queryParam("code", code);

@@ -15,7 +15,12 @@ public class AuthorizationCodeIssuer {
 
 	/**
 	 * authorization code 를 만들어 Redis 에 저장한다. (token 이 소비할 공유 계약)
-	 *      key "auth:code:{code}", value 는 {clientId, redirectUri, scope, sub, codeChallenge} JSON, TTL 은 설정값(60초).
+	 *      key "auth:code:{code}", value 는 {clientId, redirectUri, scope, sub, codeChallenge, nonce, authTime} JSON.
+	 *
+	 * nonce/authTime 을 함께 싣는 이유..
+	 *      두 값은 authorize 시점(이 서비스)에만 알 수 있는데 정작 필요한 곳은 id token 을 만드는 token 서비스다.
+	 *      client 가 token 요청에 실어 보내게 하면 조작 가능하므로, 서버끼리만 오가는 code 레코드에 담아 전달한다.
+	 *      (표준은 id token 에 nonce/auth_time 이 규칙대로 담길 것을 요구할 뿐 나르는 방법은 규정하지 않는다)
 	 */
 
 	private static final String KEY_PREFIX = "auth:code:";
@@ -34,7 +39,8 @@ public class AuthorizationCodeIssuer {
 		this.ttlSeconds = ttlSeconds;
 	}
 
-	public String issue(String clientId, String redirectUri, String scope, String sub, String codeChallenge) {
+	public String issue(String clientId, String redirectUri, String scope, String sub, String codeChallenge,
+			String nonce, long authTime) {
 		String code = UUID.randomUUID().toString().replace("-", "");
 		Map<String, Object> data = new LinkedHashMap<>();
 		data.put("clientId", clientId);
@@ -42,6 +48,8 @@ public class AuthorizationCodeIssuer {
 		data.put("scope", scope);
 		data.put("sub", sub);
 		data.put("codeChallenge", codeChallenge);
+		data.put("nonce", nonce);
+		data.put("authTime", authTime);
 		try {
 			redisTemplate.opsForValue().set(KEY_PREFIX + code, objectMapper.writeValueAsString(data), Duration.ofSeconds(ttlSeconds));
 		} catch (Exception e) {
