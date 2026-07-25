@@ -24,29 +24,38 @@ public class IdTokenIssuer {
 	/**
 	 * id token 을 만들어 signing 에 서명을 위임한다. (openid scope 요청 시에만 호출된다)
 	 *      필수 claim(iss/sub/aud/exp/iat)에 더해 nonce(요청에 있었으면), auth_time, at_hash 를 담고..
-	 *      scope 에 따라 profile/email claim 을 덧붙인다.
+	 *      scope 에 따라 profile/email claim 을 덧붙인다. (매핑은 ProfileClaimMapper 가 userinfo 와 공유한다)
 	 *
-	 * 주의. user-directory 가 응답하지 않아도 id token 발급 자체는 계속한다.
-	 *      필수 claim 만으로도 표준상 유효한 id token 이므로, 인증(누가 로그인했는가)을 프로필 조회 실패로 막지 않는다.
+	 * 주의. user-directory 의 실패는 두 갈래로 갈린다.
+	 *      404(사용자가 없다는 확정된 사실)면 발급을 중단하고 UserNotFoundException 을 전파한다.
+	 *      존재하지 않는 주체에 대해 "이 사람이 로그인했다"는 인증 주장을 서명해 내보낼 수 없기 때문이다.
+	 *      그 외 장애(연결 실패·5xx)는 사용자 존재 여부가 미확정이므로 프로필 claim 없이 발급을 계속한다.
+	 *      필수 claim 만으로도 표준상 유효한 id token 이므로, 프로필 조회 실패로 인증까지 막지 않는다.
 	 */
 
 	private final SigningClient signingClient;
 	private final UserDirectoryClient userDirectoryClient;
+	private final ProfileClaimMapper profileClaimMapper;
 	private final String issuer;
 	private final long idTokenTtlSeconds;
 
 	public IdTokenIssuer(
 			SigningClient signingClient,
 			UserDirectoryClient userDirectoryClient,
+			ProfileClaimMapper profileClaimMapper,
 			@Value("${my.issuer}") String issuer,
 			@Value("${my.id-token-ttl-seconds}") long idTokenTtlSeconds
 	) {
 		this.signingClient = signingClient;
 		this.userDirectoryClient = userDirectoryClient;
+		this.profileClaimMapper = profileClaimMapper;
 		this.issuer = issuer;
 		this.idTokenTtlSeconds = idTokenTtlSeconds;
 	}
 
+	/**
+	 * scope 는 공백 구분 문자열이며 호출부(TokenEndpointController)가 code 레코드에서 읽어 그대로 넘긴다. (null 이 올 수 없는 계약)
+	 */
 	public String issue(String sub, String clientId, String scope, String nonce, long authTime, String accessToken) {
 
 		Instant now = Instant.now();
@@ -63,8 +72,8 @@ public class IdTokenIssuer {
 		}
 
 		List<String> scopes = Arrays.asList(scope.split(" "));
-		if (scopes.contains("profile") || scopes.contains("email")) {
-			addProfileClaims(claims, sub, scopes);
+		if (profileClaimMapper.needsProfileLookup(scopes)) {
+			claims.putAll(profileClaimMapper.toClaims(scopes, lookupProfile(sub)));
 		}
 
 		return signingClient.sign(claims);
@@ -84,31 +93,16 @@ public class IdTokenIssuer {
 		}
 	}
 
-	private void addProfileClaims(Map<String, Object> claims, String sub, List<String> scopes) {
-		UserProfile profile;
+	private UserProfile lookupProfile(String sub) {
 		try {
-			profile = userDirectoryClient.getUser(sub);
+			return userDirectoryClient.getUser(sub);
+		} catch (UserDirectoryClient.UserNotFoundException e) {
+			// 확정된 부재 -> 발급 중단. 호출부가 invalid_grant 로 바꾼다.
+			throw e;
 		} catch (Exception e) {
+			// 일시적 조회 불가(사용자 존재 여부 미확정) -> 프로필만 degrade
 			log.warn("user-directory 조회 실패. 프로필 claim 없이 id token 을 발급한다. sub={}", sub);
-			return;
-		}
-		if (profile == null) {
-			return;
-		}
-		if (scopes.contains("profile")) {
-			putIfPresent(claims, "name", profile.name());
-			putIfPresent(claims, "nickname", profile.nickname());
-			putIfPresent(claims, "preferred_username", profile.preferredUsername());
-		}
-		if (scopes.contains("email")) {
-			putIfPresent(claims, "email", profile.email());
-			claims.put("email_verified", profile.emailVerified());
-		}
-	}
-
-	private void putIfPresent(Map<String, Object> claims, String key, String value) {
-		if (StringUtils.hasText(value)) {
-			claims.put(key, value);
+			return null;
 		}
 	}
 }

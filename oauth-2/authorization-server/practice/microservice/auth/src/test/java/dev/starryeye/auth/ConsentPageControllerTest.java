@@ -45,9 +45,12 @@ class ConsentPageControllerTest {
 				"openid profile email", "user-sub-0001", "chal", "xyz789", "nonce-1", 1700000000L);
 	}
 
+	// pending 의 nonce·authTime 이 code 발급 인자로 그대로 흘러야 한다.
+	// 이 사슬이 끊기면 id token 의 nonce 가 사라져 replay 방어가 조용히 없어진다.
 	@Test
 	void approvedScopesAreSavedAndCodeIssued() throws Exception {
 		when(pendingStore.consume("p1")).thenReturn(Optional.of(pending()));
+		when(consentClient.getGrantedScopes("user-sub-0001", "my-client")).thenReturn(List.of());
 		when(codeIssuer.issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong()))
 				.thenReturn("issued-code");
 
@@ -58,11 +61,14 @@ class ConsentPageControllerTest {
 				.andExpect(redirectedUrlPattern("http://127.0.0.1:8080/callback?code=issued-code*"));
 
 		verify(consentClient).saveConsent(eq("user-sub-0001"), eq("my-client"), any());
+		verify(codeIssuer).issue(eq("my-client"), eq("http://127.0.0.1:8080/callback"), eq("openid profile"),
+				eq("user-sub-0001"), eq("chal"), eq("nonce-1"), eq(1700000000L));
 	}
 
 	@Test
 	void scopesBeyondPendingAreIgnored() throws Exception {
 		when(pendingStore.consume("p1")).thenReturn(Optional.of(pending()));
+		when(consentClient.getGrantedScopes("user-sub-0001", "my-client")).thenReturn(List.of());
 		when(codeIssuer.issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong()))
 				.thenReturn("issued-code");
 
@@ -73,6 +79,8 @@ class ConsentPageControllerTest {
 				.andExpect(status().is3xxRedirection());
 
 		verify(consentClient).saveConsent("user-sub-0001", "my-client", List.of("openid"));
+		verify(codeIssuer).issue(eq("my-client"), eq("http://127.0.0.1:8080/callback"), eq("openid"),
+				eq("user-sub-0001"), eq("chal"), eq("nonce-1"), eq(1700000000L));
 	}
 
 	@Test
@@ -111,7 +119,8 @@ class ConsentPageControllerTest {
 				.andExpect(status().is3xxRedirection());
 
 		org.mockito.ArgumentCaptor<String> scopeCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
-		verify(codeIssuer).issue(anyString(), anyString(), scopeCaptor.capture(), anyString(), anyString(), anyString(), anyLong());
+		verify(codeIssuer).issue(eq("my-client"), eq("http://127.0.0.1:8080/callback"), scopeCaptor.capture(),
+				eq("user-sub-0001"), eq("chal"), eq("nonce-1"), eq(1700000000L));
 		assertThat(scopeCaptor.getValue().split(" ")).containsExactlyInAnyOrder("openid", "profile");
 	}
 

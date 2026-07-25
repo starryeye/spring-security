@@ -3,6 +3,7 @@ package dev.starryeye.token;
 import dev.starryeye.token.client.ClientInfo;
 import dev.starryeye.token.client.ClientRegistryClient;
 import dev.starryeye.token.client.SigningClient;
+import dev.starryeye.token.client.UserDirectoryClient;
 import dev.starryeye.token.dto.OAuth2ErrorResponse;
 import dev.starryeye.token.dto.TokenResponse;
 import lombok.RequiredArgsConstructor;
@@ -101,8 +102,14 @@ public class TokenEndpointController {
 		// openid scope 요청 시 id token 을 함께 발급한다 (OIDC)
 		String idToken = null;
 		if (Arrays.asList(data.scope().split(" ")).contains("openid")) {
-			idToken = idTokenIssuer.issue(data.sub(), client.clientId(), data.scope(),
-					data.nonce(), data.authTime(), jwt);
+			try {
+				idToken = idTokenIssuer.issue(data.sub(), client.clientId(), data.scope(),
+						data.nonce(), data.authTime(), jwt);
+			} catch (UserDirectoryClient.UserNotFoundException e) {
+				// code 발급 후 사용자가 삭제된 경우다. 존재하지 않는 주체에 대한 인증 주장(id token)을 만들 수 없으므로
+				// grant 자체를 무효로 본다. code 는 이미 소비됐으니 재시도로 우회되지 않는다.
+				return error(HttpStatus.BAD_REQUEST, "invalid_grant", "subject of the grant no longer exists");
+			}
 		}
 
 		return ResponseEntity.ok(new TokenResponse(jwt, "Bearer", accessTokenTtlSeconds, data.scope(), idToken));
@@ -127,7 +134,7 @@ public class TokenEndpointController {
 		metadata.put("subject_types_supported", List.of("public"));
 		metadata.put("id_token_signing_alg_values_supported", List.of("RS256"));
 		metadata.put("scopes_supported", List.of("openid", "profile", "email"));
-		metadata.put("claims_supported", List.of("sub", "iss", "aud", "exp", "iat", "auth_time", "nonce",
+		metadata.put("claims_supported", List.of("sub", "iss", "aud", "exp", "iat", "auth_time", "nonce", "at_hash",
 				"name", "nickname", "preferred_username", "email", "email_verified"));
 		return metadata;
 	}

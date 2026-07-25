@@ -14,6 +14,8 @@ import java.util.Optional;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -51,6 +53,8 @@ class ConsentControllerTest {
 				.andExpect(jsonPath("$.scopes", hasSize(0)));
 	}
 
+	// 응답은 컨트롤러가 따로 계산하므로, 실제로 저장되는 엔티티까지 봐야 병합 결과가 영속되는지 알 수 있다.
+	// (save 를 통째로 지워도 응답만 보는 단언은 통과한다)
 	@Test
 	void saveMergesWithExistingScopes() throws Exception {
 		ConsentEntity existing = ConsentEntity.builder().sub("user-sub-0001").clientId("my-client")
@@ -63,6 +67,11 @@ class ConsentControllerTest {
 						.content("{\"sub\":\"user-sub-0001\",\"clientId\":\"my-client\",\"scopes\":[\"email\"]}"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.scopes", containsInAnyOrder("openid", "profile", "email")));
+
+		verify(repository).save(argThat(entity ->
+				"user-sub-0001".equals(entity.getSub())
+						&& "my-client".equals(entity.getClientId())
+						&& "openid,profile,email".equals(entity.getScopes())));
 	}
 
 	@Test
@@ -76,5 +85,10 @@ class ConsentControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.sub").value("user-sub-0002"))
 				.andExpect(jsonPath("$.scopes", containsInAnyOrder("openid")));
+
+		verify(repository).save(argThat(entity ->
+				"user-sub-0002".equals(entity.getSub())
+						&& "my-client".equals(entity.getClientId())
+						&& "openid".equals(entity.getScopes())));
 	}
 }

@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.hasItem;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -188,6 +189,27 @@ class TokenEndpointControllerTest {
 		verify(idTokenIssuer, never()).issue(any(), any(), any(), any(), anyLong(), any());
 	}
 
+	// code 발급 후 사용자가 삭제된 경우: id token 을 만들 수 없으므로 grant 를 무효로 본다 (500 도 200 도 아니다)
+	@Test
+	void deletedUserReturnsInvalidGrant() throws Exception {
+		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
+		when(codeStore.consume("code123")).thenReturn(java.util.Optional.of(
+				new AuthorizationCodeData("my-client", "http://127.0.0.1:8080/callback", "openid profile", "user-sub-0001",
+						"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", null, 1700000000L)));
+		when(signingClient.sign(any())).thenReturn("signed-access-token");
+		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any()))
+				.thenThrow(new dev.starryeye.token.client.UserDirectoryClient.UserNotFoundException());
+
+		mockMvc.perform(post("/oauth2/token")
+						.header("Authorization", BASIC)
+						.param("grant_type", "authorization_code")
+						.param("code", "code123")
+						.param("redirect_uri", "http://127.0.0.1:8080/callback")
+						.param("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("invalid_grant"));
+	}
+
 	// discovery metadata: openid-configuration 엔드포인트가 구현된 capability 들을 정확히 광고하는지 검증
 	@Test
 	void openidConfigurationAdvertisesImplementedCapabilities() throws Exception {
@@ -201,14 +223,21 @@ class TokenEndpointControllerTest {
 				.andExpect(jsonPath("$.jwks_uri").value(issuer + "/oauth2/jwks"))
 				.andExpect(jsonPath("$.userinfo_endpoint").value(issuer + "/userinfo"))
 				.andExpect(jsonPath("$.response_types_supported[0]").value("code"))
+				.andExpect(jsonPath("$.response_types_supported.length()").value(1))
 				.andExpect(jsonPath("$.grant_types_supported[0]").value("authorization_code"))
+				.andExpect(jsonPath("$.grant_types_supported.length()").value(1))
 				.andExpect(jsonPath("$.code_challenge_methods_supported[0]").value("S256"))
+				.andExpect(jsonPath("$.code_challenge_methods_supported.length()").value(1))
 				.andExpect(jsonPath("$.subject_types_supported[0]").value("public"))
+				.andExpect(jsonPath("$.subject_types_supported.length()").value(1))
 				.andExpect(jsonPath("$.id_token_signing_alg_values_supported[0]").value("RS256"))
+				.andExpect(jsonPath("$.id_token_signing_alg_values_supported.length()").value(1))
 				.andExpect(jsonPath("$.scopes_supported[0]").value("openid"))
 				.andExpect(jsonPath("$.scopes_supported[1]").value("profile"))
 				.andExpect(jsonPath("$.scopes_supported[2]").value("email"))
-				.andExpect(jsonPath("$.scopes_supported.length()").value(3));
+				.andExpect(jsonPath("$.scopes_supported.length()").value(3))
+				// at_hash 는 id token 에 항상 실리므로 광고 목록에도 있어야 한다
+				.andExpect(jsonPath("$.claims_supported", hasItem("at_hash")));
 	}
 
 	// discovery metadata: 두 표준 경로 (oauth-authorization-server, openid-configuration) 가 동일한 문서를 서빙하는지 검증
