@@ -1,0 +1,13 @@
+### userinfo — access token 으로 사용자 claim 조회 (scope 에 따라 필터링된다)
+### openid profile email 전부 승인된 토큰이면 sub/name/nickname/preferred_username/email/email_verified 전부 응답.
+GET http://localhost:9000/userinfo
+Authorization: Bearer {access_token}
+
+### 무효 토큰 -> 401 invalid_token
+GET http://localhost:9000/userinfo
+Authorization: Bearer not.a.token
+
+### openid scope 없는 토큰 -> 403 insufficient_scope
+
+### discovery (OIDC) — userinfo_endpoint, scopes_supported, claims_supported 확인
+GET http://localhost:9000/.well-known/openid-configuration
