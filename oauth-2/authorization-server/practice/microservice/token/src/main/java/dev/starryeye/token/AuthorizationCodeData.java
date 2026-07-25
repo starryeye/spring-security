@@ -6,6 +6,8 @@ public record AuthorizationCodeData(
 		String redirectUri,
 		String scope,
 		String sub,
-		String codeChallenge
+		String codeChallenge,
+		String nonce,
+		long authTime
 ) {
 }

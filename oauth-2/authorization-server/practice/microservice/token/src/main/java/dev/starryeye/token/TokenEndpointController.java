@@ -30,6 +30,7 @@ public class TokenEndpointController {
 	private final PkceValidator pkceValidator;
 	private final ClientRegistryClient clientRegistryClient;
 	private final SigningClient signingClient;
+	private final IdTokenIssuer idTokenIssuer;
 	private final PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
 
 	@Value("${my.issuer}")
@@ -97,7 +98,14 @@ public class TokenEndpointController {
 
 		String jwt = signingClient.sign(claims);
 
-		return ResponseEntity.ok(new TokenResponse(jwt, "Bearer", accessTokenTtlSeconds, data.scope()));
+		// openid scope 요청 시 id token 을 함께 발급한다 (OIDC)
+		String idToken = null;
+		if (Arrays.asList(data.scope().split(" ")).contains("openid")) {
+			idToken = idTokenIssuer.issue(data.sub(), client.clientId(), data.scope(),
+					data.nonce(), data.authTime(), jwt);
+		}
+
+		return ResponseEntity.ok(new TokenResponse(jwt, "Bearer", accessTokenTtlSeconds, data.scope(), idToken));
 	}
 
 	@GetMapping("/oauth2/jwks")

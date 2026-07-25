@@ -25,6 +25,7 @@ class TokenEndpointControllerTest {
 	@MockitoBean AuthorizationCodeStore codeStore;
 	@MockitoBean ClientRegistryClient clientRegistryClient;
 	@MockitoBean SigningClient signingClient;
+	@MockitoBean IdTokenIssuer idTokenIssuer;
 
 	private static final String BASIC = "Basic " + java.util.Base64.getEncoder()
 			.encodeToString("my-client:secret".getBytes());
@@ -65,7 +66,7 @@ class TokenEndpointControllerTest {
 	void codeBoundToDifferentClientReturnsInvalidGrant() throws Exception {
 		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
 		when(codeStore.consume("code123")).thenReturn(java.util.Optional.of(
-				new AuthorizationCodeData("other-client", "http://127.0.0.1:8080/callback", "openid", "user-sub-0001", "chal")));
+				new AuthorizationCodeData("other-client", "http://127.0.0.1:8080/callback", "openid", "user-sub-0001", "chal", null, 1700000000L)));
 
 		mockMvc.perform(post("/oauth2/token")
 						.header("Authorization", BASIC)
@@ -84,7 +85,7 @@ class TokenEndpointControllerTest {
 		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
 		when(codeStore.consume("code123")).thenReturn(java.util.Optional.of(
 				new AuthorizationCodeData("my-client", "http://127.0.0.1:8080/callback", "openid", "user-sub-0001",
-						"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")));
+						"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", null, 1700000000L)));
 
 		mockMvc.perform(post("/oauth2/token")
 						.header("Authorization", BASIC)

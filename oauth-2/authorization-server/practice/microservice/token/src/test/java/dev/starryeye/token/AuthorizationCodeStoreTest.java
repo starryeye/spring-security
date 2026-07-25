@@ -17,7 +17,7 @@ class AuthorizationCodeStoreTest {
 		ValueOperations<String, String> ops = mock(ValueOperations.class);
 		when(redis.opsForValue()).thenReturn(ops);
 		when(ops.getAndDelete("auth:code:abc")).thenReturn(
-				"{\"clientId\":\"my-client\",\"redirectUri\":\"http://127.0.0.1:8080/callback\",\"scope\":\"openid profile\",\"sub\":\"user-sub-0001\",\"codeChallenge\":\"chal\"}");
+				"{\"clientId\":\"my-client\",\"redirectUri\":\"http://127.0.0.1:8080/callback\",\"scope\":\"openid profile\",\"sub\":\"user-sub-0001\",\"codeChallenge\":\"chal\",\"nonce\":\"nonce-1\",\"authTime\":1700000000}");
 
 		AuthorizationCodeStore store = new AuthorizationCodeStore(redis);
 		Optional<AuthorizationCodeData> result = store.consume("abc");
