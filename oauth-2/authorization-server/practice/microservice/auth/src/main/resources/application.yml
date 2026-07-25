@@ -11,6 +11,8 @@ my:
   user-directory-base-url: http://localhost:8084
   client-registry-base-url: http://localhost:8085
   authorization-code-ttl-seconds: 60
+  pending-authorization-ttl-seconds: 300
+  consent-base-url: http://localhost:8086
 logging:
   level:
     dev.starryeye: DEBUG
