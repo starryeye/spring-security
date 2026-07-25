@@ -41,6 +41,7 @@ public class AccessTokenVerifier {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	public VerifiedToken verify(String token) {
 
 		SignedJWT signedJWT;

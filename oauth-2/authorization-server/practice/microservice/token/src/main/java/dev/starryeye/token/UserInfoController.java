@@ -3,6 +3,7 @@ package dev.starryeye.token;
 import dev.starryeye.token.client.UserDirectoryClient;
 import dev.starryeye.token.client.UserProfile;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 public class UserInfoController {
@@ -23,6 +25,9 @@ public class UserInfoController {
 	 * OIDC userinfo 엔드포인트이다. access token 으로 인증하고 scope 에 대응하는 claim 만 돌려준다.
 	 *      sub 는 항상 포함한다(표준 필수). profile/email scope 가 없으면 해당 claim 은 응답에서 제외한다.
 	 *      에러는 RFC 6750 형식으로 WWW-Authenticate 헤더에 담는다.
+	 *
+	 * 주의. user-directory 조회가 실패해도 200 으로 sub 만 돌려준다(IdTokenIssuer 와 동일한 degrade 전략).
+	 *      표준상 필수인 sub 까지 500 으로 막으면 안 되기 때문이다.
 	 */
 
 	private final AccessTokenVerifier accessTokenVerifier;
@@ -52,7 +57,13 @@ public class UserInfoController {
 		Map<String, Object> response = new LinkedHashMap<>();
 		response.put("sub", verified.sub()); // 표준 필수
 
-		UserProfile profile = userDirectoryClient.getUser(verified.sub());
+		UserProfile profile;
+		try {
+			profile = userDirectoryClient.getUser(verified.sub());
+		} catch (Exception e) {
+			log.warn("user-directory 조회 실패. 프로필 claim 없이 userinfo 를 반환한다. sub={}", verified.sub());
+			profile = null;
+		}
 		if (profile != null) {
 			List<String> scopes = verified.scopes();
 			if (scopes.contains("profile")) {

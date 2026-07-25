@@ -98,4 +98,17 @@ class UserInfoControllerTest {
 				.andExpect(status().isForbidden())
 				.andExpect(header().string("WWW-Authenticate", "Bearer error=\"insufficient_scope\""));
 	}
+
+	@Test
+	void returnsOnlySubWhenUserDirectoryFails() throws Exception {
+		when(accessTokenVerifier.verify("tok")).thenReturn(
+				new AccessTokenVerifier.VerifiedToken("user-sub-0001", List.of("openid", "profile", "email")));
+		when(userDirectoryClient.getUser("user-sub-0001")).thenThrow(new RuntimeException("user-directory down"));
+
+		mockMvc.perform(get("/userinfo").header("Authorization", "Bearer tok"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.sub").value("user-sub-0001"))
+				.andExpect(jsonPath("$.name").doesNotExist())
+				.andExpect(jsonPath("$.email").doesNotExist());
+	}
 }
