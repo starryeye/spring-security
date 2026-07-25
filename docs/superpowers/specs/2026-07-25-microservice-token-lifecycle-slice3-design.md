@@ -29,15 +29,15 @@ token-state 는 **아무도 부르지 않는 순수 데이터 소유자**다. cl
 ```
 auth(8081)  ─ 동의된 scope 를 code 에 실어줄 뿐, refresh token 을 모른다
 token(8082) ─REST─▶ token-state(8087)   발급 · 회전 · 폐기 · 조회
-token(8082) ─REST─▶ client-registry(8085)   introspect 권한 확인 (기존 경로)
+token(8082) ─REST─▶ client-registry(8085)   client 인증 (기존 경로 그대로)
 ```
 
 ### gateway 외부 경로 추가
 
 | 경로 | RFC | 인증 |
 |---|---|---|
-| `POST /oauth2/introspect` | 7662 | Basic(client) + `introspect_allowed` 권한 |
-| `POST /oauth2/revoke` | 7009 | Basic(client), 자기 토큰만 |
+| `POST /oauth2/introspect` | 7662 | Basic(client) — 인증된 등록 client 면 허용 |
+| `POST /oauth2/revoke` | 7009 | Basic(client), 자기 토큰만 실제 폐기 |
 
 `/oauth2/token` 은 기존 경로에 `grant_type=refresh_token` 이 추가되는 것이라 라우팅 변경이 없다.
 
@@ -78,11 +78,13 @@ token(8082) ─REST─▶ client-registry(8085)   introspect 권한 확인 (기�
 
 **설계 판단 — `parent_id` 를 두지 않는다.** 폐기에 필요한 것은 계열 식별자뿐이고, 사슬 순서는 `issued_at` 으로 나온다.
 
-### `clients` 확장 (client-registry 소유)
+### `clients` — 스키마 변경 없음
 
-`introspect_allowed` boolean 추가. **cross-service 계약이 바뀐다** — client-registry 의 `ClientResponse` 와 token 의 `ClientInfo` 레코드에 필드를 함께 추가해야 한다(둘 중 하나만 바꾸면 조용히 기본값이 들어간다).
+introspection · revocation 모두 **client 인증만 요구하고 별도 권한 컬럼을 두지 않는다.** Spring Authorization Server 와 Keycloak 이 실제로 그렇게 동작한다 — RFC 7662 는 "엔드포인트를 보호하라"고만 하고 인가 방식은 정하지 않는다.
 
-revoke 에는 권한 플래그를 두지 않는다. 누구든 **자기** 토큰은 폐기할 수 있어야 하기 때문이다.
+**주의.** 인증된 client 면 **누구의 토큰이든** introspect 할 수 있다는 뜻이다. 큰 시스템에서는 이 권한을 좁히는데, 정석은 client_credentials grant 로 받은 access token 에 `introspect` scope 를 실어 확인하는 방식이다. 이 시스템에는 client_credentials grant 가 아직 없어 다음 슬라이스로 미뤘다.
+
+revoke 는 자기 토큰만 실제로 폐기한다(§5.3).
 
 ### 설정값 (token-state)
 
@@ -96,11 +98,11 @@ my.refresh-family-max-seconds: 2592000   # 30일, 절대 상한
 ### seed 데이터
 
 - `my-client` 의 `grant_types` 에 `refresh_token` 추가, `scopes` 에 `offline_access` 추가
-- introspection 호출자로 쓸 client 하나 신규 seed: `article-api` / secret, `introspect_allowed = true`
+- resource server 역할을 시연할 client 하나 신규 seed: `article-api` / secret
 
-`article-api` 는 인가 흐름에 참여하지 않고 introspection 만 호출하는 client 다. 따라서 `redirect_uris` 와 `grant_types` 를 **빈 문자열**로 둔다. 이때 기존 `grant_types` 검사가 이 client 의 모든 토큰 요청을 자연히 거절하는데, 이는 부작용이 아니라 원하는 동작이다 — 토큰을 발급받을 수 없고 남의 토큰을 조회만 하는 주체다.
+`article-api` 는 인가 모델상 필수가 아니다(인증된 client 면 누구나 introspect 할 수 있으므로). **호출자와 토큰 주인이 다른** 실제 introspection 상황을 e2e 로 보이기 위해 둔다.
 
-**주의.** 별도 테이블이나 client 타입 구분을 두지 않는다. 필요한 것은 "이 자격증명으로 introspect 를 부를 수 있나" 하나뿐이고, 그 답은 컬럼 하나로 나온다.
+인가 흐름에 참여하지 않으므로 `redirect_uris` · `scopes` · `grant_types` 를 **빈 문자열**로 둔다. 그러면 기존 `grant_types` 검사가 이 client 의 모든 토큰 요청을 자연히 거절하는데, 부작용이 아니라 원하는 동작이다 — 토큰을 발급받을 수 없고 남의 토큰을 조회만 하는 주체다.
 
 ---
 
@@ -219,7 +221,11 @@ token=<token>&token_type_hint=<선택>
 - **활성 응답(refresh token)** — 위에서 `token_type` 을 뺀 것. `token_type` 은 RFC 6749 §7.1 이 정의하는 **access token 의 사용 방식**이라 refresh token 에는 의미가 없다
 - **비활성 응답** — `{"active": false}` **그 이상 아무것도 주지 않는다**(RFC 7662 §2.2). 만료 · 폐기 · 형식 오류가 전부 같은 응답이라 구분이 새지 않는다
 
-**조회 권한의 범위** — `introspect_allowed` 가 true 인 client 는 **누구에게 발급된 토큰이든** 조회할 수 있다. resource server 는 자기가 발급받은 적 없는 토큰을 검사하는 것이 본래 역할이기 때문이다. 반대로 `introspect_allowed` 가 false 인 client 는 **자기 토큰조차** 조회할 수 없고 403 을 받는다. RFC 7662 가 이 경우를 규정하지 않아 선택한 값이며, 권한을 컬럼 하나로 유지하기 위한 단순화다.
+**조회 권한의 범위** — **인증된 등록 client 면 누구의 토큰이든** 조회할 수 있다. 이는 resource server 의 본래 상황이 "호출자와 토큰 주인이 다른" 것이기 때문이다. article-api 는 자기 앞으로 발급된 토큰을 가진 적이 없고, 검사 대상은 언제나 my-client 가 받아서 들고 온 토큰이다. 조회를 "자기 토큰만"으로 제한하면 resource server 는 아무것도 조회할 수 없다.
+
+client 인증 실패(잘못된 secret · 미등록 client · Basic 헤더 없음)는 401 `invalid_client` 다.
+
+**주의.** 이 정책은 인증된 client 를 전부 신뢰한다. 상용 구현(SAS · Keycloak)도 같지만, 권한을 좁히려면 client_credentials grant 로 받은 토큰의 `introspect` scope 를 확인하는 것이 정석이다.
 
 ### 5.3 revocation — `POST /oauth2/revoke` (RFC 7009)
 
@@ -306,7 +312,7 @@ revocation_endpoint_auth_methods_supported     ["client_secret_basic"]
 5. 이전 refresh token 재사용 → `invalid_grant`, DB 에서 계열 전체가 REVOKED
 6. revoke 후 그 계열의 refresh 로 회전 시도 → `invalid_grant`
 7. introspect — 살아있는 refresh 는 `active: true` + 필드, 폐기된 것은 `{"active": false}` 뿐
-8. `introspect_allowed` 없는 client 의 introspect → 403
+8. `article-api` 자격증명으로 **my-client 에게 발급된** 토큰을 introspect → `active: true` (호출자 ≠ 토큰 주인). 잘못된 secret → 401 `invalid_client`
 9. 회귀 — 슬라이스 1 · 2 동작(code 재사용, PKCE, userinfo, 동의) 유지
 
 ---
@@ -320,5 +326,6 @@ revocation_endpoint_auth_methods_supported     ["client_secret_basic"]
 - back-channel logout (`sid`, 세션 추적)
 - jwks 캐시 (슬라이스 2 의 알려진 한계)
 - access token 폐기(deny-list) — 폐기를 refresh 한정으로 정한 결정에 따라 범위 밖
+- **client_credentials grant + `introspect` scope** — introspection 인가를 좁히는 정석. 이번에는 "인증된 client 면 허용"으로 두고 다음 슬라이스 후보로 남긴다
 - `typ: at+jwt` 구분, access token `scope` claim 의 RFC 9068 문자열화
 - device grant · CIBA · private_key_jwt
