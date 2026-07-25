@@ -194,4 +194,40 @@ class UserInfoControllerTest {
 
 		verify(accessTokenVerifier, never()).verify(anyString());
 	}
+
+	// RFC 6750 §3.1: 헤더와 쿼리스트링 access_token 을 동시에 쓰는 것도 두 방식 동시 사용이다.
+	// 이전에는 쿼리를 무시하고 헤더만으로 200 을 냈다 - 표준 위반이었다.
+	@Test
+	void headerAndQueryAccessTokenSimultaneouslyReturns400InvalidRequest() throws Exception {
+		mockMvc.perform(get("/userinfo?access_token=other")
+						.header("Authorization", "Bearer tok"))
+				.andExpect(status().isBadRequest())
+				.andExpect(header().string("WWW-Authenticate", "Bearer error=\"invalid_request\""));
+
+		verify(accessTokenVerifier, never()).verify(anyString());
+	}
+
+	// form-encoded POST 라도 access_token 이 쿼리스트링에 실려 있으면(서블릿이 폼 파라미터와 병합) 받지 않는다.
+	// 이전에는 병합된 값을 폼 값처럼 수용했다 - 쿼리 전달을 막는 취지가 무력화됐었다.
+	@Test
+	void formEncodedPostWithQueryAccessTokenIsNotAccepted() throws Exception {
+		mockMvc.perform(post("/userinfo?access_token=tok")
+						.contentType(MediaType.APPLICATION_FORM_URLENCODED))
+				.andExpect(status().isUnauthorized())
+				.andExpect(header().string("WWW-Authenticate", "Bearer"));
+
+		verify(accessTokenVerifier, never()).verify(anyString());
+	}
+
+	// access_token 파라미터 판정은 이름이 정확히 일치할 때만이다 - my_access_token= 같은 값에 오탐하면 안 된다.
+	@Test
+	void queryParameterWithSimilarNameIsNotTreatedAsAccessToken() throws Exception {
+		when(accessTokenVerifier.verify("tok")).thenReturn(
+				new AccessTokenVerifier.VerifiedToken("user-sub-0001", List.of("openid")));
+
+		mockMvc.perform(get("/userinfo?my_access_token=other")
+						.header("Authorization", "Bearer tok"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.sub").value("user-sub-0001"));
+	}
 }
