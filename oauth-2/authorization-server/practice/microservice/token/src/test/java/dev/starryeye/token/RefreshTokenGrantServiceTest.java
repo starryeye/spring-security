@@ -94,6 +94,51 @@ class RefreshTokenGrantServiceTest {
 		assertThat(service.grant(client(), "old-refresh", null).error()).isEqualTo("invalid_grant");
 	}
 
+	@Test
+	void revokedBecomesInvalidGrant() {
+		when(tokenStateClient.rotate("old-refresh", "my-client"))
+				.thenReturn(new RotateResult("REVOKED", null, null, 0L, null, 0L));
+
+		GrantResult result = service.grant(client(), "old-refresh", null);
+
+		assertThat(result.success()).isFalse();
+		assertThat(result.error()).isEqualTo("invalid_grant");
+		verify(accessTokenIssuer, never()).issue(any(), any(), any());
+	}
+
+	@Test
+	void clientMismatchBecomesInvalidGrant() {
+		when(tokenStateClient.rotate("old-refresh", "my-client"))
+				.thenReturn(new RotateResult("CLIENT_MISMATCH", null, null, 0L, null, 0L));
+
+		GrantResult result = service.grant(client(), "old-refresh", null);
+
+		assertThat(result.success()).isFalse();
+		assertThat(result.error()).isEqualTo("invalid_grant");
+		verify(accessTokenIssuer, never()).issue(any(), any(), any());
+	}
+
+	// token-state 가 빈 본문을 준 경우(역직렬화 결과 null)도 rotation 실패와 동일하게 다룬다
+	@Test
+	void nullRotationResultBecomesInvalidGrant() {
+		when(tokenStateClient.rotate("old-refresh", "my-client")).thenReturn(null);
+
+		GrantResult result = service.grant(client(), "old-refresh", null);
+
+		assertThat(result.success()).isFalse();
+		assertThat(result.error()).isEqualTo("invalid_grant");
+		verify(accessTokenIssuer, never()).issue(any(), any(), any());
+	}
+
+	@Test
+	void blankRefreshTokenBecomesInvalidRequest() {
+		GrantResult result = service.grant(client(), "", null);
+
+		assertThat(result.success()).isFalse();
+		assertThat(result.error()).isEqualTo("invalid_request");
+		verify(tokenStateClient, never()).rotate(any(), any());
+	}
+
 	// RFC 6749 6: 축소 요청은 저장된 scope 의 부분집합만 허용한다
 	@Test
 	void narrowedScopeAppliesToThisAccessTokenOnly() {

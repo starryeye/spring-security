@@ -12,7 +12,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
 import java.util.*;
 
 @RestController
@@ -33,6 +32,7 @@ public class TokenEndpointController {
 	private final PkceValidator pkceValidator;
 	private final ClientAuthenticator clientAuthenticator;
 	private final SigningClient signingClient;
+	private final AccessTokenIssuer accessTokenIssuer;
 	private final IdTokenIssuer idTokenIssuer;
 	private final TokenStateClient tokenStateClient;
 	private final RefreshTokenGrantService refreshTokenGrantService;
@@ -97,17 +97,9 @@ public class TokenEndpointController {
 			return error(HttpStatus.BAD_REQUEST, "invalid_grant", "PKCE verification failed");
 		}
 
-		// 5. 표준 claim 구성 + signing 위임
-		Instant now = Instant.now();
-		Map<String, Object> claims = new LinkedHashMap<>();
-		claims.put("iss", issuer);
-		claims.put("sub", data.sub());
-		claims.put("aud", client.clientId());
-		claims.put("iat", now.getEpochSecond());
-		claims.put("exp", now.plusSeconds(accessTokenTtlSeconds).getEpochSecond());
-		claims.put("scope", Arrays.asList(data.scope().split(" ")));
-
-		String jwt = signingClient.sign(claims);
+		// 5. 표준 claim 구성 + signing 위임 (authorization_code 와 refresh_token 이 같은 claim 집합을 내도록
+		// AccessTokenIssuer 로 위임한다 — 두 grant 에서 각각 인라인으로 구성하면 한쪽만 고쳤을 때 조용히 갈라진다)
+		String jwt = accessTokenIssuer.issue(data.sub(), client.clientId(), data.scope());
 
 		// openid scope 요청 시 id token 을 함께 발급한다 (OIDC)
 		String idToken = null;
