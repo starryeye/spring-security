@@ -20,9 +20,13 @@ import java.util.*;
 public class TokenEndpointController {
 
 	/**
-	 * authorization code 를 access token 으로 교환한다. (직접 구현, SAS starter 미사용)
-	 *      절차: client 인증(Basic) -> code 1회 소비(Redis GETDEL) -> code 바인딩/PKCE 대조 -> 표준 claim 구성 -> signing 위임 -> JWT 응답.
+	 * authorization_code 와 refresh_token 두 grant 를 access token 으로 교환한다. (직접 구현, SAS starter 미사용)
+	 *      authorization_code 절차: client 인증(Basic) -> code 1회 소비(Redis GETDEL) -> code 바인딩/PKCE 대조
+	 *      -> 표준 claim 구성 -> signing 위임 -> JWT 응답. refresh_token 은 RefreshTokenGrantService 에 위임한다.
 	 *      jwks 는 signing 이 소유하므로 프록시로 노출하고, 메타데이터 엔드포인트는 정적으로 구성한다.
+	 *
+	 * 주의. grant type 검사는 client 인증 다음에 한다. 순서가 반대면 인증되지 않은 요청도 이 서버가 어떤 grant 를
+	 *      지원하는지 알아낼 수 있다.
 	 */
 
 	private final AuthorizationCodeStore codeStore;
@@ -31,6 +35,7 @@ public class TokenEndpointController {
 	private final SigningClient signingClient;
 	private final IdTokenIssuer idTokenIssuer;
 	private final TokenStateClient tokenStateClient;
+	private final RefreshTokenGrantService refreshTokenGrantService;
 
 	@Value("${my.issuer}")
 	private String issuer;
@@ -44,19 +49,33 @@ public class TokenEndpointController {
 			@RequestParam("grant_type") String grantType,
 			@RequestParam(value = "code", required = false) String code,
 			@RequestParam(value = "redirect_uri", required = false) String redirectUri,
-			@RequestParam(value = "code_verifier", required = false) String codeVerifier
+			@RequestParam(value = "code_verifier", required = false) String codeVerifier,
+			@RequestParam(value = "refresh_token", required = false) String refreshTokenParam,
+			@RequestParam(value = "scope", required = false) String scopeParam
 	) {
-		if (!"authorization_code".equals(grantType)) {
-			return error(HttpStatus.BAD_REQUEST, "unsupported_grant_type", "only authorization_code is supported");
-		}
-
-		// 1. client 인증 (Basic)
+		// 1. client 인증 (Basic) — grant type 검사보다 먼저 한다. 순서가 반대면 인증되지 않은 요청도
+		// "이 서버가 어떤 grant 를 지원하는지" 알아낼 수 있다.
 		ClientInfo client;
 		try {
 			client = clientAuthenticator.authenticate(authorization);
 		} catch (ClientAuthenticator.ClientAuthenticationException e) {
 			return error(HttpStatus.UNAUTHORIZED, "invalid_client", e.getMessage());
 		}
+
+		if (!"authorization_code".equals(grantType) && !"refresh_token".equals(grantType)) {
+			return error(HttpStatus.BAD_REQUEST, "unsupported_grant_type",
+					"only authorization_code and refresh_token are supported");
+		}
+
+		if ("refresh_token".equals(grantType)) {
+			GrantResult result = refreshTokenGrantService.grant(client, refreshTokenParam, scopeParam);
+			if (!result.success()) {
+				// unauthorized_client · invalid_grant · invalid_scope · invalid_request 는 RFC 6749 5.2 상 모두 400 이다
+				return error(HttpStatus.BAD_REQUEST, result.error(), result.errorDescription());
+			}
+			return ResponseEntity.ok(result.response());
+		}
+
 		if (!client.grantTypes().contains("authorization_code")) {
 			return error(HttpStatus.BAD_REQUEST, "unauthorized_client", "client not authorized for authorization_code grant");
 		}

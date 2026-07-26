@@ -5,6 +5,7 @@ import dev.starryeye.token.client.ClientRegistryClient;
 import dev.starryeye.token.client.IssuedRefreshToken;
 import dev.starryeye.token.client.SigningClient;
 import dev.starryeye.token.client.TokenStateClient;
+import dev.starryeye.token.dto.TokenResponse;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -33,6 +35,7 @@ class TokenEndpointControllerTest {
 	@MockitoBean SigningClient signingClient;
 	@MockitoBean IdTokenIssuer idTokenIssuer;
 	@MockitoBean TokenStateClient tokenStateClient;
+	@MockitoBean RefreshTokenGrantService refreshTokenGrantService;
 
 	private static final String BASIC = "Basic " + java.util.Base64.getEncoder()
 			.encodeToString("my-client:secret".getBytes());
@@ -328,6 +331,44 @@ class TokenEndpointControllerTest {
 				.andExpect(jsonPath("$.refresh_token").doesNotExist());
 
 		verify(tokenStateClient, never()).issue(any(), any(), any(), anyLong());
+	}
+
+	@Test
+	void refreshGrantDelegatesToRefreshTokenGrantService() throws Exception {
+		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
+		when(refreshTokenGrantService.grant(any(), eq("old-refresh"), isNull()))
+				.thenReturn(GrantResult.ok(new TokenResponse("new-access", "Bearer", 300L,
+						"openid", null, "new-refresh")));
+
+		mockMvc.perform(post("/oauth2/token")
+						.header("Authorization", BASIC)
+						.param("grant_type", "refresh_token")
+						.param("refresh_token", "old-refresh"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.access_token").value("new-access"))
+				.andExpect(jsonPath("$.refresh_token").value("new-refresh"));
+	}
+
+	@Test
+	void refreshGrantFailureBecomesOAuth2Error() throws Exception {
+		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
+		when(refreshTokenGrantService.grant(any(), any(), any()))
+				.thenReturn(GrantResult.failed("invalid_grant", "refresh token is not valid"));
+
+		mockMvc.perform(post("/oauth2/token")
+						.header("Authorization", BASIC)
+						.param("grant_type", "refresh_token")
+						.param("refresh_token", "old-refresh"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("invalid_grant"));
+	}
+
+	// 인증 없는 요청은 grant type 을 알아내기 전에 막힌다
+	@Test
+	void unsupportedGrantTypeWithoutCredentialsIsInvalidClient() throws Exception {
+		mockMvc.perform(post("/oauth2/token").param("grant_type", "password"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("invalid_client"));
 	}
 
 	private ClientInfo clientInfo() {
