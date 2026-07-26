@@ -142,12 +142,16 @@ public class TokenEndpointController {
 		metadata.put("authorization_endpoint", issuer + "/oauth2/authorize");
 		metadata.put("jwks_uri", issuer + "/oauth2/jwks");
 		metadata.put("userinfo_endpoint", issuer + "/userinfo");
+		metadata.put("introspection_endpoint", issuer + "/oauth2/introspect");
+		metadata.put("revocation_endpoint", issuer + "/oauth2/revoke");
 		metadata.put("code_challenge_methods_supported", List.of("S256"));
-		metadata.put("grant_types_supported", List.of("authorization_code"));
+		metadata.put("grant_types_supported", List.of("authorization_code", "refresh_token"));
 		metadata.put("response_types_supported", List.of("code"));
 		metadata.put("subject_types_supported", List.of("public"));
 		metadata.put("id_token_signing_alg_values_supported", List.of("RS256"));
-		metadata.put("scopes_supported", List.of("openid", "profile", "email"));
+		metadata.put("introspection_endpoint_auth_methods_supported", List.of("client_secret_basic"));
+		metadata.put("revocation_endpoint_auth_methods_supported", List.of("client_secret_basic"));
+		metadata.put("scopes_supported", List.of("openid", "profile", "email", "offline_access"));
 		metadata.put("claims_supported", List.of("sub", "iss", "aud", "exp", "iat", "auth_time", "nonce", "at_hash",
 				"name", "nickname", "preferred_username", "email", "email_verified"));
 		return metadata;
