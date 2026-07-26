@@ -1,9 +1,10 @@
-# microservice authorization server (슬라이스 1 + 슬라이스 2: OIDC)
+# microservice authorization server (슬라이스 1 + 슬라이스 2: OIDC + 슬라이스 3: 토큰 수명 관리)
 
-- Spring Authorization Server starter **없이** OAuth/OIDC 로직을 직접 구현하고, 하나의 인가 서버를 **7개 독립 마이크로서비스**로 쪼갠 학습 프로젝트다.
+- Spring Authorization Server starter **없이** OAuth/OIDC 로직을 직접 구현하고, 하나의 인가 서버를 **8개 독립 마이크로서비스**로 쪼갠 학습 프로젝트다.
 - 슬라이스 1 의 목표: **authorization code + PKCE(S256) flow 하나**를 6개 서비스로 관통시키는 것. (완료)
-- 슬라이스 2 의 목표: 그 위에 **OIDC(id token 발급 · userinfo · consent 화면/기록 분리)** 를 얹는 것. consent 를 7번째 서비스로 신설하고, token 이 openid scope 요청 시 id token 을 함께 발급하며 `/userinfo` 를 제공한다. (완료, refresh/introspection/admin 등록 API/내부 서비스 간 인증/Kafka 는 여전히 이후 과제)
-- "빅테크는 인가 서버를 내부적으로 여러 서비스로 분해한다"(토큰 발급/로그인 UX/디렉토리/키 관리/동의 기록 분리, KMS 키 격리)를 축소판으로 재현한다.
+- 슬라이스 2 의 목표: 그 위에 **OIDC(id token 발급 · userinfo · consent 화면/기록 분리)** 를 얹는 것. consent 를 7번째 서비스로 신설하고, token 이 openid scope 요청 시 id token 을 함께 발급하며 `/userinfo` 를 제공한다. (완료)
+- 슬라이스 3 의 목표: **토큰 수명 관리(refresh token 회전 · 재사용 탐지 · introspection · revocation)**. refresh token 계열(family)과 폐기 상태를 소유하는 8번째 서비스 token-state 를 신설하고, token 이 `grant_type=refresh_token` / `POST /oauth2/introspect` / `POST /oauth2/revoke` 를 제공한다. (완료, 내부 서비스 간 인증/back-channel logout/admin 등록 API/Kafka 는 여전히 이후 과제)
+- "빅테크는 인가 서버를 내부적으로 여러 서비스로 분해한다"(토큰 발급/로그인 UX/디렉토리/키 관리/동의 기록/토큰 상태 분리, KMS 키 격리)를 축소판으로 재현한다.
 
 ## 구도
 
@@ -13,7 +14,8 @@
    ▼
  gateway (nginx, :9000)  ── 경로로 라우팅, /internal/* 은 외부 비노출
    ├─ /oauth2/authorize, /login, /oauth2/consent ─▶ auth (:8081)   front-channel
-   └─ /oauth2/token, /oauth2/jwks, /.well-known, /userinfo ─▶ token (:8082)  back-channel
+   └─ /oauth2/token, /oauth2/jwks, /.well-known, /userinfo,
+      /oauth2/introspect, /oauth2/revoke ─▶ token (:8082)  back-channel
                                                  │
    auth ─▶ user-directory (:8084)  로그인 credential 검증 위임
    auth ─▶ client-registry (:8085) client 메타 조회 (+Caffeine 캐시)
@@ -26,9 +28,10 @@
    token ─▶ client-registry        client 인증(bcrypt) 검증
    token ─▶ signing (:8083)        JWT 서명 위임 (access token + id token, 개인키는 signing 만 보유)
    token ─▶ user-directory         id token/userinfo 의 profile·email claim 조회
+   token ─▶ token-state (:8087)    refresh token 발급/회전/폐기/조회 (외부 비노출, token 만 호출)
    token, signing ─▶ jwks          공개키 노출
 
- MySQL : user-directory(users), client-registry(clients), consent(consents)
+ MySQL : user-directory(users), client-registry(clients), consent(consents), token-state(refresh_tokens)
  Redis : authorization code, pending authorization(동의 대기), 로그인 세션(Spring Session)
 ```
 
@@ -55,16 +58,17 @@ flowchart TB
         userdir["user-directory :8084<br/>사용자 · credential · profile"]
         clientreg["client-registry :8085<br/>client 메타 · Caffeine 캐시"]
         consent["consent :8086<br/>동의 기록 소유"]
+        tokenstate["token-state :8087<br/>refresh token 계열 · 폐기 상태 소유"]
     end
 
     subgraph stores["저장소"]
-        mysql[("MySQL<br/>users · clients · consents")]
+        mysql[("MySQL<br/>users · clients · consents · refresh_tokens")]
         redis[("Redis<br/>auth code · pending · 세션")]
         keystore["keystore PKCS12<br/>(signing 만 보유)"]
     end
 
     browser -->|"/oauth2/authorize, /login, /oauth2/consent"| gateway
-    browser -->|"/oauth2/token, /oauth2/jwks, /.well-known, /userinfo"| gateway
+    browser -->|"/oauth2/token, /oauth2/jwks, /.well-known, /userinfo,<br/>/oauth2/introspect, /oauth2/revoke"| gateway
     gateway --> auth
     gateway --> token
 
@@ -78,10 +82,12 @@ flowchart TB
     token -->|"code 원자 소비 GETDEL"| redis
     token -->|"서명 위임 (access token · id token) / jwks 프록시"| signing
     token -->|"profile·email claim 조회"| userdir
+    token -->|"발급 · 회전 · 폐기 · 조회 (내부 API)"| tokenstate
 
     userdir --> mysql
     clientreg --> mysql
     consent --> mysql
+    tokenstate --> mysql
     signing --- keystore
 ```
 
@@ -91,17 +97,19 @@ flowchart TB
 |---|---|---|---|
 | gateway | 9000 | nginx 경로 라우팅 (front/back-channel 분리, /internal/* 격리) | 없음 |
 | auth | 8081 | front-channel: 로그인, `/oauth2/authorize`(동의 화면 렌더 포함), `/oauth2/consent`(제출), code 발급 | (Redis code, pending, 세션) |
-| token | 8082 | back-channel: `/oauth2/token`(id token 포함), `/userinfo`, jwks 프록시, discovery | (Redis code 소비) |
+| token | 8082 | back-channel: `/oauth2/token`(authorization_code + refresh_token grant, id token 포함), `/userinfo`, `/oauth2/introspect`, `/oauth2/revoke`, jwks 프록시, discovery | (Redis code 소비) |
 | signing | 8083 | JWT 서명 전담 + jwks 공개. **개인키 독점** | keystore(PKCS12) |
 | user-directory | 8084 | 사용자 조회 + credential 검증(bcrypt 를 이 안에 가둠) + profile claim | users (MySQL) |
 | client-registry | 8085 | client 조회 API + Caffeine 캐시(30s) | clients (MySQL) |
 | consent | 8086 | 동의 기록 조회/저장 API (내부 전용, 화면은 auth 가 렌더) | consents (MySQL) |
+| token-state | 8087 | refresh token 계열(family) 발급 · 회전 · 재사용 탐지 · 폐기 · introspection 조회 API (내부 전용, 외부 비노출) | refresh_tokens (MySQL) |
 
 핵심 설계 원칙:
-- **데이터 소유권 분리** — auth 는 사용자/client/동의 DB 를 직접 안 보고 user-directory/client-registry/consent 를 REST 로 호출한다.
+- **데이터 소유권 분리** — auth 는 사용자/client/동의 DB 를 직접 안 보고 user-directory/client-registry/consent 를 REST 로 호출한다. 마찬가지로 token 은 refresh token 의 상태를 직접 보지 않고 token-state 를 호출한다.
 - **키 격리** — signing 만 개인키를 가진다. token 이 털려도 개인키는 안 나간다. (KMS 축소판)
 - **상태 외부화** — auth 가 만든 code 를 token 이 Redis 로 넘겨받는다. 동의 화면 왕복 중인 인가 요청(pending)도 화면에는 불투명 id 만 내보내고 실제 값은 Redis 에 둔다. (서비스 경계를 넘는 flow)
 - **동의는 fail-closed** — consent 조회가 실패하면(다운 등) "승인 여부 모름"을 "승인함"으로 취급하지 않고 예외를 그대로 전파한다. 동의 없이 토큰이 발급되는 것을 막기 위함이다.
+- **회전은 한 번의 호출로 원자화** — token 이 refresh token 의 "유효한가"와 "다음 토큰으로 넘어간다"를 왕복 두 번으로 나누지 않고, token-state 의 `POST /internal/refresh-tokens/rotate` 하나로 위임한다. 판정과 전이를 쪼개면 그 사이 경쟁 창에서 재사용 탐지가 무력해진다.
 
 ## 기동 방법
 
@@ -109,22 +117,24 @@ flowchart TB
    ```bash
    cd docker-compose && docker compose -p microservice-as up -d
    ```
-2. 6개 서비스 빌드 (java 21)
+2. 7개 서비스 빌드 (java 21)
    ```bash
-   for s in signing user-directory client-registry consent token auth; do (cd $s && ./gradlew bootJar --no-daemon -q); done
+   for s in signing user-directory client-registry consent token-state token auth; do (cd $s && ./gradlew bootJar --no-daemon -q); done
    ```
-3. **의존성 순서로** 기동 (signing → user-directory → client-registry → consent → token → auth)
+3. **의존성 순서로** 기동 (signing → user-directory → client-registry → consent → token-state → token → auth)
    ```bash
    java -jar signing/build/libs/*.jar          # 8083
    java -jar user-directory/build/libs/*.jar    # 8084
    java -jar client-registry/build/libs/*.jar   # 8085
    java -jar consent/build/libs/*.jar           # 8086
+   java -jar token-state/build/libs/*.jar       # 8087
    java -jar token/build/libs/*.jar             # 8082
    java -jar auth/build/libs/*.jar              # 8081
    ```
-   - seed: user / 1111 (user-directory, profile 포함: name `Star Rye`, email `starryeye@example.com` 등), client `my-client` / `secret` (client-registry, redirectUri `http://127.0.0.1:8080/callback`, scope `openid profile email`)
+   - seed: user / 1111 (user-directory, profile 포함: name `Star Rye`, email `starryeye@example.com` 등), client `my-client` / `secret` (client-registry, redirectUri `http://127.0.0.1:8080/callback`, scope `openid profile email offline_access`, grantTypes `authorization_code refresh_token`), client `article-api` / `secret`(client-registry, resource server 역할 — 인가 흐름에는 참여하지 않고 introspection 호출자로만 쓰인다. grantTypes 가 비어 있어 토큰 발급 자체는 거절된다)
    - 모든 요청은 gateway(http://localhost:9000) 로 보낸다.
    - 주의. `ddl-auto: update` 라 컨테이너/DB 를 재사용하면 seed 는 "이미 행이 있으면 스킵"으로 동작해 **이전 seed 스키마의 값이 남을 수 있다**(예: client 의 `email` scope, user 의 profile 컬럼이 나중에 추가된 경우). seed 코드와 실제 DB 값이 다르면 `UPDATE` 로 맞추거나 볼륨을 새로 만든다.
+   - 주의. 슬라이스 1·2 때부터 존재하던 `my-client` 행이 그 예다. 슬라이스 3 seed 는 `scopes` 에 `offline_access`, `grant_types` 에 `refresh_token` 을 기대하지만, 기존 행은 `ddl-auto: update` 때문에 갱신되지 않는다. `scopes='openid,profile,email,offline_access'`, `grant_types='authorization_code,refresh_token'` 로 `UPDATE` 하고(seed 코드가 신규 client 에 실제로 심는 값과 동일하다 — 임의 값이 아니다) client-registry 를 재기동해 Caffeine 캐시(30s)를 비워야 한다.
 
 ## 관통 flow (http/ 참고)
 
@@ -133,9 +143,13 @@ flowchart TB
 3. authorize 재요청 → auth 가 client/redirect_uri/PKCE/scope 검증 후, **consent 에 이미 승인된 scope 를 조회한다**. 미승인 scope 가 있으면 pending 을 Redis 에 저장하고 동의 화면(`consent.html`)을 그대로 렌더한다(별도 GET 핸들러가 아니다 — 동의 화면은 `GET /oauth2/authorize` 자신이 그린다).
 4. `POST /oauth2/consent` (pending_id, 체크된 scope) → auth 가 pending 을 소비(1회성)하고, 제출값과 pending 의 교집합만 승인 처리 → consent 에 저장(합집합 병합) → code 발급(Redis 저장, nonce·authTime 포함) → redirect_uri 로 302. 승인 scope 가 하나도 없으면 `error=access_denied` 로 302.
 5. 이미 승인된 scope 의 부분집합만 요청하면 3번에서 미승인 scope 가 없으므로 **동의 화면 없이 바로 code** 가 발급된다.
-6. `POST /oauth2/token` (Basic my-client:secret, code, code_verifier) → token 이 client 인증 → code 원자 소비 → 바인딩/PKCE 검증 → claim 구성 → signing 에 access token 서명 위임 → **scope 에 `openid` 가 있으면** id token 도 함께 발급한다(nonce·auth_time·at_hash, profile/email scope 면 user-directory 조회 후 name/email 등 claim 추가) → `{access_token, id_token, ...}`
+6. `POST /oauth2/token` (Basic my-client:secret, code, code_verifier) → token 이 client 인증 → code 원자 소비 → 바인딩/PKCE 검증 → claim 구성 → signing 에 access token 서명 위임 → **scope 에 `openid` 가 있으면** id token 도 함께 발급한다(nonce·auth_time·at_hash, profile/email scope 면 user-directory 조회 후 name/email 등 claim 추가) → **scope 에 `offline_access` 가 있고 client 의 grantTypes 에 `refresh_token` 도 등록돼 있으면** token-state 에 refresh token 발급을 위임한다 → `{access_token, id_token, refresh_token, ...}`
 7. `GET` 또는 `POST /userinfo` (Bearer access token) → token 이 jwks 로 access token 자체 검증 후 scope 에 대응하는 claim 만 돌려준다 (`openid` 없으면 403). `profile`/`email` scope 가 없으면 user-directory 를 조회하지 않는다.
 8. client 의 등록 grantTypes 를 authorize/token 양쪽에서 강제한다 — 등록된 grantTypes 에 `authorization_code` 가 없으면 authorize 는 `unauthorized_client` 로 redirect, token 은 `unauthorized_client`(400) 로 거부한다.
+9. `POST /oauth2/token` (grant_type=refresh_token, refresh_token) → token 이 client 인증 후 **판정과 전이를 한 번에 묶어** token-state 의 `POST /internal/refresh-tokens/rotate` 를 호출한다. 성공하면 이전 refresh token 은 CONSUMED 로 바뀌고 같은 계열(family)에 새 refresh token 이 발급되며, 새 access token(및 openid scope 면 id token — nonce 없이, auth_time 은 최초 인증 시각 유지)이 함께 나간다. `scope` 파라미터를 함께 보내면 이번 access token 에만 좁혀지고 저장된 refresh 의 scope 는 그대로다.
+10. 이미 소진(CONSUMED)된 refresh token 이 다시 오면 **재사용으로 간주해 계열 전체를 REVOKED 로 폐기**한다 — 공격자가 훔쳐 먼저 회전했든 정상 client 가 나중에 재시도했든, 늦게 온 쪽이 CONSUMED 를 만나 계열이 죽으므로 양쪽 다 재인증으로 떨어진다.
+11. `POST /oauth2/revoke` (Basic client:secret, token=refresh_token) → 해당 토큰이 속한 계열 전체를 폐기한다. 존재하지 않는 토큰·다른 client 의 토큰·이미 폐기된 토큰 모두 `200` 으로 동일하게 응답한다(RFC 7009 2.2, 탐색 방지). access token 은 폐기 대상이 아니다.
+12. `POST /oauth2/introspect` (Basic client:secret, token) → 먼저 JWT 로컬 검증을 시도하고(서명·`exp`), 성공하면 access token 으로 응답한다. 실패하면(형식이 다르거나 서명 불일치) refresh token 일 수 있으므로 token-state 에 조회를 위임한다. 인증된 client 라면 자신이 발급받지 않은 토큰도 조회할 수 있다(resource server 가 다른 client 의 토큰을 검사하는 것이 introspection 의 목적이므로).
 
 ## API 별 시퀀스 다이어그램
 
@@ -329,6 +343,97 @@ sequenceDiagram
     T-->>CL: 200 {sub, [name, nickname, preferred_username], [email, email_verified]}
 ```
 
+### `POST /oauth2/token` (`grant_type=refresh_token`) — refresh 회전
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor CL as 클라이언트
+    participant G as gateway · nginx
+    participant T as token
+    participant C as client-registry
+    participant TS as token-state
+    participant S as signing
+
+    CL->>G: POST /oauth2/token<br/>Basic(client_id:secret), grant_type=refresh_token, refresh_token, [scope]
+    G->>T: proxy
+    T->>C: GET /internal/clients/{client_id}
+    C-->>T: 200 {clientSecretHash, grantTypes, ...}
+    Note over T: client 인증(bcrypt) → 실패 시 invalid_client 401<br/>grantTypes 에 refresh_token 없으면 → unauthorized_client
+    T->>TS: POST /internal/refresh-tokens/rotate {refreshToken, clientId}
+    Note over TS: 판정과 전이를 한 트랜잭션 · 한 번의 호출로 끝낸다(왕복을 쪼개면 경쟁 창이 생긴다).<br/>계열 전체를 먼저 잠그고(findByFamilyIdForUpdate) 그 안에서 대상 행을 찾아 판정한다.<br/>ACTIVE 면 CONSUMED 로 전이하고 같은 family_id 로 새 행을 발급한다.
+    alt 회전 성공 (ROTATED)
+        TS-->>T: 200 {status=ROTATED, sub, scope, authTime, refreshToken(새 값), expiresAt}
+        Note over T: scope 파라미터가 있으면 저장 scope 의 부분집합인지 검사(RFC 6749 6).<br/>이번 access token 에만 좁혀지고 저장 scope 는 그대로 유지된다.
+        T->>S: POST /internal/sign {claims} (access token)
+        S-->>T: {jwt}
+        opt scope 에 openid 포함
+            Note over T: nonce 는 싣지 않는다(재발급 토큰에 실으면 리플레이 방어가 깨진다).<br/>auth_time 은 최초 인증 시각을 그대로 유지한다(OIDC Core 12.2).
+            T->>S: POST /internal/sign {claims} (id token)
+            S-->>T: {jwt}
+        end
+        T-->>CL: 200 {access_token, [id_token], refresh_token(새 값), ...}
+    else 회전 거부 (NOT_FOUND · CLIENT_MISMATCH · REVOKED · EXPIRED · REUSE_DETECTED)
+        TS-->>T: 200 {status=그 사유}
+        Note over T: 사유를 그대로 노출하지 않고 전부 invalid_grant 로 뭉갠다.<br/>"이미 소진됐다"와 "그런 토큰 없다"를 구분해 주면 탐색을 돕는다. 사유는 로그에만 남긴다.
+        T-->>CL: 400 invalid_grant
+    end
+```
+
+### 소진된 refresh token 재사용 — 재사용 탐지 → 계열 폐기
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor A as 정상 client (또는 훔친 토큰의 공격자)
+    participant T as token
+    participant TS as token-state
+
+    Note over A,TS: 앞의 회전 다이어그램으로 refresh token 하나가 이미 CONSUMED 로 전이됐다고 가정한다.<br/>(정상 client 의 응답 유실 후 재시도든, 탈취한 토큰으로 뒤늦게 시도한 공격자든 이 시점부터는 구분되지 않는다)
+
+    A->>T: POST /oauth2/token grant_type=refresh_token<br/>refresh_token={이미 CONSUMED 인 토큰}
+    T->>TS: POST /internal/refresh-tokens/rotate
+    Note over TS: familyId 로 계열 전체를 findByFamilyIdForUpdate 로 잠근 뒤(잠금 순서는 항상<br/>"계열 → 대상 행" 하나만 쓴다 — 반대 순서가 하나라도 있으면 revoke 와 교착 가능),<br/>대상 행이 CONSUMED 임을 확인한다.
+    Note over TS: 재사용으로 판정 → 방금 잠근 계열의 모든 행을 REVOKED / REUSE_DETECTED 로 전이한다.<br/>정상 client 와 공격자 중 누가 먼저 회전했든, 다른 쪽이 이 경로를 타므로<br/>계열에 남아있던 "현재 유효한" 토큰까지 포함해 계열 전체가 죽는다.
+    TS-->>T: 200 {status=REUSE_DETECTED}
+    T-->>A: 400 invalid_grant
+
+    Note over A,TS: 계열의 다른 행(정상 client 가 직전 회전으로 받아 아직 쓰지 않은 최신 refresh token)으로<br/>다시 회전을 시도해도 이미 REVOKED 이므로 마찬가지로 invalid_grant 다. 재인증(authorization_code)부터 다시 해야 한다.
+```
+
+### `POST /oauth2/introspect` — JWT 로컬 검증 우선, 실패 시에만 token-state 조회
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor V as 호출자 (인증된 client — 토큰 주인이 아니어도 된다)
+    participant G as gateway · nginx
+    participant T as token
+    participant S as signing
+    participant TS as token-state
+
+    V->>G: POST /oauth2/introspect<br/>Basic(caller_client_id:secret), token, [token_type_hint]
+    G->>T: proxy
+    Note over T: caller 를 client-registry 로 인증한다(bcrypt). 실패 → 401 invalid_client.<br/>token_type_hint 는 분기에 쓰지 않는다(RFC 7662 2.1 — 힌트는 틀릴 수 있다).
+    T->>T: AccessTokenVerifier.verify(token) 시도<br/>(JWT 파싱 → jwks 서명 검증 → exp/iss 확인)
+    alt JWT 로 유효 (access token)
+        Note over T: access token 은 여기서 끝난다 — token-state 를 조회하지 않는다.<br/>이 서버는 폐기를 refresh 한정으로 정했으므로 활성 여부는 서명·exp 만으로 결정된다.
+        T-->>V: 200 {active:true, sub, client_id, scope, exp, iat, iss, token_type=Bearer}
+    else JWT 파싱/검증 실패 (형식이 다르거나 signing 이 모르는 kid 등)
+        Note over T: refresh token 일 수 있으므로 token-state 에 묻는다.
+        T->>TS: POST /internal/refresh-tokens/introspect {refreshToken}
+        alt 존재 + ACTIVE + 미만료
+            TS-->>T: 200 {active:true, sub, clientId, scope, exp, iat}
+            Note over T: token_type 은 넣지 않는다 — refresh token 은 리소스 접근에 쓰이지 않는다.
+            T-->>V: 200 {active:true, sub, client_id, scope, exp, iat, iss}
+        else 없음 · REVOKED · CONSUMED · 만료
+            TS-->>T: 200 {active:false}
+            Note over T: 사유(만료 · 폐기 · 애초에 존재하지 않음)를 구분하지 않는다(RFC 7662 2.2).<br/>구분해 주면 토큰을 쥔 쪽이 그 토큰의 내력을 알아낼 수 있다.
+            T-->>V: 200 {active:false}
+        end
+    end
+```
+
 ## 검증된 성공 기준 (e2e, 게이트웨이 경유)
 
 ### 슬라이스 1 (authorization code + PKCE)
@@ -355,9 +460,20 @@ sequenceDiagram
 15. **user-directory 사용자 부재 → 401** — `users` 테이블에서 발급받은 access token 의 sub 에 해당하는 행을 삭제한 뒤 같은 토큰으로 `/userinfo` 를 호출하면 `401` + `WWW-Authenticate: Bearer error="invalid_token"` (404 는 "확정된 부재"이므로 degrade 가 아니라 실효 처리). 확인 후 행을 원복.
 16. **signing 장애 시 `/userinfo` → 500 `server_error`** — signing 프로세스를 내린 채 `/userinfo` 를 호출하면 `401` 이 아니라 `500` + `{"error":"server_error"}`. "키를 못 구했다"를 401 로 내면 RP 가 멀쩡한 토큰을 폐기하고 재인증을 돌리므로 신중히 구분해야 한다는 설계 의도가 실제로 지켜짐을 확인. signing 재기동 후 `/userinfo` 가 다시 `200` 으로 복귀하는 것도 함께 확인.
 
-## 슬라이스 2에서도 제외 (이후 sub-project)
+### 슬라이스 3 (토큰 수명 관리: refresh 회전 · 재사용 탐지 · introspection · revocation)
 
-refresh token, introspection, back-channel logout(sid), admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네트워크 가정), Kafka 인증 이벤트 스트림, 관측성/서킷브레이커.
+17. **offline_access 동의 → refresh 발급** — `scope=openid profile offline_access` 로 동의 화면을 거치면 화면에 `offline_access` 체크박스가 렌더되고, 승인 후 토큰 응답에 `refresh_token` 이 포함된다(`scope: "openid profile offline_access"`).
+18. **offline_access 미요청 시 refresh 없음** — 같은 client 로 `scope=openid profile` 만 요청하면(이미 승인된 scope 의 부분집합이라 동의 화면 생략) 토큰 응답에 `refresh_token` 이 없다.
+19. **refresh grant 회전 + id token 재발급 규칙** — `grant_type=refresh_token` 으로 교환하면 새 `access_token`·새 `refresh_token` 이 나오고, 새 id token 은 `nonce` 를 싣지 않으며, `auth_time` 은 최초 발급분과 동일하고, `at_hash` 는 새 access token 을 SHA-256 좌측 절반으로 재계산한 값과 일치한다.
+20. **재사용 탐지 → 계열 폐기** — 이미 소진(회전에 쓰인) refresh token 을 다시 제출하면 `invalid_grant`. 이 시점 계열의 행(초기 발급분 + 그때까지의 회전분) 전부가 `REVOKED`/`REUSE_DETECTED` 로 바뀌고, 재사용 탐지 직전에 정상 발급됐던 최신 refresh token 으로도 회전이 `invalid_grant` 로 거부된다(계열 전체가 죽었기 때문).
+21. **revocation** — 살아있는 refresh token 을 `POST /oauth2/revoke` 하면 `200`, 존재하지 않는 토큰을 revoke 해도 `200`(RFC 7009 2.2, 응답으로 존재 여부를 노출하지 않는다). 폐기 후 그 토큰으로 회전을 시도하면 `invalid_grant`.
+22. **introspection 분기** — access token 을 다른 client(`article-api`)가 조회하면 `active:true` + `client_id` + `token_type:"Bearer"`. 살아있는 refresh token 을 조회하면 `active:true` 지만 `token_type` 은 없다. 폐기된 refresh token 은 `{"active":false}` 하나뿐(사유 미노출). 잘못된 client secret 으로 호출하면 `401`.
+23. **회귀** — `/userinfo` 는 여전히 `200` + claim, authorization code 재사용은 여전히 `invalid_grant`, discovery(`/.well-known/openid-configuration`) 에 `introspection_endpoint`·`revocation_endpoint`·`refresh_token`(grant_types_supported)·`offline_access`(scopes_supported) 가 모두 노출된다.
+24. **token-state 외부 비노출** — gateway 를 통해 `/internal/refresh-tokens/introspect` 를 호출하면 `404`. nginx 가 `/internal/*` 를 라우팅하지 않는다(gateway/nginx.conf 에 해당 location 자체가 없다).
+
+## 슬라이스 3에서도 제외 (이후 sub-project)
+
+client_credentials grant(+ introspect scope 로 introspection 권한을 좁히는 정석 경로), back-channel logout(sid), admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네트워크 가정), jwks 캐시, access token deny-list, Kafka 인증 이벤트 스트림, 관측성/서킷브레이커.
 
 ## 알려진 한계 / 추후 개선
 
@@ -368,6 +484,10 @@ refresh token, introspection, back-channel logout(sid), admin 등록 API(현재 
 - **`auth_time` 이 로그인 시각이 아니다** — id token 의 `auth_time` 은 `AuthorizeController` 가 authorize 요청을 처리한 시각(`Instant.now()`)이며, 실제 `POST /login` 이 성공한 시각이 아니다. 세션에 로그인 시각을 저장해두지 않기 때문. 표준의 `auth_time` 은 최종 인증 시각이므로 RP 가 `max_age` 로 재인증을 강제할 때 이 값으로는 판단할 수 없다. SSO 재사용 시나리오(로그인은 예전에 했고 이번엔 세션만 재사용)에서 `auth_time` 이 매 authorize 마다 갱신되는 것으로 보인다.
 - **access token 의 `scope` claim 이 JSON 배열이다** — RFC 9068 2.2.3 은 `scope` 를 공백 구분 **문자열**로 규정하지만 이 구현은 `["openid","profile"]` 배열로 낸다(슬라이스 1 부터의 선택). `AccessTokenVerifier` 가 같은 형식을 읽으므로 내부적으로는 일관되지만, RFC 9068 을 기대하는 외부 resource server 는 scope 를 파싱하지 못한다.
 - **access token 과 id token 을 구분할 수 있는 표식이 없다** — 둘 다 signing 의 같은 키로 서명되고 `iss`·`sub` 도 같으며 `typ` 헤더 구분이 없다. 지금은 id token 에 `scope` claim 이 없어 `/userinfo` 에 id token 을 들이밀면 `openid` scope 가 없다고 403 이 나므로 토큰 타입 혼동이 성립하지 않는다. 다만 그 방어는 우연에 가깝다 — **id token 에 `scope` 를 싣는 순간 혼동이 성립한다.** 정석은 RFC 9068 의 `typ: at+jwt` 헤더로 access token 을 명시하고 검증 시 그 값을 강제하는 것이다. signing 의 서명 API 계약(헤더를 signing 이 전적으로 소유한다)을 바꿔야 하므로 이번 슬라이스에서는 구현하지 않는다. 다음 슬라이스 대상.
+- **회전은 정상 client 의 재시도도 계열을 죽인다** — 회전은 이전 refresh token 을 즉시 CONSUMED 로 만들므로, 응답을 못 받은 client 가 같은 토큰으로 재시도하면 재사용 탐지에 걸려 계열 전체가 폐기된다. client 는 refresh 요청을 직렬화해야 한다(동시에 두 번 보내지 않는다). 유예 기간(짧은 시간 안의 재사용은 허용) 없이 즉시 폐기하는 쪽을 택했다.
+- **client 가 새 refresh token 을 저장하기 전에 죽으면 그 계열을 잃는다** — 회전 응답으로 새 refresh token 을 받았지만 디스크에 쓰기 전에 client 프로세스가 죽으면, 다음 기동 때는 이미 CONSUMED 된 이전 토큰만 남아 있어 그걸로 회전을 시도하는 순간 재사용 탐지로 계열이 죽는다. 유예 기간을 두지 않았기 때문이며, 이 경우 재인증(authorization_code)부터 다시 해야 한다.
+- **introspection 은 인증된 client 면 누구의 토큰이든 조회할 수 있다** — "자기 토큰만" 으로 제한하면 애초에 introspection 이 성립하지 않는다(resource server 가 검사하는 토큰은 언제나 다른 client 에게 발급된 것이므로). 권한을 좁히려면 client_credentials grant 로 받은 토큰의 `introspect` scope 를 보는 것이 정석이며, 이 서버에는 아직 그 grant 가 없다.
+- **access token 은 폐기하지 않는다** — RFC 7009 §2 는 access token 폐기를 MAY 로 두므로 표준 위반은 아니다. 이 서버는 access token 을 짧은 TTL 로 자연 만료시키는 쪽을 택했다(JWT 자가검증의 이점을 지키기 위함). `POST /oauth2/revoke` 에 access token 을 담고 `token_type_hint=access_token` 을 함께 보내면 `200` 이 오지만 실제로는 아무것도 하지 않는다. 반대로 refresh token 에 `token_type_hint=access_token` 이 잘못 붙어 오면 힌트를 그대로 믿어 폐기를 건너뛴다 — token_type_hint 를 "access_token 인지" 판정에만 쓰고 그 외에는 신뢰하지 않는 introspection 과 달리, revoke 는 이 한 갈래에서만 힌트를 신뢰한다는 뜻이라 알려진 한계로 남긴다.
 - HA(다중 인스턴스), 키 로테이션, purge 등은 production-ready-authorization-server 에서 다룬 주제.
 
 ## 설계/계획 문서
@@ -376,3 +496,5 @@ refresh token, introspection, back-channel logout(sid), admin 등록 API(현재 
 - 슬라이스 1 구현 계획: [docs/superpowers/plans/2026-07-18-microservice-authorization-server-slice1.md](../../../../docs/superpowers/plans/2026-07-18-microservice-authorization-server-slice1.md)
 - 슬라이스 2(OIDC) 설계: [docs/superpowers/specs/2026-07-25-microservice-oidc-slice2-design.md](../../../../docs/superpowers/specs/2026-07-25-microservice-oidc-slice2-design.md)
 - 슬라이스 2(OIDC) 구현 계획: [docs/superpowers/plans/2026-07-25-microservice-oidc-slice2.md](../../../../docs/superpowers/plans/2026-07-25-microservice-oidc-slice2.md)
+- 슬라이스 3(토큰 수명 관리) 설계: [docs/superpowers/specs/2026-07-25-microservice-token-lifecycle-slice3-design.md](../../../../docs/superpowers/specs/2026-07-25-microservice-token-lifecycle-slice3-design.md)
+- 슬라이스 3(토큰 수명 관리) 구현 계획: [docs/superpowers/plans/2026-07-25-microservice-token-lifecycle-slice3.md](../../../../docs/superpowers/plans/2026-07-25-microservice-token-lifecycle-slice3.md)

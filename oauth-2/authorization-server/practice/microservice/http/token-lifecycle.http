@@ -1,0 +1,70 @@
+### 토큰 수명 관리(슬라이스 3) — refresh 회전 · 재사용 탐지 · introspection · revocation.
+### refresh_token 은 authorize/token 흐름(authorize.http, token.http)에서 offline_access scope 로 동의해야 발급된다.
+### 모든 요청은 gateway(:9000) 경유. Basic bXktY2xpZW50OnNlY3JldA== = my-client:secret,
+### Basic YXJ0aWNsZS1hcGk6c2VjcmV0 = article-api:secret (resource server 역할 — introspection 호출 전용).
+
+### refresh grant — 회전. 응답의 새 refresh_token 으로 교체해야 다음 회전이 된다
+POST http://localhost:9000/oauth2/token
+Authorization: Basic bXktY2xpZW50OnNlY3JldA==
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=refresh_token&refresh_token={refresh_token}
+
+### scope 축소 — 이번 access token 에만 적용된다. 저장된 refresh 의 scope 는 그대로다
+POST http://localhost:9000/oauth2/token
+Authorization: Basic bXktY2xpZW50OnNlY3JldA==
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=refresh_token&refresh_token={refresh_token}&scope=openid
+
+### 소진된 refresh 재사용 -> invalid_grant. 계열 전체가 폐기된다
+POST http://localhost:9000/oauth2/token
+Authorization: Basic bXktY2xpZW50OnNlY3JldA==
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=refresh_token&refresh_token={이미_회전된_refresh_token}
+
+### introspection — article-api 가 my-client 의 토큰을 조회한다 (호출자 != 토큰 주인)
+### access token 이면 active:true + client_id + token_type:Bearer, 살아있는 refresh 면 active:true 이고 token_type 없음
+POST http://localhost:9000/oauth2/introspect
+Authorization: Basic YXJ0aWNsZS1hcGk6c2VjcmV0
+Content-Type: application/x-www-form-urlencoded
+
+token={access_token 또는 refresh_token}
+
+### 폐기된 토큰 introspection -> {"active": false} 뿐. 사유를 구분해 주지 않는다
+POST http://localhost:9000/oauth2/introspect
+Authorization: Basic YXJ0aWNsZS1hcGk6c2VjcmV0
+Content-Type: application/x-www-form-urlencoded
+
+token={폐기된_refresh_token}
+
+### 잘못된 client secret -> 401
+POST http://localhost:9000/oauth2/introspect
+Authorization: Basic YXJ0aWNsZS1hcGk6d3Jvbmc=
+Content-Type: application/x-www-form-urlencoded
+
+token={access_token}
+
+### revocation — 계열 전체를 폐기한다. 존재하지 않는 토큰에도 200 이다
+POST http://localhost:9000/oauth2/revoke
+Authorization: Basic bXktY2xpZW50OnNlY3JldA==
+Content-Type: application/x-www-form-urlencoded
+
+token={refresh_token}
+
+### access token 폐기 요청 -> 200 이지만 아무것도 하지 않는다 (RFC 7009 2 는 MAY)
+POST http://localhost:9000/oauth2/revoke
+Authorization: Basic bXktY2xpZW50OnNlY3JldA==
+Content-Type: application/x-www-form-urlencoded
+
+token={access_token}&token_type_hint=access_token
+
+### discovery — introspection_endpoint · revocation_endpoint · offline_access 확인
+GET http://localhost:9000/.well-known/openid-configuration
+
+### token-state 는 외부에 노출되지 않는다 — gateway 는 /internal/* 을 라우팅하지 않으므로 404 다
+POST http://localhost:9000/internal/refresh-tokens/introspect
+Content-Type: application/json
+
+{"refreshToken": "x"}
