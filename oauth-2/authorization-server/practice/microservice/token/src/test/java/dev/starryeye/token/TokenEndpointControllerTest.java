@@ -2,7 +2,9 @@ package dev.starryeye.token;
 
 import dev.starryeye.token.client.ClientInfo;
 import dev.starryeye.token.client.ClientRegistryClient;
+import dev.starryeye.token.client.IssuedRefreshToken;
 import dev.starryeye.token.client.SigningClient;
+import dev.starryeye.token.client.TokenStateClient;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +18,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -29,6 +32,7 @@ class TokenEndpointControllerTest {
 	@MockitoBean ClientRegistryClient clientRegistryClient;
 	@MockitoBean SigningClient signingClient;
 	@MockitoBean IdTokenIssuer idTokenIssuer;
+	@MockitoBean TokenStateClient tokenStateClient;
 
 	private static final String BASIC = "Basic " + java.util.Base64.getEncoder()
 			.encodeToString("my-client:secret".getBytes());
@@ -258,13 +262,57 @@ class TokenEndpointControllerTest {
 		assertThat(oauth2Path).isEqualTo(openidPath);
 	}
 
+	// offline_access 동의 + refresh_token grant 등록, 둘 다 있어야 refresh token 이 나온다
+	@Test
+	void offlineAccessScopeIssuesRefreshToken() throws Exception {
+		when(codeStore.consume("code-1")).thenReturn(Optional.of(new AuthorizationCodeData(
+				"my-client", "http://127.0.0.1:8080/callback", "openid offline_access", "user-sub-0001",
+				"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", "nonce-1", 1700000000L)));
+		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
+		when(signingClient.sign(any())).thenReturn("signed-access-token");
+		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any())).thenReturn("signed-id-token");
+		when(tokenStateClient.issue(eq("my-client"), eq("user-sub-0001"), eq("openid offline_access"), eq(1700000000L)))
+				.thenReturn(new IssuedRefreshToken("refresh-token-1", 1800000000L, "family-1"));
+
+		mockMvc.perform(post("/oauth2/token")
+						.header("Authorization", BASIC)
+						.param("grant_type", "authorization_code")
+						.param("code", "code-1")
+						.param("redirect_uri", "http://127.0.0.1:8080/callback")
+						.param("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.refresh_token").value("refresh-token-1"));
+	}
+
+	// 동의하지 않았으면 발급하지 않는다. token-state 를 부르지도 않는다.
+	@Test
+	void withoutOfflineAccessScopeNoRefreshTokenIsIssued() throws Exception {
+		when(codeStore.consume("code-1")).thenReturn(Optional.of(new AuthorizationCodeData(
+				"my-client", "http://127.0.0.1:8080/callback", "openid profile", "user-sub-0001",
+				"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", "nonce-1", 1700000000L)));
+		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
+		when(signingClient.sign(any())).thenReturn("signed-access-token");
+		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any())).thenReturn("signed-id-token");
+
+		mockMvc.perform(post("/oauth2/token")
+						.header("Authorization", BASIC)
+						.param("grant_type", "authorization_code")
+						.param("code", "code-1")
+						.param("redirect_uri", "http://127.0.0.1:8080/callback")
+						.param("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.refresh_token").doesNotExist());
+
+		verify(tokenStateClient, never()).issue(any(), any(), any(), anyLong());
+	}
+
 	private ClientInfo clientInfo() {
 		// secret "secret" 의 bcrypt 해시
 		String hash = org.springframework.security.crypto.factory.PasswordEncoderFactories
 				.createDelegatingPasswordEncoder().encode("secret");
 		return new ClientInfo("my-client",
 				List.of("http://127.0.0.1:8080/callback"),
-				List.of("openid", "profile"), hash, List.of("authorization_code"));
+				List.of("openid", "profile"), hash, List.of("authorization_code", "refresh_token"));
 	}
 
 	private ClientInfo clientInfoWithoutAuthorizationCodeGrant() {

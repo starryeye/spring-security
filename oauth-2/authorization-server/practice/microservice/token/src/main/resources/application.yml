@@ -10,6 +10,7 @@ my:
   signing-base-url: http://localhost:8083
   client-registry-base-url: http://localhost:8085
   user-directory-base-url: http://localhost:8084
+  token-state-base-url: http://localhost:8087
   access-token-ttl-seconds: 300
   id-token-ttl-seconds: 300
 logging:

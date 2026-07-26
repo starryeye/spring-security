@@ -2,6 +2,7 @@ package dev.starryeye.token;
 
 import dev.starryeye.token.client.ClientInfo;
 import dev.starryeye.token.client.SigningClient;
+import dev.starryeye.token.client.TokenStateClient;
 import dev.starryeye.token.client.UserDirectoryClient;
 import dev.starryeye.token.dto.OAuth2ErrorResponse;
 import dev.starryeye.token.dto.TokenResponse;
@@ -29,6 +30,7 @@ public class TokenEndpointController {
 	private final ClientAuthenticator clientAuthenticator;
 	private final SigningClient signingClient;
 	private final IdTokenIssuer idTokenIssuer;
+	private final TokenStateClient tokenStateClient;
 
 	@Value("${my.issuer}")
 	private String issuer;
@@ -101,7 +103,19 @@ public class TokenEndpointController {
 			}
 		}
 
-		return ResponseEntity.ok(new TokenResponse(jwt, "Bearer", accessTokenTtlSeconds, data.scope(), idToken));
+		// offline_access 동의 + refresh_token grant 등록, 둘 다 있어야 refresh token 을 발급한다.
+		// 앞은 사용자가 준 허락이고 뒤는 관리자가 정한 client 능력이다. 서로 다른 질문이라 둘 다 본다.
+		// grant 등록 없이 발급하면 client 가 평생 쓸 수 없는 토큰을 쥐게 된다.
+		String refreshToken = null;
+		List<String> grantedScopes = Arrays.asList(data.scope().split(" "));
+		if (grantedScopes.contains("offline_access") && client.grantTypes().contains("refresh_token")) {
+			refreshToken = tokenStateClient
+					.issue(client.clientId(), data.sub(), data.scope(), data.authTime())
+					.refreshToken();
+		}
+
+		return ResponseEntity.ok(new TokenResponse(jwt, "Bearer", accessTokenTtlSeconds, data.scope(),
+				idToken, refreshToken));
 	}
 
 	@GetMapping("/oauth2/jwks")
