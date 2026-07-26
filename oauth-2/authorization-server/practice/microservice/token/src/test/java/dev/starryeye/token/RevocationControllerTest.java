@@ -96,6 +96,19 @@ class RevocationControllerTest {
 		verify(tokenStateClient, never()).revoke(any(), any());
 	}
 
+	// token-state 장애를 200 으로 삼키면, 사용자는 로그아웃했다고 믿지만 refresh token 은 계속 살아서 회전 가능한 상태가 된다.
+	@Test
+	void tokenStateFailureReturns500NotSilentSuccess() throws Exception {
+		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
+		when(tokenStateClient.revoke(any(), any())).thenThrow(new IllegalStateException("token-state is down"));
+
+		mockMvc.perform(post("/oauth2/revoke")
+						.header("Authorization", BASIC)
+						.param("token", "refresh-1"))
+				.andExpect(status().isInternalServerError())
+				.andExpect(jsonPath("$.error").value("server_error"));
+	}
+
 	@Test
 	void missingCredentialsReturnsInvalidClient() throws Exception {
 		mockMvc.perform(post("/oauth2/revoke").param("token", "refresh-1"))
