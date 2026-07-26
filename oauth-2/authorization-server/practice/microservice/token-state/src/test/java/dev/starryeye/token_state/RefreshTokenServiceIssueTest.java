@@ -8,9 +8,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 @SpringBootTest
 class RefreshTokenServiceIssueTest {
@@ -64,6 +66,11 @@ class RefreshTokenServiceIssueTest {
 		RefreshTokenEntity entity = repository.findByTokenHash(tokenGenerator.hash(result.refreshToken())).orElseThrow();
 		// 테스트 설정: ttl 60초, family 최대 300초
 		assertThat(entity.getFamilyExpiresAt()).isAfter(entity.getExpiresAt());
+		// 설정값 자체를 issuedAt 기준으로 고정한다 (두 TTL 이 서로 바뀌어 주입돼도 잡아낸다)
+		assertThat(entity.getExpiresAt())
+				.isCloseTo(entity.getIssuedAt().plusSeconds(60), within(2, ChronoUnit.SECONDS));
+		assertThat(entity.getFamilyExpiresAt())
+				.isCloseTo(entity.getIssuedAt().plusSeconds(300), within(2, ChronoUnit.SECONDS));
 	}
 
 	@Test
