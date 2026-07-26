@@ -11,7 +11,10 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ClientAuthenticatorTest {
@@ -76,5 +79,29 @@ class ClientAuthenticatorTest {
 		assertThatThrownBy(() -> authenticator.authenticate(basic("my-client", "wrong")))
 				.isInstanceOf(ClientAuthenticator.ClientAuthenticationException.class)
 				.hasMessage("bad client credentials");
+	}
+
+	@Test
+	void credentialsWithoutColonAreRejected() {
+		String header = "Basic " + Base64.getEncoder()
+				.encodeToString("my-client-no-colon".getBytes(StandardCharsets.UTF_8));
+
+		assertThatThrownBy(() -> authenticator.authenticate(header))
+				.isInstanceOf(ClientAuthenticator.ClientAuthenticationException.class)
+				.hasMessage("missing client credentials");
+
+		verify(clientRegistryClient, never()).getClient(anyString());
+	}
+
+	@Test
+	void secretContainingColonIsNotTruncated() {
+		String hash = PasswordEncoderFactories.createDelegatingPasswordEncoder().encode("sec:ret");
+		ClientInfo client = new ClientInfo("my-client", List.of("http://127.0.0.1:8080/callback"),
+				List.of("openid"), hash, List.of("authorization_code"));
+		when(clientRegistryClient.getClient("my-client")).thenReturn(client);
+
+		ClientInfo result = authenticator.authenticate(basic("my-client", "sec:ret"));
+
+		assertThat(result.clientId()).isEqualTo("my-client");
 	}
 }
