@@ -1,7 +1,6 @@
 package dev.starryeye.token;
 
 import dev.starryeye.token.client.ClientInfo;
-import dev.starryeye.token.client.ClientRegistryClient;
 import dev.starryeye.token.client.SigningClient;
 import dev.starryeye.token.client.UserDirectoryClient;
 import dev.starryeye.token.dto.OAuth2ErrorResponse;
@@ -10,8 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.factory.PasswordEncoderFactories;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -29,10 +26,9 @@ public class TokenEndpointController {
 
 	private final AuthorizationCodeStore codeStore;
 	private final PkceValidator pkceValidator;
-	private final ClientRegistryClient clientRegistryClient;
+	private final ClientAuthenticator clientAuthenticator;
 	private final SigningClient signingClient;
 	private final IdTokenIssuer idTokenIssuer;
-	private final PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
 
 	@Value("${my.issuer}")
 	private String issuer;
@@ -53,18 +49,11 @@ public class TokenEndpointController {
 		}
 
 		// 1. client 인증 (Basic)
-		String[] credentials = parseBasic(authorization);
-		if (credentials == null) {
-			return error(HttpStatus.UNAUTHORIZED, "invalid_client", "missing client credentials");
-		}
 		ClientInfo client;
 		try {
-			client = clientRegistryClient.getClient(credentials[0]);
-		} catch (ClientRegistryClient.ClientNotFoundException e) {
-			return error(HttpStatus.UNAUTHORIZED, "invalid_client", "unknown client");
-		}
-		if (client == null || !passwordEncoder.matches(credentials[1], client.clientSecretHash())) {
-			return error(HttpStatus.UNAUTHORIZED, "invalid_client", "bad client credentials");
+			client = clientAuthenticator.authenticate(authorization);
+		} catch (ClientAuthenticator.ClientAuthenticationException e) {
+			return error(HttpStatus.UNAUTHORIZED, "invalid_client", e.getMessage());
 		}
 		if (!client.grantTypes().contains("authorization_code")) {
 			return error(HttpStatus.BAD_REQUEST, "unauthorized_client", "client not authorized for authorization_code grant");
@@ -137,23 +126,6 @@ public class TokenEndpointController {
 		metadata.put("claims_supported", List.of("sub", "iss", "aud", "exp", "iat", "auth_time", "nonce", "at_hash",
 				"name", "nickname", "preferred_username", "email", "email_verified"));
 		return metadata;
-	}
-
-	private String[] parseBasic(String authorization) {
-		if (authorization == null || !authorization.startsWith("Basic ")) {
-			return null;
-		}
-		String decoded;
-		try {
-			decoded = new String(Base64.getDecoder().decode(authorization.substring(6)), java.nio.charset.StandardCharsets.UTF_8);
-		} catch (IllegalArgumentException e) {
-			return null; // 잘못된 base64 -> invalid_client
-		}
-		int idx = decoded.indexOf(':');
-		if (idx < 0) {
-			return null;
-		}
-		return new String[]{decoded.substring(0, idx), decoded.substring(idx + 1)};
 	}
 
 	private ResponseEntity<OAuth2ErrorResponse> error(HttpStatus status, String error, String description) {
