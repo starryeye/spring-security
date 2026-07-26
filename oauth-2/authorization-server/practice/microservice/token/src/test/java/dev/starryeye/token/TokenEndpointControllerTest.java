@@ -306,6 +306,30 @@ class TokenEndpointControllerTest {
 		verify(tokenStateClient, never()).issue(any(), any(), any(), anyLong());
 	}
 
+	// offline_access 는 동의됐지만 client 의 grantTypes 에 refresh_token 이 없으면 발급하지 않는다.
+	// 관문 하나만으로는 부족하다 — 사용자 동의와 client 등록 능력은 서로 다른 질문이라 둘 다 참이어야 한다.
+	@Test
+	void withoutRefreshTokenGrantNoRefreshTokenIsIssuedEvenWithOfflineAccessScope() throws Exception {
+		when(codeStore.consume("code-1")).thenReturn(Optional.of(new AuthorizationCodeData(
+				"my-client", "http://127.0.0.1:8080/callback", "openid offline_access", "user-sub-0001",
+				"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", "nonce-1", 1700000000L)));
+		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfoWithoutRefreshTokenGrant());
+		when(signingClient.sign(any())).thenReturn("signed-access-token");
+		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any())).thenReturn("signed-id-token");
+
+		mockMvc.perform(post("/oauth2/token")
+						.header("Authorization", BASIC)
+						.param("grant_type", "authorization_code")
+						.param("code", "code-1")
+						.param("redirect_uri", "http://127.0.0.1:8080/callback")
+						.param("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.access_token").exists())
+				.andExpect(jsonPath("$.refresh_token").doesNotExist());
+
+		verify(tokenStateClient, never()).issue(any(), any(), any(), anyLong());
+	}
+
 	private ClientInfo clientInfo() {
 		// secret "secret" 의 bcrypt 해시
 		String hash = org.springframework.security.crypto.factory.PasswordEncoderFactories
@@ -321,5 +345,14 @@ class TokenEndpointControllerTest {
 		return new ClientInfo("my-client",
 				List.of("http://127.0.0.1:8080/callback"),
 				List.of("openid", "profile"), hash, List.of("client_credentials"));
+	}
+
+	private ClientInfo clientInfoWithoutRefreshTokenGrant() {
+		// authorization_code 는 등록됐지만 refresh_token 은 등록되지 않은 client. secret "secret" 의 bcrypt 해시.
+		String hash = org.springframework.security.crypto.factory.PasswordEncoderFactories
+				.createDelegatingPasswordEncoder().encode("secret");
+		return new ClientInfo("my-client",
+				List.of("http://127.0.0.1:8080/callback"),
+				List.of("openid", "profile", "offline_access"), hash, List.of("authorization_code"));
 	}
 }
