@@ -1,0 +1,20 @@
+server:
+  port: 8087
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/microservice_as
+    username: root
+    password: 1111
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+my:
+  refresh-token-ttl-seconds: 1209600      # 14일. 회전마다 갱신된다
+  refresh-family-max-seconds: 2592000     # 30일. 회전으로 연장되지 않는 절대 상한
+
+logging:
+  level:
+    dev.starryeye: DEBUG
