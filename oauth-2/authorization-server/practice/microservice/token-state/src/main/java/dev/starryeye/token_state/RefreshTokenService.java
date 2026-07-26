@@ -65,18 +65,37 @@ public class RefreshTokenService {
 	 * 회전을 한 트랜잭션 안에서 끝낸다. 조회 · 판정 · 전이를 호출자에게 쪼개 주면 왕복 사이에 경쟁 창이 생겨
 	 *      재사용 탐지가 무력해지므로, 연산 하나를 한 번의 호출로 표현한다.
 	 *
-	 * 주의. 조회는 반드시 findByTokenHashForUpdate 로 한다. 행 잠금이 없으면 같은 토큰의 동시 요청 두 건이
-	 *      모두 ACTIVE 를 읽고 둘 다 회전에 성공한다.
+	 * 주의. 잠금은 반드시 "계열 전체 → 그 안의 대상 행" 한 가지 순서로만 얻는다. familyId 를 알아내는
+	 *      첫 조회는 잠금 없이 하고(findByTokenHash), 그다음 findByFamilyIdForUpdate 로 계열의 모든 행을
+	 *      한 번에 잠근 뒤, 대상 토큰 행을 그 잠긴 결과 안에서 다시 찾아 판정한다. 모든 호출이 이 순서
+	 *      하나만 쓰므로, 어떤 경로도 "행 먼저 → 계열"을 타지 않는다 — 대상 행만 먼저 잠그고 그다음
+	 *      계열을 잠그는 경로가 하나라도 남아 있으면, 계열을 통째로 먼저 잠그는 다른 트랜잭션과 서로
+	 *      상대가 쥔 잠금을 기다리는 교착이 가능해진다.
+	 *
+	 * 주의. 판정은 첫 조회(잠금 없음) 결과가 아니라 잠근 뒤 findByFamilyIdForUpdate 로 다시 읽은 상태로
+	 *      한다. 첫 조회와 잠금 획득 사이에 다른 트랜잭션이 이 계열에 회전 · 폐기를 커밋할 수 있어,
+	 *      오래된 스냅샷으로 판정하면 이미 소진된 토큰이나 이미 폐기된 계열을 놓친다.
 	 *
 	 * 주의. 이미 소진된(CONSUMED) 토큰이 다시 오면 계열 전체를 폐기한다. 정상 사용자와 공격자 중 누가 먼저
 	 *      회전했든 다른 쪽이 CONSUMED 를 만나므로, 양쪽을 모두 재인증으로 떨어뜨려 조용한 지속 접근을 끊는다.
-	 *      정상 client 의 단순 재시도까지 계열을 죽이는 것은 회전의 알려진 대가다.
+	 *      정상 client 의 단순 재시도까지 계열을 죽이는 것은 회전의 알려진 대가다. 폐기 대상은 방금
+	 *      findByFamilyIdForUpdate 로 잠근 목록 그대로이므로, 동시에 삽입된 형제 행도 놓치지 않는다.
 	 */
 	@Transactional
 	public RotateResult rotate(String refreshToken, String clientId) {
 
 		Instant now = Instant.now();
-		Optional<RefreshTokenEntity> found = repository.findByTokenHashForUpdate(tokenGenerator.hash(refreshToken));
+		String tokenHash = tokenGenerator.hash(refreshToken);
+
+		Optional<RefreshTokenEntity> unlocked = repository.findByTokenHash(tokenHash);
+		if (unlocked.isEmpty()) {
+			return RotateResult.failed(RotateStatus.NOT_FOUND);
+		}
+
+		List<RefreshTokenEntity> family = repository.findByFamilyIdForUpdate(unlocked.get().getFamilyId());
+		Optional<RefreshTokenEntity> found = family.stream()
+				.filter(member -> member.getTokenHash().equals(tokenHash))
+				.findFirst();
 		if (found.isEmpty()) {
 			return RotateResult.failed(RotateStatus.NOT_FOUND);
 		}
@@ -89,7 +108,7 @@ public class RefreshTokenService {
 			return RotateResult.failed(RotateStatus.REVOKED);
 		}
 		if (entity.getStatus() == RefreshTokenStatus.CONSUMED) {
-			revokeFamily(entity.getFamilyId(), now, "REUSE_DETECTED");
+			revokeFamily(family, now, "REUSE_DETECTED");
 			return RotateResult.failed(RotateStatus.REUSE_DETECTED);
 		}
 		if (isExpired(entity, now)) {
@@ -122,8 +141,7 @@ public class RefreshTokenService {
 		);
 	}
 
-	private void revokeFamily(String familyId, Instant at, String reason) {
-		List<RefreshTokenEntity> family = repository.findByFamilyId(familyId);
+	private void revokeFamily(List<RefreshTokenEntity> family, Instant at, String reason) {
 		for (RefreshTokenEntity member : family) {
 			member.revoke(at, reason);
 		}

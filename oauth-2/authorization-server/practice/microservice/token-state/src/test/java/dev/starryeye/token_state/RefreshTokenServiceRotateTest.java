@@ -73,6 +73,26 @@ class RefreshTokenServiceRotateTest {
 		assertThat(afterRevoke.status()).isEqualTo(RotateStatus.REVOKED);
 	}
 
+	// 계열에 3행 이상 쌓인 뒤 재사용해도, 폐기는 그 순간 계열에 실제로 존재하는 행 전부를 대상으로 해야 한다.
+	// 폐기 판정을 오래된 스냅샷이 아니라 잠근 뒤 다시 읽은 최신 목록으로 하는지를 단일 스레드로 고정한다.
+	@Test
+	void reusingConsumedTokenAfterMultipleRotationsRevokesEveryFamilyMember() {
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		RotateResult first = service.rotate(issued.refreshToken(), "my-client");
+		RotateResult second = service.rotate(first.refreshToken(), "my-client");
+		assertThat(second.status()).isEqualTo(RotateStatus.ROTATED); // 계열은 이제 3행: 최초, first, second
+
+		RotateResult reuse = service.rotate(issued.refreshToken(), "my-client"); // 최초 토큰을 다시 제출
+
+		assertThat(reuse.status()).isEqualTo(RotateStatus.REUSE_DETECTED);
+		String familyId = repository.findByTokenHash(tokenGenerator.hash(issued.refreshToken()))
+				.orElseThrow().getFamilyId();
+		List<RefreshTokenEntity> family = repository.findByFamilyId(familyId);
+		assertThat(family).hasSize(3);
+		assertThat(family).allMatch(e -> e.getStatus() == RefreshTokenStatus.REVOKED);
+		assertThat(family).allMatch(e -> "REUSE_DETECTED".equals(e.getRevokedReason()));
+	}
+
 	@Test
 	void rotateWithUnknownTokenReturnsNotFound() {
 		RotateResult result = service.rotate("no-such-token", "my-client");

@@ -12,10 +12,11 @@ import java.util.Optional;
 public interface RefreshTokenEntityRepository extends JpaRepository<RefreshTokenEntity, Long> {
 
 	/**
-	 * 회전 경로 전용 조회다. PESSIMISTIC_WRITE 로 행을 잠가야 같은 토큰의 동시 요청이 직렬화된다.
-	 *      잠금이 없으면 두 트랜잭션이 모두 ACTIVE 를 읽고 둘 다 회전에 성공하며,
-	 *      새로 만드는 행의 token_hash 는 서로 다른 난수라 unique 제약에도 걸리지 않아 조용히 통과한다.
-	 *      그러면 재사용 탐지가 아무것도 잡지 못한다.
+	 * 단일 행을 PESSIMISTIC_WRITE 로 잠그는 조회다. 계열(family) 단위 조율이 필요 없는 경로에서만 쓴다.
+	 *
+	 * 주의. 회전(rotate)은 이 메서드가 아니라 findByFamilyIdForUpdate 로 계열 전체를 잠근다. 대상 행만
+	 *      따로 잠그면 "행 먼저 → 계열" 순서가 생기고, 계열을 먼저 잠그는 다른 트랜잭션과 서로 반대 순서로
+	 *      잠그다가 교착에 빠질 수 있기 때문이다.
 	 */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("select r from RefreshTokenEntity r where r.tokenHash = :tokenHash")
@@ -24,4 +25,16 @@ public interface RefreshTokenEntityRepository extends JpaRepository<RefreshToken
 	Optional<RefreshTokenEntity> findByTokenHash(String tokenHash);
 
 	List<RefreshTokenEntity> findByFamilyId(String familyId);
+
+	/**
+	 * 계열 전체를 PESSIMISTIC_WRITE 로 한 번에 잠그는 조회다. 회전(rotate)과 재사용 탐지에 의한
+	 *      계열 폐기가 반드시 이 메서드를 거쳐야, 같은 계열을 동시에 건드리는 트랜잭션들이 직렬화된다.
+	 *
+	 * 주의. 잠금 없는 findByFamilyId 로 계열을 스냅샷 뜬 뒤 그 목록으로 폐기하면, 스냅샷과 폐기 사이에
+	 *      동시 트랜잭션이 커밋한 새 행(회전으로 막 삽입된 형제 행)이 빠져나간다. 이 메서드로 잠근 뒤
+	 *      그 결과로만 판정 · 폐기해야 그런 형제 행도 놓치지 않는다.
+	 */
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("select r from RefreshTokenEntity r where r.familyId = :familyId")
+	List<RefreshTokenEntity> findByFamilyIdForUpdate(@Param("familyId") String familyId);
 }
