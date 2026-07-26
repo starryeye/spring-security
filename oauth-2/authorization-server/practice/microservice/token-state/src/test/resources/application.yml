@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:token-state;DB_CLOSE_DELAY=-1;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+my:
+  refresh-token-ttl-seconds: 60
+  refresh-family-max-seconds: 300
