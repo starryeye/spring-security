@@ -141,6 +141,41 @@ public class RefreshTokenService {
 		);
 	}
 
+	/**
+	 * 계열 전체를 폐기한다. 요청 client 의 토큰이 아니면 아무것도 하지 않는다.
+	 *
+	 * 주의. 잠금 순서는 rotate 와 동일하게 "계열 전체 → 그 안의 대상 행" 하나만 쓴다. familyId 를 알아내는
+	 *      첫 조회는 잠금 없이 하고(findByTokenHash), findByFamilyIdForUpdate 로 계열의 모든 행을 한 번에
+	 *      잠근 뒤, 대상 토큰 행을 그 잠긴 결과 안에서 다시 찾아 client 를 판정한다. 대상 행만 먼저 잠그고
+	 *      그다음 계열을 잠그는 경로를 쓰면, 계열을 먼저 잠그는 rotate 와 반대 순서로 잠그게 돼 교착이
+	 *      가능해지므로 쓰지 않는다.
+	 */
+	@Transactional
+	public boolean revoke(String refreshToken, String clientId) {
+		String tokenHash = tokenGenerator.hash(refreshToken);
+
+		Optional<RefreshTokenEntity> unlocked = repository.findByTokenHash(tokenHash);
+		if (unlocked.isEmpty()) {
+			return false;
+		}
+
+		List<RefreshTokenEntity> family = repository.findByFamilyIdForUpdate(unlocked.get().getFamilyId());
+		Optional<RefreshTokenEntity> found = family.stream()
+				.filter(member -> member.getTokenHash().equals(tokenHash))
+				.findFirst();
+		if (found.isEmpty()) {
+			return false;
+		}
+		RefreshTokenEntity entity = found.get();
+
+		if (!entity.getClientId().equals(clientId)) {
+			return false;
+		}
+
+		revokeFamily(family, Instant.now(), "CLIENT_REVOKED");
+		return true;
+	}
+
 	private void revokeFamily(List<RefreshTokenEntity> family, Instant at, String reason) {
 		for (RefreshTokenEntity member : family) {
 			member.revoke(at, reason);
