@@ -99,6 +99,22 @@ class IntrospectionControllerTest {
 				.andExpect(jsonPath("$.token_type").doesNotExist()); // refresh 에는 token_type 이 없다
 	}
 
+	// jwks 조회 실패(signing 장애)는 토큰의 죄가 아니다. InvalidTokenException 이 아닌 예외이므로
+	// token-state 로 새지도, {"active": false} 로 둔갑하지도 않고 500 server_error 여야 한다.
+	@Test
+	void signingFailureReturns500NotInactive() throws Exception {
+		when(clientRegistryClient.getClient("article-api")).thenReturn(articleApi());
+		when(accessTokenVerifier.verify("tok")).thenThrow(new IllegalStateException("signing is down"));
+
+		mockMvc.perform(post("/oauth2/introspect")
+						.header("Authorization", BASIC)
+						.param("token", "tok"))
+				.andExpect(status().isInternalServerError())
+				.andExpect(jsonPath("$.error").value("server_error"));
+
+		verify(tokenStateClient, never()).introspect(any());
+	}
+
 	// 비활성 응답에서는 어떤 정보도 새지 않아야 한다 (RFC 7662 2.2)
 	@Test
 	void inactiveResponseContainsOnlyActiveFalse() throws Exception {
