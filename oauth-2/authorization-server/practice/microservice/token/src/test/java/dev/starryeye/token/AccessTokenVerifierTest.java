@@ -50,7 +50,9 @@ class AccessTokenVerifierTest {
 		JWTClaimsSet claims = new JWTClaimsSet.Builder()
 				.subject(sub)
 				.issuer(issuer)
+				.audience("my-client")
 				.expirationTime(expiration)
+				.issueTime(Date.from(Instant.now().minusSeconds(60)))
 				.claim("scope", scope)
 				.build();
 		SignedJWT signedJWT = new SignedJWT(
@@ -76,6 +78,9 @@ class AccessTokenVerifierTest {
 
 		assertThat(verified.sub()).isEqualTo("user-sub-0001");
 		assertThat(verified.scopes()).containsExactly("openid", "profile");
+		assertThat(verified.clientId()).isEqualTo("my-client");
+		assertThat(verified.exp()).isPositive();
+		assertThat(verified.iat()).isPositive();
 	}
 
 	// 서명·issuer 는 정상이고 exp 만 과거인 토큰 -> 만료로만 거부돼야 한다. (거부 사유까지 단언해 다른 이유로 통과하는 것을 막는다)

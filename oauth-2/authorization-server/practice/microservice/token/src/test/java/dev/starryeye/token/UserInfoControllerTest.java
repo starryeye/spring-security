@@ -44,7 +44,7 @@ class UserInfoControllerTest {
 	@Test
 	void returnsOnlySubWhenScopeIsOpenidOnly() throws Exception {
 		when(accessTokenVerifier.verify("tok")).thenReturn(
-				new AccessTokenVerifier.VerifiedToken("user-sub-0001", List.of("openid")));
+				new AccessTokenVerifier.VerifiedToken("user-sub-0001", List.of("openid"), "my-client", 1800000000L, 1700000000L));
 		when(userDirectoryClient.getUser("user-sub-0001")).thenReturn(profile());
 
 		mockMvc.perform(get("/userinfo").header("Authorization", "Bearer tok"))
@@ -60,7 +60,7 @@ class UserInfoControllerTest {
 	@Test
 	void returnsProfileClaimsWhenProfileScopePresent() throws Exception {
 		when(accessTokenVerifier.verify("tok")).thenReturn(
-				new AccessTokenVerifier.VerifiedToken("user-sub-0001", List.of("openid", "profile")));
+				new AccessTokenVerifier.VerifiedToken("user-sub-0001", List.of("openid", "profile"), "my-client", 1800000000L, 1700000000L));
 		when(userDirectoryClient.getUser("user-sub-0001")).thenReturn(profile());
 
 		mockMvc.perform(get("/userinfo").header("Authorization", "Bearer tok"))
@@ -74,7 +74,7 @@ class UserInfoControllerTest {
 	@Test
 	void returnsEmailClaimsWhenEmailScopePresent() throws Exception {
 		when(accessTokenVerifier.verify("tok")).thenReturn(
-				new AccessTokenVerifier.VerifiedToken("user-sub-0001", List.of("openid", "email")));
+				new AccessTokenVerifier.VerifiedToken("user-sub-0001", List.of("openid", "email"), "my-client", 1800000000L, 1700000000L));
 		when(userDirectoryClient.getUser("user-sub-0001")).thenReturn(profile());
 
 		mockMvc.perform(get("/userinfo").header("Authorization", "Bearer tok"))
@@ -114,7 +114,7 @@ class UserInfoControllerTest {
 	@Test
 	void tokenWithoutOpenidScopeReturns403InsufficientScope() throws Exception {
 		when(accessTokenVerifier.verify("tok")).thenReturn(
-				new AccessTokenVerifier.VerifiedToken("user-sub-0001", List.of("profile")));
+				new AccessTokenVerifier.VerifiedToken("user-sub-0001", List.of("profile"), "my-client", 1800000000L, 1700000000L));
 
 		mockMvc.perform(get("/userinfo").header("Authorization", "Bearer tok"))
 				.andExpect(status().isForbidden())
@@ -125,7 +125,7 @@ class UserInfoControllerTest {
 	@Test
 	void returnsOnlySubWhenUserDirectoryFails() throws Exception {
 		when(accessTokenVerifier.verify("tok")).thenReturn(
-				new AccessTokenVerifier.VerifiedToken("user-sub-0001", List.of("openid", "profile", "email")));
+				new AccessTokenVerifier.VerifiedToken("user-sub-0001", List.of("openid", "profile", "email"), "my-client", 1800000000L, 1700000000L));
 		when(userDirectoryClient.getUser("user-sub-0001")).thenThrow(new RuntimeException("user-directory down"));
 
 		mockMvc.perform(get("/userinfo").header("Authorization", "Bearer tok"))
@@ -139,7 +139,7 @@ class UserInfoControllerTest {
 	@Test
 	void deletedUserReturns401InvalidToken() throws Exception {
 		when(accessTokenVerifier.verify("tok")).thenReturn(
-				new AccessTokenVerifier.VerifiedToken("user-sub-0001", List.of("openid", "profile")));
+				new AccessTokenVerifier.VerifiedToken("user-sub-0001", List.of("openid", "profile"), "my-client", 1800000000L, 1700000000L));
 		when(userDirectoryClient.getUser("user-sub-0001"))
 				.thenThrow(new UserDirectoryClient.UserNotFoundException());
 
@@ -152,7 +152,7 @@ class UserInfoControllerTest {
 	@Test
 	void postWithBearerHeaderIsSupported() throws Exception {
 		when(accessTokenVerifier.verify("tok")).thenReturn(
-				new AccessTokenVerifier.VerifiedToken("user-sub-0001", List.of("openid")));
+				new AccessTokenVerifier.VerifiedToken("user-sub-0001", List.of("openid"), "my-client", 1800000000L, 1700000000L));
 
 		mockMvc.perform(post("/userinfo").header("Authorization", "Bearer tok"))
 				.andExpect(status().isOk())
@@ -163,7 +163,7 @@ class UserInfoControllerTest {
 	@Test
 	void postWithFormEncodedAccessTokenIsSupported() throws Exception {
 		when(accessTokenVerifier.verify("tok")).thenReturn(
-				new AccessTokenVerifier.VerifiedToken("user-sub-0001", List.of("openid")));
+				new AccessTokenVerifier.VerifiedToken("user-sub-0001", List.of("openid"), "my-client", 1800000000L, 1700000000L));
 
 		mockMvc.perform(post("/userinfo")
 						.contentType(MediaType.APPLICATION_FORM_URLENCODED)
@@ -223,7 +223,7 @@ class UserInfoControllerTest {
 	@Test
 	void queryParameterWithSimilarNameIsNotTreatedAsAccessToken() throws Exception {
 		when(accessTokenVerifier.verify("tok")).thenReturn(
-				new AccessTokenVerifier.VerifiedToken("user-sub-0001", List.of("openid")));
+				new AccessTokenVerifier.VerifiedToken("user-sub-0001", List.of("openid"), "my-client", 1800000000L, 1700000000L));
 
 		mockMvc.perform(get("/userinfo?my_access_token=other")
 						.header("Authorization", "Bearer tok"))

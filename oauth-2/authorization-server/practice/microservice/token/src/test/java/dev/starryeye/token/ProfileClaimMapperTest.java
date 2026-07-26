@@ -89,7 +89,8 @@ class ProfileClaimMapperTest {
 
 		// userinfo 경로
 		AccessTokenVerifier verifier = mock(AccessTokenVerifier.class);
-		when(verifier.verify("tok")).thenReturn(new AccessTokenVerifier.VerifiedToken("user-sub-0001", scopes));
+		when(verifier.verify("tok")).thenReturn(
+				new AccessTokenVerifier.VerifiedToken("user-sub-0001", scopes, "my-client", 1800000000L, 1700000000L));
 		UserInfoController controller = new UserInfoController(verifier, userDirectoryClient, mapper);
 		@SuppressWarnings("unchecked")
 		Map<String, Object> userinfo = (Map<String, Object>) controller

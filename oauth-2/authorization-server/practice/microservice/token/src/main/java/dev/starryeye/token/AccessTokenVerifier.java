@@ -39,7 +39,7 @@ public class AccessTokenVerifier {
 	@Value("${my.issuer}")
 	private String issuer;
 
-	public record VerifiedToken(String sub, List<String> scopes) {
+	public record VerifiedToken(String sub, List<String> scopes, String clientId, long exp, long iat) {
 	}
 
 	public static class InvalidTokenException extends RuntimeException {
@@ -94,7 +94,17 @@ public class AccessTokenVerifier {
 			throw new InvalidTokenException("malformed scope claim");
 		}
 
-		return new VerifiedToken(claims.getSubject(), scopes);
+		List<String> audience = claims.getAudience();
+		String clientId = (audience == null || audience.isEmpty()) ? null : audience.get(0);
+		Date issuedAt = claims.getIssueTime();
+
+		return new VerifiedToken(
+				claims.getSubject(),
+				scopes,
+				clientId,
+				expiration.toInstant().getEpochSecond(),
+				(issuedAt == null) ? 0L : issuedAt.toInstant().getEpochSecond()
+		);
 	}
 
 	/**
