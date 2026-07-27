@@ -146,10 +146,10 @@ flowchart TB
 6. `POST /oauth2/token` (Basic my-client:secret, code, code_verifier) → token 이 client 인증 → code 원자 소비 → 바인딩/PKCE 검증 → claim 구성 → signing 에 access token 서명 위임 → **scope 에 `openid` 가 있으면** id token 도 함께 발급한다(nonce·auth_time·at_hash, profile/email scope 면 user-directory 조회 후 name/email 등 claim 추가) → **scope 에 `offline_access` 가 있고 client 의 grantTypes 에 `refresh_token` 도 등록돼 있으면** token-state 에 refresh token 발급을 위임한다 → `{access_token, id_token, refresh_token, ...}`
 7. `GET` 또는 `POST /userinfo` (Bearer access token) → token 이 jwks 로 access token 자체 검증 후 scope 에 대응하는 claim 만 돌려준다 (`openid` 없으면 403). `profile`/`email` scope 가 없으면 user-directory 를 조회하지 않는다.
 8. client 의 등록 grantTypes 를 authorize/token 양쪽에서 강제한다 — 등록된 grantTypes 에 `authorization_code` 가 없으면 authorize 는 `unauthorized_client` 로 redirect, token 은 `unauthorized_client`(400) 로 거부한다.
-9. `POST /oauth2/token` (grant_type=refresh_token, refresh_token) → token 이 client 인증 후 **판정과 전이를 한 번에 묶어** token-state 의 `POST /internal/refresh-tokens/rotate` 를 호출한다. 성공하면 이전 refresh token 은 CONSUMED 로 바뀌고 같은 계열(family)에 새 refresh token 이 발급되며, 새 access token(및 openid scope 면 id token — nonce 없이, auth_time 은 최초 인증 시각 유지)이 함께 나간다. `scope` 파라미터를 함께 보내면 이번 access token 에만 좁혀지고 저장된 refresh 의 scope 는 그대로다.
+9. `POST /oauth2/token` (grant_type=refresh_token, refresh_token) → token 이 client 인증 후 **판정과 전이를 한 번에 묶어** token-state 의 `POST /internal/refresh-tokens/rotate` 를 호출한다. 성공하면 이전 refresh token 은 CONSUMED 로 바뀌고 같은 계열(family)에 새 refresh token 이 발급되며, 새 access token(및 openid scope 면 id token — nonce 없이, auth_time 은 최초 인증 시각 유지)이 함께 나간다. `scope` 파라미터를 함께 보내면 이번 access token 에만 좁혀지고 저장된 refresh 의 scope 는 그대로다. 좁힌 scope 가 저장된 scope 를 벗어나면 token-state 가 회전과 같은 트랜잭션 안에서 이를 검사해 **회전 자체를 하지 않고** `invalid_scope` 를 돌려준다 — 이전 refresh token 이 그대로 살아 있으므로 client 는 같은 토큰으로 scope 를 고쳐 재시도할 수 있다. 회전 후 id token 발급 중 사용자가 삭제된 것으로 확인되면(user-directory 404) `invalid_grant`(500 아니다) — code 교환 경로와 같은 판단이다. token-state 가 빈 본문을 주면(역직렬화 결과 null) 실패로 뭉개지 않고 예외를 던져 `server_error` 로 끝낸다.
 10. 이미 소진(CONSUMED)된 refresh token 이 다시 오면 **재사용으로 간주해 계열 전체를 REVOKED 로 폐기**한다 — 공격자가 훔쳐 먼저 회전했든 정상 client 가 나중에 재시도했든, 늦게 온 쪽이 CONSUMED 를 만나 계열이 죽으므로 양쪽 다 재인증으로 떨어진다.
 11. `POST /oauth2/revoke` (Basic client:secret, token=refresh_token) → 해당 토큰이 속한 계열 전체를 폐기한다. 존재하지 않는 토큰·다른 client 의 토큰·이미 폐기된 토큰 모두 `200` 으로 동일하게 응답한다(RFC 7009 2.2, 탐색 방지). access token 은 폐기 대상이 아니다.
-12. `POST /oauth2/introspect` (Basic client:secret, token) → 먼저 JWT 로컬 검증을 시도하고(서명·`exp`), 성공하면 access token 으로 응답한다. 실패하면(형식이 다르거나 서명 불일치) refresh token 일 수 있으므로 token-state 에 조회를 위임한다. 인증된 client 라면 자신이 발급받지 않은 토큰도 조회할 수 있다(resource server 가 다른 client 의 토큰을 검사하는 것이 introspection 의 목적이므로).
+12. `POST /oauth2/introspect` (Basic client:secret, token) → 먼저 JWT 로컬 검증을 시도하고(서명·`exp`), 성공하면 access token 으로 응답한다. 실패하면(형식이 다르거나 서명 불일치) refresh token 일 수 있으므로 token-state 에 조회를 위임한다. 인증된 client 라면 자신이 발급받지 않은 토큰도 조회할 수 있다(resource server 가 다른 client 의 토큰을 검사하는 것이 introspection 의 목적이므로). token-state 가 빈 본문을 주면(역직렬화 결과 null) `{"active": false}` 로 내리지 않고 `server_error` 로 끝낸다 — "확인하지 못했다"를 "비활성"으로 말하면 살아있는 토큰을 죽었다고 알리는 셈이다.
 
 ## API 별 시퀀스 다이어그램
 
@@ -354,30 +354,46 @@ sequenceDiagram
     participant C as client-registry
     participant TS as token-state
     participant S as signing
+    participant U as user-directory
 
     CL->>G: POST /oauth2/token<br/>Basic(client_id:secret), grant_type=refresh_token, refresh_token, [scope]
     G->>T: proxy
     T->>C: GET /internal/clients/{client_id}
     C-->>T: 200 {clientSecretHash, grantTypes, ...}
     Note over T: client 인증(bcrypt) → 실패 시 invalid_client 401<br/>grantTypes 에 refresh_token 없으면 → unauthorized_client
-    T->>TS: POST /internal/refresh-tokens/rotate {refreshToken, clientId}
-    Note over TS: 판정과 전이를 한 트랜잭션 · 한 번의 호출로 끝낸다(왕복을 쪼개면 경쟁 창이 생긴다).<br/>계열 전체를 먼저 잠그고(findByFamilyIdForUpdate) 그 안에서 대상 행을 찾아 판정한다.<br/>ACTIVE 면 CONSUMED 로 전이하고 같은 family_id 로 새 행을 발급한다.
+    T->>TS: POST /internal/refresh-tokens/rotate {refreshToken, clientId, requestedScope}
+    Note over TS: 판정과 전이를 한 트랜잭션 · 한 번의 호출로 끝낸다(왕복을 쪼개면 경쟁 창이 생긴다).<br/>계열 전체를 먼저 잠그고(findByFamilyIdForUpdate) 그 안에서 대상 행을 찾아 판정한다.<br/>requestedScope 가 저장 scope 를 벗어나는지도 다른 거절 사유 뒤, 전이 직전에 같은 트랜잭션 안에서 확인한다(RFC 6749 6).<br/>ACTIVE 고 scope 도 범위 안이면 CONSUMED 로 전이하고 같은 family_id 로 새 행을 발급한다.
     alt 회전 성공 (ROTATED)
         TS-->>T: 200 {status=ROTATED, sub, scope, authTime, refreshToken(새 값), expiresAt}
-        Note over T: scope 파라미터가 있으면 저장 scope 의 부분집합인지 검사(RFC 6749 6).<br/>이번 access token 에만 좁혀지고 저장 scope 는 그대로 유지된다.
+        Note over T: 요청 scope 는 이번 access token 에만 좁혀지고 저장된 refresh 의 scope 는 그대로 유지된다.
         T->>S: POST /internal/sign {claims} (access token)
         S-->>T: {jwt}
         opt scope 에 openid 포함
             Note over T: nonce 는 싣지 않는다(재발급 토큰에 실으면 리플레이 방어가 깨진다).<br/>auth_time 은 최초 인증 시각을 그대로 유지한다(OIDC Core 12.2).
+            opt profile 또는 email scope 포함
+                T->>U: GET /internal/users/{sub}
+                alt 조회 성공
+                    U-->>T: 200 {name, nickname, preferredUsername, email, emailVerified}
+                else 404 (사용자 삭제 — 확정된 부재)
+                    Note over T: id token 발급 중단 → invalid_grant 400 (500 아니다).<br/>code 교환 경로와 같은 판단 — 존재하지 않는 주체에 대한 인증 주장을 만들 수 없다.<br/>회전 자체는 이미 끝나 새 refresh token 이 나갔지만, 이 grant 응답은 무효로 본다.
+                else 일시 장애 (연결 실패·5xx — 존재 여부 미확정)
+                    Note over T: 프로필 claim 없이 id token 발급 계속
+                end
+            end
             T->>S: POST /internal/sign {claims} (id token)
             S-->>T: {jwt}
         end
         T-->>CL: 200 {access_token, [id_token], refresh_token(새 값), ...}
+    else scope 초과 (SCOPE_EXCEEDED)
+        TS-->>T: 200 {status=SCOPE_EXCEEDED}
+        Note over TS,T: 토큰은 멀쩡하고 요청이 잘못된 경우라 아무 상태도 바꾸지 않았다 — 회전이 일어나지 않았다.<br/>이전 refresh token 이 그대로 살아 있으므로 client 는 같은 토큰으로 scope 를 고쳐 재시도할 수 있다.
+        T-->>CL: 400 invalid_scope
     else 회전 거부 (NOT_FOUND · CLIENT_MISMATCH · REVOKED · EXPIRED · REUSE_DETECTED)
         TS-->>T: 200 {status=그 사유}
         Note over T: 사유를 그대로 노출하지 않고 전부 invalid_grant 로 뭉갠다.<br/>"이미 소진됐다"와 "그런 토큰 없다"를 구분해 주면 탐색을 돕는다. 사유는 로그에만 남긴다.
         T-->>CL: 400 invalid_grant
     end
+    Note over T: token-state 가 빈 본문을 주면(역직렬화 결과 null) "비활성/거절"이 아니라 "확인하지 못했다"다.<br/>invalid_grant 로 내리면 하위 서비스 장애를 client 잘못으로 돌리게 되므로, 예외를 던져 500 server_error 로 끝낸다.
 ```
 
 ### 소진된 refresh token 재사용 — 재사용 탐지 → 계열 폐기
@@ -430,6 +446,10 @@ sequenceDiagram
             TS-->>T: 200 {active:false}
             Note over T: 사유(만료 · 폐기 · 애초에 존재하지 않음)를 구분하지 않는다(RFC 7662 2.2).<br/>구분해 주면 토큰을 쥔 쪽이 그 토큰의 내력을 알아낼 수 있다.
             T-->>V: 200 {active:false}
+        else 빈 본문(역직렬화 결과 null)
+            TS-->>T: 200 (본문 없음)
+            Note over T: "비활성" 이 아니라 "확인하지 못했다" 다. {active:false} 로 내리면<br/>살아있는 토큰을 죽었다고 말하는 셈이라 resource server 가 멀쩡한 요청을 거절한다.<br/>예외를 던져 500 server_error 로 끝낸다.
+            T-->>V: 500 server_error
         end
     end
 ```

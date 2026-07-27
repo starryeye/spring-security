@@ -141,23 +141,26 @@ POST /internal/refresh-tokens
 
 ```
 POST /internal/refresh-tokens/rotate
-{ "refreshToken": str, "clientId": str }
+{ "refreshToken": str, "clientId": str, "requestedScope": str? }
 → 200 { "status": str, "sub": str, "scope": str, "authTime": long,
         "refreshToken": str, "expiresAt": long }
 ```
 
-한 트랜잭션 안에서 판정과 전이를 모두 수행한다.
+`requestedScope` 는 선택이다(RFC 6749 §6 의 축소 요청). 없으면(null · 빈 문자열) 축소하지 않는다. 한 트랜잭션 안에서 판정과 전이를 모두 수행한다.
 
 | 조회 결과 | status | 부수 효과 |
 |---|---|---|
-| ACTIVE · 미만료 · client 일치 | `ROTATED` | 기존 → CONSUMED, 같은 계열로 새 row insert |
+| ACTIVE · 미만료 · client 일치 · scope 요청이 저장 범위 이내 | `ROTATED` | 기존 → CONSUMED, 같은 계열로 새 row insert |
 | **CONSUMED** (이미 소진된 토큰이 다시 옴) | `REUSE_DETECTED` | **계열 전체 REVOKED** (`revoked_reason=REUSE_DETECTED`) |
 | REVOKED | `REVOKED` | 없음 |
 | 만료 또는 `family_expires_at` 초과 | `EXPIRED` | 없음 |
 | 해시 미존재 | `NOT_FOUND` | 없음 |
 | client 불일치 | `CLIENT_MISMATCH` | 없음 |
+| `requestedScope` 가 저장된 scope 를 벗어남 | `SCOPE_EXCEEDED` | 없음 — 판정은 다른 모든 거절 사유 뒤, 상태 전이 직전에 한다 |
 
 `ROTATED` 외의 응답에서 `refreshToken` 등 나머지 필드는 채우지 않는다.
+
+**주의.** `SCOPE_EXCEEDED` 검사를 회전 이후로 미루면(예: token 서비스가 회전 응답을 받은 뒤 저장 scope 와 비교) 이미 이전 토큰이 CONSUMED 된 뒤라 새 토큰 원문을 버리게 된다 — 원문은 그 회전 응답에만 있으므로 grant 자체가 회수 불가능해진다. 그래서 검사를 token-state 안, 회전과 같은 트랜잭션에 둔다.
 
 ### 4.3 폐기
 
@@ -193,9 +196,9 @@ grant_type=refresh_token&refresh_token=<token>&scope=<선택, 축소 요청>
 
 절차: client 인증 → `grant_types` 에 `refresh_token` 있는지 → token-state 회전 → 새 access token(+ id token).
 
-**scope 축소** (RFC 6749 §6) — `scope` 파라미터는 저장된 scope 의 부분집합만 허용한다. 벗어나면 `invalid_scope`. 축소는 **이번 access token 에만** 적용하고, 회전으로 새로 만들어지는 refresh row 는 **원래 scope 를 그대로 복사**한다. 아니면 한 번의 축소가 영구화된다.
+**scope 축소** (RFC 6749 §6) — `scope` 파라미터는 저장된 scope 의 부분집합만 허용한다. 벗어나면 `invalid_scope`. **이 검증은 token 이 아니라 token-state 가 회전과 같은 트랜잭션 안에서 한다**(§4.2 `SCOPE_EXCEEDED`) — token 은 `requestedScope` 를 그대로 token-state 에 넘기기만 하고 직접 거르지 않는다. 검사 시점을 회전 이후로 미루면 이미 이전 토큰이 소진된 뒤라 새 토큰 원문(그 회전 응답에만 있다)을 버리게 되어 grant 를 통째로 잃는다. `SCOPE_EXCEEDED` 가 나오면 token-state 는 아무 상태도 바꾸지 않으므로, client 는 같은 refresh token 으로 올바른 scope 를 다시 보낼 수 있다. 축소는 **이번 access token 에만** 적용하고, 회전으로 새로 만들어지는 refresh row 는 **원래 scope 를 그대로 복사**한다. 아니면 한 번의 축소가 영구화된다.
 
-id token 발급 여부도 축소된 scope 가 아니라 **저장된 scope** 기준으로 판단한다. 축소 요청에서 `openid` 을 뺐다면 이번 응답에 id token 을 넣지 않지만, 다음 회전에서는 다시 낼 수 있다.
+id token 발급 여부는 이번 응답의 **유효 scope**(`effectiveScope` — 축소 요청이 있으면 그 값, 없으면 저장된 scope) 기준으로 판단한다. 축소 요청에서 `openid` 을 뺐다면 유효 scope 에 `openid` 가 없으므로 이번 응답에 id token 을 넣지 않지만, 저장된 refresh 의 scope 자체는 바뀌지 않으므로 다음 회전(축소 없이)에서는 다시 낼 수 있다.
 
 **id token 재발급** — `openid` 이 scope 에 있으면 새 id token 을 함께 낸다. OIDC Core §12.2 가 규정하는 것:
 
@@ -284,7 +287,13 @@ revocation_endpoint_auth_methods_supported     ["client_secret_basic"]
 | token → token-state (introspect) | 500 `server_error` | fail-closed | `{"active":false}` 로 degrade 하면 **살아있는 토큰을 죽었다고 말하는** 것이라 더 나쁘다 |
 | token → client-registry (introspect 권한) | 기존 정책 유지 | fail-closed | 404 → `invalid_client`, 그 외 → `server_error` |
 
-**주의.** 같은 refresh token 으로 동시 요청 두 건이 들어오면 `token_hash` unique 제약과 트랜잭션이 순서를 강제한다. 하나는 `ROTATED`, 다른 하나는 `CONSUMED` 를 보고 `REUSE_DETECTED` 로 계열을 폐기한다. **정상 client 의 재시도도 계열을 죽인다.** 이는 결함이 아니라 회전의 알려진 대가이며, client 는 refresh 요청을 직렬화해야 한다.
+**주의.** 회전의 정확성은 **행 잠금**이 만든다. 같은 refresh token 으로 동시 요청 두 건이 들어올 때, 조회를 `SELECT ... FOR UPDATE`(JPA `PESSIMISTIC_WRITE`)로 하지 않으면 두 트랜잭션이 모두 `ACTIVE` 를 읽고 **둘 다 회전에 성공**한다. 새로 만드는 행의 `token_hash` 는 서로 다른 난수라 unique 제약에도 걸리지 않아 조용히 통과한다. 잠금이 있어야 하나는 `ROTATED`, 다른 하나는 `CONSUMED` 를 보고 `REUSE_DETECTED` 로 이어진다.
+
+**주의.** 잠금 대상은 행 하나가 아니라 **계열 전체**다. familyId 를 알아내는 첫 조회(`findFamilyIdByTokenHash`)는 잠금 없이 하고, `findByFamilyIdForUpdate` 로 계열의 모든 행을 한 번에 `PESSIMISTIC_WRITE` 로 잠근 뒤 대상 토큰 행을 그 잠긴 결과 안에서 다시 찾아 판정한다(rotate · revoke 공통). **모든 호출이 "계열 전체 → 그 안의 대상 행" 이라는 한 가지 순서만 써야 한다.** 대상 행 하나만 먼저 잠그고 그다음 계열을 잠그는 경로가 하나라도 남아 있으면, 계열을 통째로 먼저 잠그는 다른 트랜잭션과 서로 상대가 쥔 잠금을 기다리는 교착이 가능해진다.
+
+**주의.** 첫 조회는 반드시 엔티티를 로드하지 않는 **스칼라 프로젝션**(`findFamilyIdByTokenHash`)이어야 한다. "행 잠금을 걸었다"와 "잠긴 상태로 판정한다"는 JPA 에서 같은 말이 아니다 — 이 슬라이스에서 실제로 부딪힌 함정이다. `findByTokenHash` 로 엔티티를 먼저 로드하면 그 인스턴스가 영속성 컨텍스트에 managed 로 남고, 뒤이은 `findByFamilyIdForUpdate` 가 SQL 로는 `FOR UPDATE` 잠금을 실제로 걸고 최신 행을 읽어와도 Hibernate 는 이미 있는 인스턴스를 그대로 돌려주며 필드를 갱신하지 않는다. 그러면 잠금은 걸렸는데 판정은 잠금 획득 이전 스냅샷으로 하게 되어, 동시 회전에서 두 요청이 모두 stale 한 상태(예: 둘 다 `ACTIVE`)를 보고 재사용 탐지가 통째로 무력해진다. `RefreshTokenServiceConcurrentRotateTest`(§8)에서 첫 조회를 `findByTokenHash` 로 되돌려 재현·확인했다.
+
+**주의.** 그 결과 **정상 client 의 재시도도 계열을 죽인다.** 결함이 아니라 회전의 알려진 대가이며, client 는 refresh 요청을 직렬화해야 한다.
 
 **주의.** 회전은 이전 토큰을 즉시 무효화하므로, client 가 새 refresh token 을 저장하기 전에 죽으면 그 계열을 잃는다. 짧은 유예(grace period)를 두는 구현도 있으나 재사용 탐지의 정확도와 맞바꾸는 선택이라 이 슬라이스에서는 두지 않는다.
 
@@ -295,6 +304,8 @@ revocation_endpoint_auth_methods_supported     ["client_secret_basic"]
 ### 단위 테스트 초점
 
 - 회전 후 이전 토큰 재사용 → **계열 전체가 REVOKED 인지 DB 상태로 단언** (응답 status 만 보지 않는다)
+- 같은 토큰으로 **동시 회전 두 건**(`RefreshTokenServiceConcurrentRotateTest`) → 정확히 하나만 `ROTATED`, 다른 하나는 `REUSE_DETECTED` 이고 제출된 토큰이 DB 상 REVOKED(`revoked_reason=REUSE_DETECTED`)임을 확인한다. `TokenGenerator.hash` 에 장벽을 세워 두 트랜잭션이 각자의 첫 조회를 마친 뒤에야 잠금 경쟁에 들어가도록 인터리빙을 강제한다.
+  **한계.** "계열 전 행이 REVOKED" 는 여기서 단언하지 않는다. h2 는 차단된 `SELECT ... FOR UPDATE` 가 풀릴 때도 차단 이전 스냅샷을 쓰므로(InnoDB 의 locking read 와 달리 경쟁 중 삽입된 형제 행을 다시 읽어오지 않는다), 이 테스트에서는 그 형제 행 하나가 ACTIVE 로 남을 수 있다 — 구현의 결함이 아니라 테스트 DB(h2)의 잠금 의미론 차이다. 형제 행까지 폐기되는 성질은 이미 커밋된 행으로 구성해 h2 에서도 성립하는 위 단일 스레드 테스트가 고정한다. 이 동시성 테스트가 실제로 고정하는 것은 "회전이 정확히 한 번만 일어났다"(계열 행 개수가 3이 아니라 2)와 "제출된 토큰이 재사용으로 폐기됐다" 두 가지다.
 - `family_expires_at` 초과 → `EXPIRED` (개별 `expires_at` 은 아직 유효한 상태로 구성해 절대 상한이 실제로 동작하는지 격리 검증)
 - client 불일치 → `CLIENT_MISMATCH`, 상태 변화 없음
 - scope 축소 요청이 **저장된 refresh 의 scope 를 바꾸지 않음**
