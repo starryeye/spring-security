@@ -1,6 +1,5 @@
 package dev.starryeye.token;
 
-import dev.starryeye.token.client.ClientInfo;
 import dev.starryeye.token.client.ClientRegistryClient;
 import dev.starryeye.token.client.RefreshTokenInfo;
 import dev.starryeye.token.client.SigningClient;
@@ -10,7 +9,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -23,6 +21,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -34,13 +33,13 @@ class IntrospectionControllerTest {
 	private MockMvc mockMvc;
 
 	@MockitoBean
-	private ClientRegistryClient clientRegistryClient;
-
-	@MockitoBean
 	private AccessTokenVerifier accessTokenVerifier;
 
 	@MockitoBean
 	private TokenStateClient tokenStateClient;
+
+	@MockitoBean
+	private ClientRegistryClient clientRegistryClient;
 
 	@MockitoBean
 	private SigningClient signingClient;
@@ -51,24 +50,25 @@ class IntrospectionControllerTest {
 	@MockitoBean
 	private AuthorizationCodeStore codeStore;
 
-	private static final String BASIC = "Basic " + Base64.getEncoder()
-			.encodeToString("article-api:secret".getBytes(StandardCharsets.UTF_8));
+	private static final String CALLER = "Bearer caller-token";
 
-	private ClientInfo articleApi() {
-		String hash = PasswordEncoderFactories.createDelegatingPasswordEncoder().encode("secret");
-		return new ClientInfo("article-api", List.of(), List.of(), hash, List.of(), List.of());
+	private void callerHasIntrospectScope() {
+		when(accessTokenVerifier.verify("caller-token")).thenReturn(
+				new AccessTokenVerifier.VerifiedToken("article-api", List.of("introspect"),
+						"article-api", 1800000000L, 1700000000L));
 	}
 
+	// 호출자와 토큰 주인이 다른 것이 introspection 의 정상 상황이다.
 	@Test
-	void accessTokenIsIntrospectedLocally() throws Exception {
-		when(clientRegistryClient.getClient("article-api")).thenReturn(articleApi());
-		when(accessTokenVerifier.verify("access-token")).thenReturn(
+	void callerWithIntrospectScopeCanInspectAnotherClientsAccessToken() throws Exception {
+		callerHasIntrospectScope();
+		when(accessTokenVerifier.verify("subject-token")).thenReturn(
 				new AccessTokenVerifier.VerifiedToken("user-sub-0001", List.of("openid", "profile"),
 						"my-client", 1800000000L, 1700000000L));
 
 		mockMvc.perform(post("/oauth2/introspect")
-						.header("Authorization", BASIC)
-						.param("token", "access-token"))
+						.header("Authorization", CALLER)
+						.param("token", "subject-token"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.active").value(true))
 				.andExpect(jsonPath("$.sub").value("user-sub-0001"))
@@ -76,13 +76,92 @@ class IntrospectionControllerTest {
 				.andExpect(jsonPath("$.scope").value("openid profile"))
 				.andExpect(jsonPath("$.token_type").value("Bearer"));
 
-		// access token 은 폐기 대상이 아니므로 token-state 를 조회하지 않는다
+		verify(tokenStateClient, never()).introspect(any());
+	}
+
+	// scope 가 없으면 인증은 됐지만 권한이 없는 것이라 403 이다 (RFC 6750 3.1)
+	@Test
+	void callerWithoutIntrospectScopeIsForbidden() throws Exception {
+		when(accessTokenVerifier.verify("caller-token")).thenReturn(
+				new AccessTokenVerifier.VerifiedToken("my-client", List.of("openid"),
+						"my-client", 1800000000L, 1700000000L));
+
+		mockMvc.perform(post("/oauth2/introspect")
+						.header("Authorization", CALLER)
+						.param("token", "subject-token"))
+				.andExpect(status().isForbidden())
+				.andExpect(header().string("WWW-Authenticate", "Bearer error=\"insufficient_scope\""));
+
+		verify(tokenStateClient, never()).introspect(any());
+	}
+
+	// Basic 은 더 이상 받지 않는다. 계속 받으면 scope 로 좁힌 의미가 사라진다.
+	@Test
+	void basicCredentialsAreNoLongerAccepted() throws Exception {
+		String basic = "Basic " + Base64.getEncoder()
+				.encodeToString("article-api:secret".getBytes(StandardCharsets.UTF_8));
+
+		mockMvc.perform(post("/oauth2/introspect")
+						.header("Authorization", basic)
+						.param("token", "subject-token"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(header().string("WWW-Authenticate", "Bearer"));
+
+		verify(accessTokenVerifier, never()).verify(any());
 		verify(tokenStateClient, never()).introspect(any());
 	}
 
 	@Test
-	void nonJwtTokenFallsBackToTokenState() throws Exception {
-		when(clientRegistryClient.getClient("article-api")).thenReturn(articleApi());
+	void missingAuthorizationHeaderIsUnauthorized() throws Exception {
+		mockMvc.perform(post("/oauth2/introspect").param("token", "subject-token"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(header().string("WWW-Authenticate", "Bearer"));
+
+		verify(tokenStateClient, never()).introspect(any());
+	}
+
+	@Test
+	void invalidCallerTokenIsUnauthorized() throws Exception {
+		when(accessTokenVerifier.verify("caller-token"))
+				.thenThrow(new AccessTokenVerifier.InvalidTokenException("token expired"));
+
+		mockMvc.perform(post("/oauth2/introspect")
+						.header("Authorization", CALLER)
+						.param("token", "subject-token"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(header().string("WWW-Authenticate", "Bearer error=\"invalid_token\""));
+
+		verify(tokenStateClient, never()).introspect(any());
+	}
+
+	// 호출자 토큰 검증 중 jwks 를 못 구한 것은 토큰의 죄가 아니라 서버 장애다.
+	@Test
+	void signingFailureWhileVerifyingCallerReturns500() throws Exception {
+		when(accessTokenVerifier.verify("caller-token"))
+				.thenThrow(new IllegalStateException("signing is down"));
+
+		mockMvc.perform(post("/oauth2/introspect")
+						.header("Authorization", CALLER)
+						.param("token", "subject-token"))
+				.andExpect(status().isInternalServerError())
+				.andExpect(jsonPath("$.error").value("server_error"));
+
+		verify(tokenStateClient, never()).introspect(any());
+	}
+
+	@Test
+	void missingTokenParameterIsInvalidRequest() throws Exception {
+		callerHasIntrospectScope();
+
+		mockMvc.perform(post("/oauth2/introspect").header("Authorization", CALLER))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("invalid_request"));
+	}
+
+	// JWT 가 아니면 refresh token 일 수 있으므로 소유자에게 묻는다. token_type_hint 는 쓰지 않는다.
+	@Test
+	void nonJwtSubjectTokenFallsBackToTokenState() throws Exception {
+		callerHasIntrospectScope();
 		when(accessTokenVerifier.verify("opaque-refresh"))
 				.thenThrow(new AccessTokenVerifier.InvalidTokenException("malformed token"));
 		when(tokenStateClient.introspect("opaque-refresh")).thenReturn(
@@ -90,58 +169,25 @@ class IntrospectionControllerTest {
 						1800000000L, 1700000000L));
 
 		mockMvc.perform(post("/oauth2/introspect")
-						.header("Authorization", BASIC)
+						.header("Authorization", CALLER)
 						.param("token", "opaque-refresh"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.active").value(true))
-				.andExpect(jsonPath("$.sub").value("user-sub-0001"))
 				.andExpect(jsonPath("$.scope").value("openid offline_access"))
-				.andExpect(jsonPath("$.token_type").doesNotExist()); // refresh 에는 token_type 이 없다
-	}
-
-	// jwks 조회 실패(signing 장애)는 토큰의 죄가 아니다. InvalidTokenException 이 아닌 예외이므로
-	// token-state 로 새지도, {"active": false} 로 둔갑하지도 않고 500 server_error 여야 한다.
-	@Test
-	void signingFailureReturns500NotInactive() throws Exception {
-		when(clientRegistryClient.getClient("article-api")).thenReturn(articleApi());
-		when(accessTokenVerifier.verify("tok")).thenThrow(new IllegalStateException("signing is down"));
-
-		mockMvc.perform(post("/oauth2/introspect")
-						.header("Authorization", BASIC)
-						.param("token", "tok"))
-				.andExpect(status().isInternalServerError())
-				.andExpect(jsonPath("$.error").value("server_error"));
-
-		verify(tokenStateClient, never()).introspect(any());
-	}
-
-	// token-state 가 빈 본문을 준 경우(역직렬화 결과 null)는 "비활성" 이 아니라 "확인하지 못했다" 다.
-	// {"active": false} 로 내보내면 살아있는 토큰을 죽었다고 말하는 셈이라 resource server 가 멀쩡한 요청을 거절한다.
-	@Test
-	void nullIntrospectionResultReturns500NotInactive() throws Exception {
-		when(clientRegistryClient.getClient("article-api")).thenReturn(articleApi());
-		when(accessTokenVerifier.verify("opaque-refresh"))
-				.thenThrow(new AccessTokenVerifier.InvalidTokenException("malformed token"));
-		when(tokenStateClient.introspect("opaque-refresh")).thenReturn(null);
-
-		mockMvc.perform(post("/oauth2/introspect")
-						.header("Authorization", BASIC)
-						.param("token", "opaque-refresh"))
-				.andExpect(status().isInternalServerError())
-				.andExpect(jsonPath("$.error").value("server_error"));
+				.andExpect(jsonPath("$.token_type").doesNotExist());
 	}
 
 	// 비활성 응답에서는 어떤 정보도 새지 않아야 한다 (RFC 7662 2.2)
 	@Test
 	void inactiveResponseContainsOnlyActiveFalse() throws Exception {
-		when(clientRegistryClient.getClient("article-api")).thenReturn(articleApi());
+		callerHasIntrospectScope();
 		when(accessTokenVerifier.verify("dead"))
 				.thenThrow(new AccessTokenVerifier.InvalidTokenException("token expired"));
 		when(tokenStateClient.introspect("dead"))
 				.thenReturn(new RefreshTokenInfo(false, null, null, null, 0L, 0L));
 
 		mockMvc.perform(post("/oauth2/introspect")
-						.header("Authorization", BASIC)
+						.header("Authorization", CALLER)
 						.param("token", "dead"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.active").value(false))
@@ -151,34 +197,18 @@ class IntrospectionControllerTest {
 				.andExpect(jsonPath("$.exp").doesNotExist());
 	}
 
+	// token-state 가 빈 본문을 주면 "비활성" 이 아니라 "확인하지 못했다" 이므로 500 이다.
 	@Test
-	void missingCredentialsReturnsInvalidClient() throws Exception {
-		mockMvc.perform(post("/oauth2/introspect").param("token", "whatever"))
-				.andExpect(status().isUnauthorized())
-				.andExpect(jsonPath("$.error").value("invalid_client"));
-
-		verify(tokenStateClient, never()).introspect(any());
-	}
-
-	@Test
-	void wrongSecretReturnsInvalidClient() throws Exception {
-		when(clientRegistryClient.getClient("article-api")).thenReturn(articleApi());
-		String wrong = "Basic " + Base64.getEncoder()
-				.encodeToString("article-api:nope".getBytes(StandardCharsets.UTF_8));
+	void nullIntrospectionResultReturns500NotInactive() throws Exception {
+		callerHasIntrospectScope();
+		when(accessTokenVerifier.verify("opaque"))
+				.thenThrow(new AccessTokenVerifier.InvalidTokenException("malformed token"));
+		when(tokenStateClient.introspect("opaque")).thenReturn(null);
 
 		mockMvc.perform(post("/oauth2/introspect")
-						.header("Authorization", wrong)
-						.param("token", "whatever"))
-				.andExpect(status().isUnauthorized())
-				.andExpect(jsonPath("$.error").value("invalid_client"));
-	}
-
-	@Test
-	void missingTokenParameterReturnsInvalidRequest() throws Exception {
-		when(clientRegistryClient.getClient("article-api")).thenReturn(articleApi());
-
-		mockMvc.perform(post("/oauth2/introspect").header("Authorization", BASIC))
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error").value("invalid_request"));
+						.header("Authorization", CALLER)
+						.param("token", "opaque"))
+				.andExpect(status().isInternalServerError())
+				.andExpect(jsonPath("$.error").value("server_error"));
 	}
 }

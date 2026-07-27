@@ -37,13 +37,23 @@ public class IntrospectionController {
 	 *      예외를 올려 server_error 로 끝낸다. {"active": false} 로 degrade 하면 살아있는 토큰을 죽었다고 말하는
 	 *      것이라, resource server 가 멀쩡한 요청을 거절한다.
 	 *
-	 * 주의. 인증된 등록 client 면 누구의 토큰이든 조회할 수 있다. resource server 가 검사하는 토큰은 언제나
-	 *      다른 client 에게 발급된 것이므로, "자기 토큰만" 으로 제한하면 기능이 성립하지 않는다.
-	 *      권한을 좁히려면 client_credentials grant 로 받은 토큰의 introspect scope 를 보는 것이 정석이며,
-	 *      이 서버에는 아직 그 grant 가 없다.
+	 * 주의. 이 엔드포인트는 client 인증 대상이 아니라 protected resource 다. 호출자는 client_credentials 로
+	 *      받은 access token 을 Bearer 로 제시하고, 그 토큰에 introspect scope 가 있어야 한다.
+	 *      그래서 오류도 RFC 6749(client 인증)가 아니라 RFC 6750(Bearer)을 따른다 —
+	 *      토큰 없음/Basic 은 401, 무효 토큰은 401 invalid_token, scope 부족은 403 insufficient_scope 다.
+	 *
+	 * 주의. Basic 을 계속 받으면 scope 로 좁힌 의미가 사라진다. 그래서 Basic 은 토큰 없음과 같이 401 이다.
+	 *
+	 * 주의. revoke 는 여전히 Basic 을 쓴다. 비대칭이 의도적이다 — revoke 는 "자기 토큰을 폐기" 라 소유자
+	 *      확인(client 인증)이 맞고, introspect 는 "남의 토큰을 검사" 라 별도로 부여된 능력(scope)이 맞다.
+	 *
+	 * 주의. 호출자 토큰 검증도 검사 대상 토큰 검증도 같은 AccessTokenVerifier 를 쓴다. jwks 확보 실패는
+	 *      InvalidTokenException 이 아닌 예외로 전파돼 500 server_error 가 된다 — 401 로 응답하면 호출자가
+	 *      멀쩡한 자기 토큰을 폐기하고 재발급을 돌린다.
 	 */
 
-	private final ClientAuthenticator clientAuthenticator;
+	private static final String REQUIRED_SCOPE = "introspect";
+
 	private final AccessTokenVerifier accessTokenVerifier;
 	private final TokenStateClient tokenStateClient;
 
@@ -56,13 +66,23 @@ public class IntrospectionController {
 			@RequestParam(value = "token", required = false) String token,
 			@RequestParam(value = "token_type_hint", required = false) String tokenTypeHint
 	) {
-		try {
-			// 인증 결과는 쓰지 않는다. 소유권 검사를 두지 않는 설계라 "인증된 등록 client 인가" 만 보면 된다.
-			clientAuthenticator.authenticate(authorization);
-		} catch (ClientAuthenticator.ClientAuthenticationException e) {
+		if (authorization == null || !authorization.startsWith("Bearer ")) {
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-					.body(new OAuth2ErrorResponse("invalid_client", e.getMessage()));
+					.header(HttpHeaders.WWW_AUTHENTICATE, "Bearer").build();
 		}
+
+		AccessTokenVerifier.VerifiedToken caller;
+		try {
+			caller = accessTokenVerifier.verify(authorization.substring(7));
+		} catch (AccessTokenVerifier.InvalidTokenException e) {
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+					.header(HttpHeaders.WWW_AUTHENTICATE, "Bearer error=\"invalid_token\"").build();
+		}
+		if (!caller.scopes().contains(REQUIRED_SCOPE)) {
+			return ResponseEntity.status(HttpStatus.FORBIDDEN)
+					.header(HttpHeaders.WWW_AUTHENTICATE, "Bearer error=\"insufficient_scope\"").build();
+		}
+
 		if (!StringUtils.hasText(token)) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST)
 					.body(new OAuth2ErrorResponse("invalid_request", "token is required"));
