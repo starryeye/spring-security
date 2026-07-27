@@ -149,6 +149,24 @@ class IntrospectionControllerTest {
 		verify(tokenStateClient, never()).introspect(any());
 	}
 
+	// 컨트롤러의 두 catch(InvalidTokenException) 블록 중 "검사 대상" 토큰 쪽이다 — 호출자 쪽(위 테스트)과는
+	// 다른 지점이라, 이 블록이 나중에 catch(Exception) 으로 넓어지거나 장애를 token-state 폴백으로 흘려도
+	// 위 테스트만으로는 잡히지 않는다. verify(never()) 로 폴백 미발생까지 확인해야 이 지점을 덮는다.
+	@Test
+	void signingFailureWhileVerifyingSubjectTokenReturns500() throws Exception {
+		callerHasIntrospectScope();
+		when(accessTokenVerifier.verify("subject-token"))
+				.thenThrow(new IllegalStateException("signing is down"));
+
+		mockMvc.perform(post("/oauth2/introspect")
+						.header("Authorization", CALLER)
+						.param("token", "subject-token"))
+				.andExpect(status().isInternalServerError())
+				.andExpect(jsonPath("$.error").value("server_error"));
+
+		verify(tokenStateClient, never()).introspect(any());
+	}
+
 	@Test
 	void missingTokenParameterIsInvalidRequest() throws Exception {
 		callerHasIntrospectScope();
