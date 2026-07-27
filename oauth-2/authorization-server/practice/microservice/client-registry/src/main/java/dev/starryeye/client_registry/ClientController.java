@@ -44,7 +44,8 @@ public class ClientController {
 					List.of(StringUtils.commaDelimitedListToStringArray(entity.getRedirectUris())),
 					List.of(StringUtils.commaDelimitedListToStringArray(entity.getScopes())),
 					entity.getClientSecretHash(),
-					List.of(StringUtils.commaDelimitedListToStringArray(entity.getGrantTypes()))
+					List.of(StringUtils.commaDelimitedListToStringArray(entity.getGrantTypes())),
+					List.of(StringUtils.commaDelimitedListToStringArray(entity.getClientScopes()))
 			);
 		}
 	}

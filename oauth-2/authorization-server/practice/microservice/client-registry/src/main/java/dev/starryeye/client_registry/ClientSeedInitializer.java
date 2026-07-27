@@ -34,18 +34,20 @@ public class ClientSeedInitializer implements ApplicationRunner {
 					.redirectUris("http://127.0.0.1:8080/callback")
 					.scopes("openid,profile,email,offline_access")
 					.grantTypes("authorization_code,refresh_token")
+					.clientScopes("")
 					.build());
 		}
 
-		// resource server 역할. 인가 흐름에 참여하지 않고 introspection 만 호출한다.
-		// grant_types 가 비어 있어 토큰 요청은 기존 검사에서 자연히 거절된다.
+		// resource server 역할. 인가 흐름에 참여하지 않고(redirect_uris · scopes 가 비어 있다)
+		// client_credentials 로 자기 토큰만 받아 introspection 을 호출한다.
 		if (!repository.existsById("article-api")) {
 			repository.save(ClientEntity.builder()
 					.clientId("article-api")
 					.clientSecretHash(encoder.encode("secret"))
 					.redirectUris("")
 					.scopes("")
-					.grantTypes("")
+					.grantTypes("client_credentials")
+					.clientScopes("introspect")
 					.build());
 		}
 	}

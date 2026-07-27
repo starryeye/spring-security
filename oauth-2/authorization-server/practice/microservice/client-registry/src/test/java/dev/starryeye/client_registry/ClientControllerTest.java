@@ -33,7 +33,8 @@ class ClientControllerTest {
 				List.of("http://127.0.0.1:8080/callback"),
 				List.of("openid", "profile"),
 				"{bcrypt}$2a$10$hash",
-				List.of("authorization_code")));
+				List.of("authorization_code"),
+				List.of()));
 
 		mockMvc.perform(get("/internal/clients/my-client"))
 				.andExpect(status().isOk())
@@ -41,7 +42,24 @@ class ClientControllerTest {
 				.andExpect(jsonPath("$.redirectUris[0]").value("http://127.0.0.1:8080/callback"))
 				.andExpect(jsonPath("$.scopes", contains("openid", "profile")))
 				.andExpect(jsonPath("$.clientSecretHash").exists())
-				.andExpect(jsonPath("$.grantTypes", contains("authorization_code")));
+				.andExpect(jsonPath("$.grantTypes", contains("authorization_code")))
+				.andExpect(jsonPath("$.clientScopes.length()").value(0));
+
+		// article-api 처럼 사용자 위임 scope 없이 client 능력만 갖는 client 를 흉내낸다.
+		// scopes(사용자 위임)와 clientScopes(관리자 부여)가 응답에서 분리돼 실리는지 확인한다.
+		when(lookupService.findByClientId("article-api")).thenReturn(new ClientResponse(
+				"article-api",
+				List.of(),
+				List.of(),
+				"{bcrypt}$2a$10$hash",
+				List.of("client_credentials"),
+				List.of("introspect")));
+
+		mockMvc.perform(get("/internal/clients/article-api"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.clientScopes[0]").value("introspect"))
+				.andExpect(jsonPath("$.clientScopes.length()").value(1))
+				.andExpect(jsonPath("$.scopes.length()").value(0));
 	}
 
 	@Test

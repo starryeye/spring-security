@@ -7,6 +7,7 @@ public record ClientResponse(
 		List<String> redirectUris,
 		List<String> scopes,
 		String clientSecretHash,
-		List<String> grantTypes
+		List<String> grantTypes,
+		List<String> clientScopes
 ) {
 }
