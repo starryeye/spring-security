@@ -144,6 +144,16 @@ public class TokenEndpointController {
 		return signingClient.jwks();
 	}
 
+	/**
+	 * 주의. introspection_endpoint_auth_methods_supported 를 내보내지 않는다. RFC 8414 의 그 필드는
+	 *      client 인증 방식(client_secret_basic 등)을 담는데, 이 엔드포인트는 Bearer 토큰과 introspect scope 를
+	 *      요구하므로 담을 값이 없다. "none" 은 인증이 필요 없다는 거짓이 된다.
+	 *      discovery 에는 "Bearer 토큰 + 특정 scope" 를 표현할 표준 필드가 없다.
+	 *
+	 * 주의. scopes_supported 에 introspect 가 들어가지만, discovery 에는 그것이 사용자 위임 가능한지
+	 *      client 자체 능력인지 구분할 필드가 없다. client 가 authorization_code 로 요청할 수 있다고
+	 *      오해할 여지가 남는다.
+	 */
 	@GetMapping({"/.well-known/oauth-authorization-server", "/.well-known/openid-configuration"})
 	public Map<String, Object> metadata() {
 		Map<String, Object> metadata = new LinkedHashMap<>();
@@ -155,13 +165,12 @@ public class TokenEndpointController {
 		metadata.put("introspection_endpoint", issuer + "/oauth2/introspect");
 		metadata.put("revocation_endpoint", issuer + "/oauth2/revoke");
 		metadata.put("code_challenge_methods_supported", List.of("S256"));
-		metadata.put("grant_types_supported", List.of("authorization_code", "refresh_token"));
+		metadata.put("grant_types_supported", List.of("authorization_code", "refresh_token", "client_credentials"));
 		metadata.put("response_types_supported", List.of("code"));
 		metadata.put("subject_types_supported", List.of("public"));
 		metadata.put("id_token_signing_alg_values_supported", List.of("RS256"));
-		metadata.put("introspection_endpoint_auth_methods_supported", List.of("client_secret_basic"));
 		metadata.put("revocation_endpoint_auth_methods_supported", List.of("client_secret_basic"));
-		metadata.put("scopes_supported", List.of("openid", "profile", "email", "offline_access"));
+		metadata.put("scopes_supported", List.of("openid", "profile", "email", "offline_access", "introspect"));
 		metadata.put("claims_supported", List.of("sub", "iss", "aud", "exp", "iat", "auth_time", "nonce", "at_hash",
 				"name", "nickname", "preferred_username", "email", "email_verified"));
 		return metadata;
