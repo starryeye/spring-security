@@ -1,0 +1,17 @@
+# RefreshTokenServiceMySqlLockSemanticsTest 전용 프로필.
+# h2 는 InnoDB 의 next-key/gap lock 의미론을 재현하지 않아 이 프로필로만 검증 가능한 성질이 있다.
+# 운영 스키마(microservice_as)를 쓰지 않고 격리된 token_state_test 스키마를 쓴다.
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/token_state_test?useSSL=false&allowPublicKeyRetrieval=true
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: 1111
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+my:
+  refresh-token-ttl-seconds: 60
+  refresh-family-max-seconds: 300

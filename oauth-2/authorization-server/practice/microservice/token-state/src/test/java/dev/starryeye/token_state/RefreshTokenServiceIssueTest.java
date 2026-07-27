@@ -94,4 +94,34 @@ class RefreshTokenServiceIssueTest {
 		assertThat(result.clientId()).isNull();
 		assertThat(result.scope()).isNull();
 	}
+
+	// 개별 만료만 격리해 검증한다. family_expires_at 은 미래로 두고 expires_at 만 과거로 옮긴다.
+	// RefreshTokenServiceRotateTest 의 rotateWithExpiredIndividualTokenButFamilyStillValidReturnsExpired 와 같은 관용구다.
+	@Test
+	void introspectReturnsInactiveWhenIndividualTokenExpiredButFamilyStillValid() {
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		RefreshTokenEntity entity = repository.findByTokenHash(tokenGenerator.hash(issued.refreshToken())).orElseThrow();
+		repository.save(expireIndividualToken(entity));
+
+		IntrospectResult result = service.introspect(issued.refreshToken());
+
+		assertThat(result.active()).isFalse();
+	}
+
+	private RefreshTokenEntity expireIndividualToken(RefreshTokenEntity entity) {
+		RefreshTokenEntity replaced = RefreshTokenEntity.builder()
+				.tokenHash(entity.getTokenHash())
+				.familyId(entity.getFamilyId())
+				.clientId(entity.getClientId())
+				.sub(entity.getSub())
+				.scopes(entity.getScopes())
+				.authTime(entity.getAuthTime())
+				.issuedAt(entity.getIssuedAt())
+				.expiresAt(entity.getIssuedAt().minusSeconds(1))
+				.familyExpiresAt(entity.getFamilyExpiresAt())
+				.build();
+		repository.delete(entity);
+		repository.flush();
+		return replaced;
+	}
 }

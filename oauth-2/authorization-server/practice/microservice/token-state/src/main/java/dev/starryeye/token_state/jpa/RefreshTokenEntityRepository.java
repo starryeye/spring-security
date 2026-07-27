@@ -32,9 +32,11 @@ public interface RefreshTokenEntityRepository extends JpaRepository<RefreshToken
 	 *      직렬화된다. 모든 호출부가 이 메서드 하나로만 계열을 잠그므로 잠금 순서가 항상 같아 교착이 없다.
 	 *
 	 * 주의. 잠금 없는 findByFamilyId 로 계열을 스냅샷 뜬 뒤 그 목록으로 폐기하면, 스냅샷과 폐기 사이에
-	 *      동시 트랜잭션이 커밋한 새 행(회전으로 막 삽입된 형제 행)이 반드시 빠져나간다. 이 메서드로 잠근 뒤
-	 *      그 결과로만 판정 · 폐기하면 그런 형제 행을 더 많이 잡아내지만, 대기 중 삽입된 형제 행까지 항상
-	 *      포함한다는 보장은 아니다 — h2 에서는 빠지는 경우가 관찰됐다(RefreshTokenServiceConcurrentRotateTest 참고).
+	 *      동시 트랜잭션이 커밋한 새 행(회전으로 막 삽입된 형제 행)이 반드시 빠져나간다. h2 에서는 이 메서드로도
+	 *      대기 중 삽입된 형제 행이 빠지는 경우가 관찰됐지만(RefreshTokenServiceConcurrentRotateTest 참고), 이는
+	 *      h2 가 InnoDB 의 next-key/gap lock 의미론을 재현하지 않는 테스트 DB 의 한계였다. 운영 DB(MySQL
+	 *      8/InnoDB)로 RefreshTokenServiceMySqlLockSemanticsTest 를 반복 실행해 확인한 바로는, 잠금을
+	 *      기다리던 트랜잭션이 깨어난 뒤의 재조회가 그 형제 행을 항상 포함했다.
 	 */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("select r from RefreshTokenEntity r where r.familyId = :familyId")

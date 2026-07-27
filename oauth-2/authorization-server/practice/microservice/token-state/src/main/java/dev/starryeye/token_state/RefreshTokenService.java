@@ -89,9 +89,12 @@ public class RefreshTokenService {
 	 * 주의. 이미 소진된(CONSUMED) 토큰이 다시 오면 계열 전체를 폐기한다. 정상 사용자와 공격자 중 누가 먼저
 	 *      회전했든 다른 쪽이 CONSUMED 를 만나므로, 양쪽을 모두 재인증으로 떨어뜨려 조용한 지속 접근을 끊는다.
 	 *      정상 client 의 단순 재시도까지 계열을 죽이는 것은 회전의 알려진 대가다. 폐기 대상은 방금
-	 *      findByFamilyIdForUpdate 로 잠근 목록 그대로다 — 잠금 없이 스냅샷 뜬 뒤 폐기하는 것보다는 낫지만,
-	 *      대기 중 다른 트랜잭션이 새로 삽입한 형제 행까지 이 조회가 항상 포함한다는 보장은 아니다. h2 에서는
-	 *      그 형제 행이 빠져 ACTIVE 로 남는 경우가 관찰됐다(design 문서 §8, RefreshTokenServiceConcurrentRotateTest 참고).
+	 *      findByFamilyIdForUpdate 로 잠근 목록 그대로다. h2 에서는 대기 중 다른 트랜잭션이 새로 삽입한
+	 *      형제 행이 이 조회에서 빠져 ACTIVE 로 남는 경우가 관찰됐지만, 이는 h2 가 InnoDB 의 next-key/gap
+	 *      lock 의미론을 재현하지 않는 테스트 DB 의 한계다. 운영 DB(MySQL 8/InnoDB)로
+	 *      RefreshTokenServiceMySqlLockSemanticsTest 를 반복 실행해 확인한 바로는, 잠금을 기다리던
+	 *      트랜잭션이 깨어난 뒤의 findByFamilyIdForUpdate 재조회가 그 형제 행을 항상 포함해 계열과 함께
+	 *      폐기했다(design 문서 §8 참고).
 	 *
 	 * 주의. requestedScope 검사는 상태 전이 직전, 다른 모든 거절 사유 뒤에 둔다. 재사용 · 폐기 · 만료가 먼저
 	 *      판정돼야 잘못된 scope 를 함께 보내는 것으로 재사용 탐지를 건너뛸 수 없다. 검사에 걸리면 SCOPE_EXCEEDED

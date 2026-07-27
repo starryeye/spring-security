@@ -126,6 +126,21 @@ class RefreshTokenServiceRotateTest {
 		assertThat(result.status()).isEqualTo(RotateStatus.EXPIRED);
 	}
 
+	// 개별 만료만 격리해 검증한다. family_expires_at 은 미래로 두고 expires_at 만 과거로 옮긴다.
+	// isExpired 의 두 항(개별/계열) 중 개별 항이 실제로 판정에 쓰이는지 고정한다 — 계열 상한 케이스와
+	// 반대 격리다. (테스트 설정: ttl 60초, family 최대 300초)
+	@Test
+	void rotateWithExpiredIndividualTokenButFamilyStillValidReturnsExpired() {
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		RefreshTokenEntity entity = repository.findByTokenHash(tokenGenerator.hash(issued.refreshToken())).orElseThrow();
+		// 개별 만료만 과거로 옮긴다. family_expires_at 은 그대로 미래다.
+		repository.save(expireIndividualToken(entity));
+
+		RotateResult result = service.rotate(issued.refreshToken(), "my-client", null);
+
+		assertThat(result.status()).isEqualTo(RotateStatus.EXPIRED);
+	}
+
 	// 축소 요청이 저장된 grant 를 벗어나면 아무 상태도 바꾸지 않고 거절한다.
 	// 상태를 바꾼 뒤 거절하면 새 토큰 원문이 버려지고, client 가 이전 토큰으로 재시도하는 순간 계열이 죽는다.
 	@Test
@@ -180,6 +195,23 @@ class RefreshTokenServiceRotateTest {
 				.issuedAt(entity.getIssuedAt())
 				.expiresAt(entity.getExpiresAt())
 				.familyExpiresAt(entity.getIssuedAt().minusSeconds(1))
+				.build();
+		repository.delete(entity);
+		repository.flush();
+		return replaced;
+	}
+
+	private RefreshTokenEntity expireIndividualToken(RefreshTokenEntity entity) {
+		RefreshTokenEntity replaced = RefreshTokenEntity.builder()
+				.tokenHash(entity.getTokenHash())
+				.familyId(entity.getFamilyId())
+				.clientId(entity.getClientId())
+				.sub(entity.getSub())
+				.scopes(entity.getScopes())
+				.authTime(entity.getAuthTime())
+				.issuedAt(entity.getIssuedAt())
+				.expiresAt(entity.getIssuedAt().minusSeconds(1))
+				.familyExpiresAt(entity.getFamilyExpiresAt())
 				.build();
 		repository.delete(entity);
 		repository.flush();
