@@ -8,6 +8,7 @@ public record ClientInfo(
 		List<String> redirectUris,
 		List<String> scopes,
 		String clientSecretHash,
-		List<String> grantTypes
+		List<String> grantTypes,
+		List<String> clientScopes
 ) {
 }

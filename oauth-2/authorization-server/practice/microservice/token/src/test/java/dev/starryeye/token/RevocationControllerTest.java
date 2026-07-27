@@ -56,7 +56,7 @@ class RevocationControllerTest {
 	private ClientInfo clientInfo() {
 		String hash = PasswordEncoderFactories.createDelegatingPasswordEncoder().encode("secret");
 		return new ClientInfo("my-client", List.of("http://127.0.0.1:8080/callback"),
-				List.of("openid"), hash, List.of("authorization_code", "refresh_token"));
+				List.of("openid"), hash, List.of("authorization_code", "refresh_token"), List.of());
 	}
 
 	@Test

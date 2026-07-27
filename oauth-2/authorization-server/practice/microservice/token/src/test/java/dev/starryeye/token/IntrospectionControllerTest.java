@@ -56,7 +56,7 @@ class IntrospectionControllerTest {
 
 	private ClientInfo articleApi() {
 		String hash = PasswordEncoderFactories.createDelegatingPasswordEncoder().encode("secret");
-		return new ClientInfo("article-api", List.of(), List.of(), hash, List.of());
+		return new ClientInfo("article-api", List.of(), List.of(), hash, List.of(), List.of());
 	}
 
 	@Test

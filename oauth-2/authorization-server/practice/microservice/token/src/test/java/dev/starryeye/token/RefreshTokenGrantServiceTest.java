@@ -32,7 +32,7 @@ class RefreshTokenGrantServiceTest {
 	private ClientInfo client() {
 		return new ClientInfo("my-client", List.of("http://127.0.0.1:8080/callback"),
 				List.of("openid", "profile", "offline_access"), "{bcrypt}x",
-				List.of("authorization_code", "refresh_token"));
+				List.of("authorization_code", "refresh_token"), List.of());
 	}
 
 	private RotateResult rotated(String scope) {
@@ -209,7 +209,7 @@ class RefreshTokenGrantServiceTest {
 	@Test
 	void clientWithoutRefreshGrantIsRejected() {
 		ClientInfo noRefresh = new ClientInfo("my-client", List.of(), List.of("openid"), "{bcrypt}x",
-				List.of("authorization_code"));
+				List.of("authorization_code"), List.of());
 
 		GrantResult result = service.grant(noRefresh, "old-refresh", null);
 

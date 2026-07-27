@@ -408,7 +408,7 @@ class TokenEndpointControllerTest {
 				.createDelegatingPasswordEncoder().encode("secret");
 		return new ClientInfo("my-client",
 				List.of("http://127.0.0.1:8080/callback"),
-				List.of("openid", "profile"), hash, List.of("authorization_code", "refresh_token"));
+				List.of("openid", "profile"), hash, List.of("authorization_code", "refresh_token"), List.of());
 	}
 
 	private ClientInfo clientInfoWithoutAuthorizationCodeGrant() {
@@ -416,7 +416,7 @@ class TokenEndpointControllerTest {
 				.createDelegatingPasswordEncoder().encode("secret");
 		return new ClientInfo("my-client",
 				List.of("http://127.0.0.1:8080/callback"),
-				List.of("openid", "profile"), hash, List.of("client_credentials"));
+				List.of("openid", "profile"), hash, List.of("client_credentials"), List.of());
 	}
 
 	private ClientInfo clientInfoWithoutRefreshTokenGrant() {
@@ -425,6 +425,6 @@ class TokenEndpointControllerTest {
 				.createDelegatingPasswordEncoder().encode("secret");
 		return new ClientInfo("my-client",
 				List.of("http://127.0.0.1:8080/callback"),
-				List.of("openid", "profile", "offline_access"), hash, List.of("authorization_code"));
+				List.of("openid", "profile", "offline_access"), hash, List.of("authorization_code"), List.of());
 	}
 }

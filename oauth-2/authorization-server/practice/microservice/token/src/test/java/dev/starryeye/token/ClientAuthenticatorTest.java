@@ -30,7 +30,7 @@ class ClientAuthenticatorTest {
 	private ClientInfo clientInfo() {
 		String hash = PasswordEncoderFactories.createDelegatingPasswordEncoder().encode("secret");
 		return new ClientInfo("my-client", List.of("http://127.0.0.1:8080/callback"),
-				List.of("openid"), hash, List.of("authorization_code"));
+				List.of("openid"), hash, List.of("authorization_code"), List.of());
 	}
 
 	@Test
@@ -97,7 +97,7 @@ class ClientAuthenticatorTest {
 	void secretContainingColonIsNotTruncated() {
 		String hash = PasswordEncoderFactories.createDelegatingPasswordEncoder().encode("sec:ret");
 		ClientInfo client = new ClientInfo("my-client", List.of("http://127.0.0.1:8080/callback"),
-				List.of("openid"), hash, List.of("authorization_code"));
+				List.of("openid"), hash, List.of("authorization_code"), List.of());
 		when(clientRegistryClient.getClient("my-client")).thenReturn(client);
 
 		ClientInfo result = authenticator.authenticate(basic("my-client", "sec:ret"));
