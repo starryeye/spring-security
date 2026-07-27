@@ -1,6 +1,5 @@
 package dev.starryeye.token;
 
-import dev.starryeye.token.client.ClientInfo;
 import dev.starryeye.token.client.RefreshTokenInfo;
 import dev.starryeye.token.client.TokenStateClient;
 import dev.starryeye.token.dto.OAuth2ErrorResponse;
@@ -34,6 +33,10 @@ public class IntrospectionController {
 	 * 주의. 비활성 응답은 {"active": false} 하나뿐이다(RFC 7662 2.2). 만료 · 폐기 · 형식 오류를 구분해 주면
 	 *      토큰을 쥔 공격자가 그 토큰의 내력을 알아낼 수 있다.
 	 *
+	 * 주의. token-state 가 빈 본문을 주면(역직렬화 결과 null) 그것은 "비활성" 이 아니라 "확인하지 못했다" 이므로
+	 *      예외를 올려 server_error 로 끝낸다. {"active": false} 로 degrade 하면 살아있는 토큰을 죽었다고 말하는
+	 *      것이라, resource server 가 멀쩡한 요청을 거절한다.
+	 *
 	 * 주의. 인증된 등록 client 면 누구의 토큰이든 조회할 수 있다. resource server 가 검사하는 토큰은 언제나
 	 *      다른 client 에게 발급된 것이므로, "자기 토큰만" 으로 제한하면 기능이 성립하지 않는다.
 	 *      권한을 좁히려면 client_credentials grant 로 받은 토큰의 introspect scope 를 보는 것이 정석이며,
@@ -53,9 +56,9 @@ public class IntrospectionController {
 			@RequestParam(value = "token", required = false) String token,
 			@RequestParam(value = "token_type_hint", required = false) String tokenTypeHint
 	) {
-		ClientInfo caller;
 		try {
-			caller = clientAuthenticator.authenticate(authorization);
+			// 인증 결과는 쓰지 않는다. 소유권 검사를 두지 않는 설계라 "인증된 등록 client 인가" 만 보면 된다.
+			clientAuthenticator.authenticate(authorization);
 		} catch (ClientAuthenticator.ClientAuthenticationException e) {
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
 					.body(new OAuth2ErrorResponse("invalid_client", e.getMessage()));
@@ -71,7 +74,10 @@ public class IntrospectionController {
 		} catch (AccessTokenVerifier.InvalidTokenException e) {
 			// JWT 가 아니거나 무효다. refresh token 일 수 있으므로 소유자에게 묻는다.
 			RefreshTokenInfo info = tokenStateClient.introspect(token);
-			if (info == null || !info.active()) {
+			if (info == null) {
+				throw new IllegalStateException("token-state returned an empty introspection response");
+			}
+			if (!info.active()) {
 				return ResponseEntity.ok(Map.of("active", false));
 			}
 			return ResponseEntity.ok(activeRefreshToken(info));

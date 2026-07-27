@@ -115,6 +115,22 @@ class IntrospectionControllerTest {
 		verify(tokenStateClient, never()).introspect(any());
 	}
 
+	// token-state 가 빈 본문을 준 경우(역직렬화 결과 null)는 "비활성" 이 아니라 "확인하지 못했다" 다.
+	// {"active": false} 로 내보내면 살아있는 토큰을 죽었다고 말하는 셈이라 resource server 가 멀쩡한 요청을 거절한다.
+	@Test
+	void nullIntrospectionResultReturns500NotInactive() throws Exception {
+		when(clientRegistryClient.getClient("article-api")).thenReturn(articleApi());
+		when(accessTokenVerifier.verify("opaque-refresh"))
+				.thenThrow(new AccessTokenVerifier.InvalidTokenException("malformed token"));
+		when(tokenStateClient.introspect("opaque-refresh")).thenReturn(null);
+
+		mockMvc.perform(post("/oauth2/introspect")
+						.header("Authorization", BASIC)
+						.param("token", "opaque-refresh"))
+				.andExpect(status().isInternalServerError())
+				.andExpect(jsonPath("$.error").value("server_error"));
+	}
+
 	// 비활성 응답에서는 어떤 정보도 새지 않아야 한다 (RFC 7662 2.2)
 	@Test
 	void inactiveResponseContainsOnlyActiveFalse() throws Exception {

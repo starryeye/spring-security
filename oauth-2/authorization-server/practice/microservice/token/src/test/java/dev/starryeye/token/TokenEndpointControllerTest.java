@@ -339,6 +339,31 @@ class TokenEndpointControllerTest {
 		verify(tokenStateClient, never()).issue(any(), any(), any(), anyLong());
 	}
 
+	// token-state 발급 호출이 실패하면 access token 만 내려주고 refresh token 을 조용히 빠뜨릴 수 없다 -- client 는
+	// offline_access 에 동의했다고 믿지만 실제로는 재로그인 없이 재발급받을 수단이 없는 상태가 된다.
+	// 발급 · 회전 · 폐기 세 fail-closed 경로 중 발급만 회귀 테스트가 없었다.
+	@Test
+	void tokenStateIssueFailureReturns500NotPartialSuccess() throws Exception {
+		when(codeStore.consume("code-1")).thenReturn(Optional.of(new AuthorizationCodeData(
+				"my-client", "http://127.0.0.1:8080/callback", "openid offline_access", "user-sub-0001",
+				"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", "nonce-1", 1700000000L)));
+		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
+		when(signingClient.sign(any())).thenReturn("signed-access-token");
+		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any())).thenReturn("signed-id-token");
+		when(tokenStateClient.issue(any(), any(), any(), anyLong()))
+				.thenThrow(new IllegalStateException("token-state is down"));
+
+		mockMvc.perform(post("/oauth2/token")
+						.header("Authorization", BASIC)
+						.param("grant_type", "authorization_code")
+						.param("code", "code-1")
+						.param("redirect_uri", "http://127.0.0.1:8080/callback")
+						.param("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))
+				.andExpect(status().isInternalServerError())
+				.andExpect(jsonPath("$.error").value("server_error"))
+				.andExpect(jsonPath("$.access_token").doesNotExist());
+	}
+
 	@Test
 	void refreshGrantDelegatesToRefreshTokenGrantService() throws Exception {
 		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());

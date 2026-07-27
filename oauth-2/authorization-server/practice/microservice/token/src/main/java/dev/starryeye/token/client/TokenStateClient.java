@@ -5,6 +5,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Component
@@ -33,11 +34,21 @@ public class TokenStateClient {
 				.body(IssuedRefreshToken.class);
 	}
 
-	public RotateResult rotate(String refreshToken, String clientId) {
+	/**
+	 * requestedScope 는 축소 요청(RFC 6749 6)이며 없으면 null 이다. 검증은 token-state 가 회전과 같은 트랜잭션 안에서
+	 *      하므로 여기서 미리 거르지 않는다. 여기서 걸러도 소용이 없다 — 저장된 scope 를 알려면 회전 응답이
+	 *      필요한데, 그때는 이미 이전 토큰이 소진된 뒤다.
+	 */
+	public RotateResult rotate(String refreshToken, String clientId, String requestedScope) {
+		Map<String, String> body = new LinkedHashMap<>();
+		body.put("refreshToken", refreshToken);
+		body.put("clientId", clientId);
+		body.put("requestedScope", requestedScope); // Map.of 는 null 값을 담지 못한다
+
 		return restClient.post()
 				.uri("/internal/refresh-tokens/rotate")
 				.contentType(MediaType.APPLICATION_JSON)
-				.body(Map.of("refreshToken", refreshToken, "clientId", clientId))
+				.body(body)
 				.retrieve()
 				.body(RotateResult.class);
 	}

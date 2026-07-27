@@ -70,13 +70,27 @@ class RefreshTokenControllerTest {
 	@Test
 	void rotateWithReusedTokenReturnsReuseDetected() throws Exception {
 		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
-		service.rotate(issued.refreshToken(), "my-client");
+		service.rotate(issued.refreshToken(), "my-client", null);
 
 		mockMvc.perform(post("/internal/refresh-tokens/rotate")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(json(Map.of("refreshToken", issued.refreshToken(), "clientId", "my-client"))))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.status").value("REUSE_DETECTED"))
+				.andExpect(jsonPath("$.refreshToken").doesNotExist());
+	}
+
+	// 축소 요청은 회전과 같은 호출로 넘어와 같은 트랜잭션 안에서 검증된다
+	@Test
+	void rotateWithScopeBeyondStoredGrantReturnsScopeExceeded() throws Exception {
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+
+		mockMvc.perform(post("/internal/refresh-tokens/rotate")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(json(Map.of("refreshToken", issued.refreshToken(), "clientId", "my-client",
+								"requestedScope", "openid admin"))))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("SCOPE_EXCEEDED"))
 				.andExpect(jsonPath("$.refreshToken").doesNotExist());
 	}
 

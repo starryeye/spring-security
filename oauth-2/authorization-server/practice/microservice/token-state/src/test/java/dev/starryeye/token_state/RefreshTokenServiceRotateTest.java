@@ -33,7 +33,7 @@ class RefreshTokenServiceRotateTest {
 	void rotateIssuesNewTokenInSameFamilyAndConsumesOld() {
 		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid offline_access", 1700000000L);
 
-		RotateResult result = service.rotate(issued.refreshToken(), "my-client");
+		RotateResult result = service.rotate(issued.refreshToken(), "my-client", null);
 
 		assertThat(result.status()).isEqualTo(RotateStatus.ROTATED);
 		assertThat(result.refreshToken()).isNotEqualTo(issued.refreshToken());
@@ -54,9 +54,9 @@ class RefreshTokenServiceRotateTest {
 	@Test
 	void reusingConsumedTokenRevokesEntireFamily() {
 		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
-		RotateResult first = service.rotate(issued.refreshToken(), "my-client");
+		RotateResult first = service.rotate(issued.refreshToken(), "my-client", null);
 
-		RotateResult reuse = service.rotate(issued.refreshToken(), "my-client"); // 이미 소진된 토큰
+		RotateResult reuse = service.rotate(issued.refreshToken(), "my-client", null); // 이미 소진된 토큰
 
 		assertThat(reuse.status()).isEqualTo(RotateStatus.REUSE_DETECTED);
 		assertThat(reuse.refreshToken()).isNull();
@@ -69,7 +69,7 @@ class RefreshTokenServiceRotateTest {
 		assertThat(family).allMatch(e -> "REUSE_DETECTED".equals(e.getRevokedReason()));
 
 		// 계열이 죽었으므로 방금 발급된 정상 토큰도 더는 쓸 수 없다
-		RotateResult afterRevoke = service.rotate(first.refreshToken(), "my-client");
+		RotateResult afterRevoke = service.rotate(first.refreshToken(), "my-client", null);
 		assertThat(afterRevoke.status()).isEqualTo(RotateStatus.REVOKED);
 	}
 
@@ -78,11 +78,11 @@ class RefreshTokenServiceRotateTest {
 	@Test
 	void reusingConsumedTokenAfterMultipleRotationsRevokesEveryFamilyMember() {
 		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
-		RotateResult first = service.rotate(issued.refreshToken(), "my-client");
-		RotateResult second = service.rotate(first.refreshToken(), "my-client");
+		RotateResult first = service.rotate(issued.refreshToken(), "my-client", null);
+		RotateResult second = service.rotate(first.refreshToken(), "my-client", null);
 		assertThat(second.status()).isEqualTo(RotateStatus.ROTATED); // 계열은 이제 3행: 최초, first, second
 
-		RotateResult reuse = service.rotate(issued.refreshToken(), "my-client"); // 최초 토큰을 다시 제출
+		RotateResult reuse = service.rotate(issued.refreshToken(), "my-client", null); // 최초 토큰을 다시 제출
 
 		assertThat(reuse.status()).isEqualTo(RotateStatus.REUSE_DETECTED);
 		String familyId = repository.findByTokenHash(tokenGenerator.hash(issued.refreshToken()))
@@ -95,7 +95,7 @@ class RefreshTokenServiceRotateTest {
 
 	@Test
 	void rotateWithUnknownTokenReturnsNotFound() {
-		RotateResult result = service.rotate("no-such-token", "my-client");
+		RotateResult result = service.rotate("no-such-token", "my-client", null);
 
 		assertThat(result.status()).isEqualTo(RotateStatus.NOT_FOUND);
 	}
@@ -105,7 +105,7 @@ class RefreshTokenServiceRotateTest {
 	void rotateWithMismatchedClientChangesNothing() {
 		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
 
-		RotateResult result = service.rotate(issued.refreshToken(), "other-client");
+		RotateResult result = service.rotate(issued.refreshToken(), "other-client", null);
 
 		assertThat(result.status()).isEqualTo(RotateStatus.CLIENT_MISMATCH);
 		RefreshTokenEntity entity = repository.findByTokenHash(tokenGenerator.hash(issued.refreshToken())).orElseThrow();
@@ -121,9 +121,52 @@ class RefreshTokenServiceRotateTest {
 		// 계열 상한만 과거로 옮긴다. expires_at 은 그대로 미래다.
 		repository.save(expireFamily(entity));
 
-		RotateResult result = service.rotate(issued.refreshToken(), "my-client");
+		RotateResult result = service.rotate(issued.refreshToken(), "my-client", null);
 
 		assertThat(result.status()).isEqualTo(RotateStatus.EXPIRED);
+	}
+
+	// 축소 요청이 저장된 grant 를 벗어나면 아무 상태도 바꾸지 않고 거절한다.
+	// 상태를 바꾼 뒤 거절하면 새 토큰 원문이 버려지고, client 가 이전 토큰으로 재시도하는 순간 계열이 죽는다.
+	@Test
+	void rotateWithScopeBeyondStoredGrantChangesNothing() {
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid offline_access", 1700000000L);
+
+		RotateResult result = service.rotate(issued.refreshToken(), "my-client", "openid admin");
+
+		assertThat(result.status()).isEqualTo(RotateStatus.SCOPE_EXCEEDED);
+		assertThat(result.refreshToken()).isNull();
+		RefreshTokenEntity entity = repository.findByTokenHash(tokenGenerator.hash(issued.refreshToken())).orElseThrow();
+		assertThat(entity.getStatus()).isEqualTo(RefreshTokenStatus.ACTIVE);
+		assertThat(repository.findByFamilyId(entity.getFamilyId())).hasSize(1); // 새 행이 생기지 않았다
+
+		// 거절당한 뒤에도 같은 토큰을 그대로 다시 쓸 수 있다
+		assertThat(service.rotate(issued.refreshToken(), "my-client", null).status())
+				.isEqualTo(RotateStatus.ROTATED);
+	}
+
+	// 재사용 탐지가 scope 검사보다 먼저다. 잘못된 scope 를 함께 보내는 것으로 탐지를 건너뛸 수 없다.
+	@Test
+	void reuseIsDetectedEvenWhenRequestedScopeAlsoExceedsTheGrant() {
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		service.rotate(issued.refreshToken(), "my-client", null);
+
+		RotateResult reuse = service.rotate(issued.refreshToken(), "my-client", "openid admin");
+
+		assertThat(reuse.status()).isEqualTo(RotateStatus.REUSE_DETECTED);
+	}
+
+	// 축소는 이번 요청에만 적용되고 저장 scope 는 불변이다. 아니면 한 번의 축소가 영구화된다.
+	@Test
+	void narrowedScopeRotatesButStoredScopeStaysIntact() {
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid profile offline_access", 1700000000L);
+
+		RotateResult result = service.rotate(issued.refreshToken(), "my-client", "profile");
+
+		assertThat(result.status()).isEqualTo(RotateStatus.ROTATED);
+		assertThat(result.scope()).isEqualTo("openid profile offline_access"); // 응답은 저장된 grant 그대로다
+		RefreshTokenEntity fresh = repository.findByTokenHash(tokenGenerator.hash(result.refreshToken())).orElseThrow();
+		assertThat(fresh.getScopes()).isEqualTo("openid,profile,offline_access");
 	}
 
 	private RefreshTokenEntity expireFamily(RefreshTokenEntity entity) {

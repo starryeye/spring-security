@@ -33,7 +33,7 @@ class RefreshTokenServiceRevokeTest {
 	@Test
 	void revokeKillsEntireFamily() {
 		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
-		RotateResult rotated = service.rotate(issued.refreshToken(), "my-client");
+		RotateResult rotated = service.rotate(issued.refreshToken(), "my-client", null);
 
 		boolean revoked = service.revoke(rotated.refreshToken(), "my-client");
 
@@ -51,7 +51,7 @@ class RefreshTokenServiceRevokeTest {
 		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
 		service.revoke(issued.refreshToken(), "my-client");
 
-		RotateResult result = service.rotate(issued.refreshToken(), "my-client");
+		RotateResult result = service.rotate(issued.refreshToken(), "my-client", null);
 
 		assertThat(result.status()).isEqualTo(RotateStatus.REVOKED);
 	}
