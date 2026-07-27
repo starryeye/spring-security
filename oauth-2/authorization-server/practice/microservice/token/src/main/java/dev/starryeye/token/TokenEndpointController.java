@@ -36,6 +36,7 @@ public class TokenEndpointController {
 	private final IdTokenIssuer idTokenIssuer;
 	private final TokenStateClient tokenStateClient;
 	private final RefreshTokenGrantService refreshTokenGrantService;
+	private final ClientCredentialsGrantService clientCredentialsGrantService;
 
 	@Value("${my.issuer}")
 	private String issuer;
@@ -62,15 +63,24 @@ public class TokenEndpointController {
 			return error(HttpStatus.UNAUTHORIZED, "invalid_client", e.getMessage());
 		}
 
-		if (!"authorization_code".equals(grantType) && !"refresh_token".equals(grantType)) {
+		if (!"authorization_code".equals(grantType) && !"refresh_token".equals(grantType)
+				&& !"client_credentials".equals(grantType)) {
 			return error(HttpStatus.BAD_REQUEST, "unsupported_grant_type",
-					"only authorization_code and refresh_token are supported");
+					"only authorization_code, refresh_token and client_credentials are supported");
 		}
 
 		if ("refresh_token".equals(grantType)) {
 			GrantResult result = refreshTokenGrantService.grant(client, refreshTokenParam, scopeParam);
 			if (!result.success()) {
 				// unauthorized_client · invalid_grant · invalid_scope · invalid_request 는 RFC 6749 5.2 상 모두 400 이다
+				return error(HttpStatus.BAD_REQUEST, result.error(), result.errorDescription());
+			}
+			return ResponseEntity.ok(result.response());
+		}
+
+		if ("client_credentials".equals(grantType)) {
+			GrantResult result = clientCredentialsGrantService.grant(client, scopeParam);
+			if (!result.success()) {
 				return error(HttpStatus.BAD_REQUEST, result.error(), result.errorDescription());
 			}
 			return ResponseEntity.ok(result.response());

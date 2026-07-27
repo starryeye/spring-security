@@ -36,6 +36,7 @@ class TokenEndpointControllerTest {
 	@MockitoBean IdTokenIssuer idTokenIssuer;
 	@MockitoBean TokenStateClient tokenStateClient;
 	@MockitoBean RefreshTokenGrantService refreshTokenGrantService;
+	@MockitoBean ClientCredentialsGrantService clientCredentialsGrantService;
 
 	private static final String BASIC = "Basic " + java.util.Base64.getEncoder()
 			.encodeToString("my-client:secret".getBytes());
@@ -392,6 +393,36 @@ class TokenEndpointControllerTest {
 						.param("refresh_token", "old-refresh"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error").value("invalid_grant"));
+	}
+
+	@Test
+	void clientCredentialsGrantDelegatesToItsService() throws Exception {
+		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
+		when(clientCredentialsGrantService.grant(any(), eq("introspect")))
+				.thenReturn(GrantResult.ok(new TokenResponse("cc-token", "Bearer", 300L,
+						"introspect", null, null)));
+
+		mockMvc.perform(post("/oauth2/token")
+						.header("Authorization", BASIC)
+						.param("grant_type", "client_credentials")
+						.param("scope", "introspect"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.access_token").value("cc-token"))
+				.andExpect(jsonPath("$.refresh_token").doesNotExist())
+				.andExpect(jsonPath("$.id_token").doesNotExist());
+	}
+
+	@Test
+	void clientCredentialsFailureBecomesOAuth2Error() throws Exception {
+		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
+		when(clientCredentialsGrantService.grant(any(), any()))
+				.thenReturn(GrantResult.failed("unauthorized_client", "client not authorized for client_credentials grant"));
+
+		mockMvc.perform(post("/oauth2/token")
+						.header("Authorization", BASIC)
+						.param("grant_type", "client_credentials"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("unauthorized_client"));
 	}
 
 	// 인증 없는 요청은 grant type 을 알아내기 전에 막힌다
