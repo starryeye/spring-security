@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -35,6 +37,15 @@ public class RefreshTokenGrantService {
 	 * 주의. token-state 가 빈 본문을 주면(역직렬화 결과 null) 회전 실패로 다루지 않고 예외를 올려 server_error 가
 	 *      되게 한다. "우리가 확인하지 못했다" 를 "네 토큰이 나쁘다" 로 말하면, client 는 멀쩡한 refresh token 을
 	 *      버리고 재인증을 돌린다.
+	 *
+	 * 주의. ROTATED 를 받은 뒤 effectiveScope 가 rotation.scope()(token-state 가 돌려준 저장 scope)의 부분집합인지
+	 *      다시 한 번 방어적으로 확인한다. 축소 검증은 원래 token-state 가 회전과 같은 트랜잭션에서 끝낸다
+	 *      (SCOPE_EXCEEDED). 하지만 구버전 token-state 는 RotateRequest 에 requestedScope 필드가 없어(2필드 계약),
+	 *      Spring 기본 설정(FAIL_ON_UNKNOWN_PROPERTIES=false) 아래서 이 필드를 역직렬화 시 조용히 무시하고 축소
+	 *      없는 평범한 회전으로 ROTATED + 저장 scope 전체를 돌려줄 수 있다 — 롤링 배포 중 token-state 가 token
+	 *      보다 먼저 신버전으로 올라가지 않으면 이 창이 열린다. 위반이면 invalid_scope 가 아니라 예외를 던져
+	 *      server_error 가 되게 한다 — 이건 client 의 잘못이 아니라 하위 서비스가 계약을 지키지 않은 상황이고,
+	 *      회전은 이미 일어났으므로 client 에게 "네 scope 요청이 잘못됐다"고 말하면 오해를 준다.
 	 */
 
 	private final TokenStateClient tokenStateClient;
@@ -81,6 +92,15 @@ public class RefreshTokenGrantService {
 				? String.join(" ", requestedScope.trim().split("\\s+"))
 				: rotation.scope();
 
+		if (!isSubsetOf(effectiveScope, rotation.scope())) {
+			// 구버전 token-state 가 requestedScope 를 무시하고 ROTATED 를 준 것으로 의심되는 상황이다.
+			// 원인을 로그로 추적할 수 있도록 두 scope 값을 그대로 남긴다.
+			throw new IllegalStateException("token-state contract violation: effectiveScope '" + effectiveScope
+					+ "' is not a subset of rotation-reported stored scope '" + rotation.scope()
+					+ "' for clientId=" + client.clientId()
+					+ " -- token-state may be a stale version that silently ignores requestedScope");
+		}
+
 		String accessToken = accessTokenIssuer.issue(rotation.sub(), client.clientId(), effectiveScope);
 
 		String idToken = null;
@@ -100,5 +120,13 @@ public class RefreshTokenGrantService {
 
 		return GrantResult.ok(new TokenResponse(accessToken, "Bearer", accessTokenTtlSeconds,
 				effectiveScope, idToken, rotation.refreshToken()));
+	}
+
+	/**
+	 * candidateScope 의 모든 scope 가 storedScope 안에 있는지 본다(공백 구분, 둘 다 이미 정규화된 값).
+	 */
+	private boolean isSubsetOf(String candidateScope, String storedScope) {
+		Set<String> stored = new HashSet<>(Arrays.asList(storedScope.split(" ")));
+		return stored.containsAll(Arrays.asList(candidateScope.split(" ")));
 	}
 }

@@ -135,6 +135,7 @@ flowchart TB
    - 모든 요청은 gateway(http://localhost:9000) 로 보낸다.
    - 주의. `ddl-auto: update` 라 컨테이너/DB 를 재사용하면 seed 는 "이미 행이 있으면 스킵"으로 동작해 **이전 seed 스키마의 값이 남을 수 있다**(예: client 의 `email` scope, user 의 profile 컬럼이 나중에 추가된 경우). seed 코드와 실제 DB 값이 다르면 `UPDATE` 로 맞추거나 볼륨을 새로 만든다.
    - 주의. 슬라이스 1·2 때부터 존재하던 `my-client` 행이 그 예다. 슬라이스 3 seed 는 `scopes` 에 `offline_access`, `grant_types` 에 `refresh_token` 을 기대하지만, 기존 행은 `ddl-auto: update` 때문에 갱신되지 않는다. `scopes='openid,profile,email,offline_access'`, `grant_types='authorization_code,refresh_token'` 로 `UPDATE` 하고(seed 코드가 신규 client 에 실제로 심는 값과 동일하다 — 임의 값이 아니다) client-registry 를 재기동해 Caffeine 캐시(30s)를 비워야 한다.
+   - 주의. 위 기동 순서에서 token-state 를 token 보다 먼저 올려야 하는 이유가 하나 더 있다. token 이 보내는 rotate 요청에는 `requestedScope` 필드가 있는데, 구버전 token-state(2필드 계약, `requestedScope` 를 모름)는 이 필드를 역직렬화 시 조용히 무시하고(Spring 기본값 `FAIL_ON_UNKNOWN_PROPERTIES=false`) 축소 없는 평범한 회전으로 `ROTATED` + 저장 scope 전체를 돌려줄 수 있다. token 은 발급 직전에 `effectiveScope` 가 이 저장 scope 의 부분집합인지 방어적으로 재확인하므로 부여된 적 없는 scope 로 access token 이 나가는 일은 없지만(위반 시 `server_error`), refresh grant 자체는 실패한다. token-state 를 먼저 올려야 이 창을 열지 않는다.
 
 ## 관통 flow (http/ 참고)
 
@@ -485,11 +486,12 @@ sequenceDiagram
 17. **offline_access 동의 → refresh 발급** — `scope=openid profile offline_access` 로 동의 화면을 거치면 화면에 `offline_access` 체크박스가 렌더되고, 승인 후 토큰 응답에 `refresh_token` 이 포함된다(`scope: "openid profile offline_access"`).
 18. **offline_access 미요청 시 refresh 없음** — 같은 client 로 `scope=openid profile` 만 요청하면(이미 승인된 scope 의 부분집합이라 동의 화면 생략) 토큰 응답에 `refresh_token` 이 없다.
 19. **refresh grant 회전 + id token 재발급 규칙** — `grant_type=refresh_token` 으로 교환하면 새 `access_token`·새 `refresh_token` 이 나오고, 새 id token 은 `nonce` 를 싣지 않으며, `auth_time` 은 최초 발급분과 동일하고, `at_hash` 는 새 access token 을 SHA-256 좌측 절반으로 재계산한 값과 일치한다.
-20. **재사용 탐지 → 계열 폐기** — 이미 소진(회전에 쓰인) refresh token 을 다시 제출하면 `invalid_grant`. 이 시점 계열의 행(초기 발급분 + 그때까지의 회전분) 전부가 `REVOKED`/`REUSE_DETECTED` 로 바뀌고, 재사용 탐지 직전에 정상 발급됐던 최신 refresh token 으로도 회전이 `invalid_grant` 로 거부된다(계열 전체가 죽었기 때문).
-21. **revocation** — 살아있는 refresh token 을 `POST /oauth2/revoke` 하면 `200`, 존재하지 않는 토큰을 revoke 해도 `200`(RFC 7009 2.2, 응답으로 존재 여부를 노출하지 않는다). 폐기 후 그 토큰으로 회전을 시도하면 `invalid_grant`.
-22. **introspection 분기** — access token 을 다른 client(`article-api`)가 조회하면 `active:true` + `client_id` + `token_type:"Bearer"`. 살아있는 refresh token 을 조회하면 `active:true` 지만 `token_type` 은 없다. 폐기된 refresh token 은 `{"active":false}` 하나뿐(사유 미노출). 잘못된 client secret 으로 호출하면 `401`.
-23. **회귀** — `/userinfo` 는 여전히 `200` + claim, authorization code 재사용은 여전히 `invalid_grant`, discovery(`/.well-known/openid-configuration`) 에 `introspection_endpoint`·`revocation_endpoint`·`refresh_token`(grant_types_supported)·`offline_access`(scopes_supported) 가 모두 노출된다.
-24. **token-state 외부 비노출** — gateway 를 통해 `/internal/refresh-tokens/introspect` 를 호출하면 `404`. nginx 가 `/internal/*` 를 라우팅하지 않는다(gateway/nginx.conf 에 해당 location 자체가 없다).
+20. **scope 축소·초과 요청**(rotate wire 계약에 `requestedScope`/`SCOPE_EXCEEDED` 가 추가된 뒤 재검증) — 저장 scope 의 부분집합으로 `scope` 파라미터를 보내면 그 access token 에만 좁혀지고(`scope` 응답 필드가 요청값과 일치), 다음 회전에서 `scope` 없이 요청하면 저장된 원래 scope 전체로 복귀한다(저장 scope 불변). 저장 범위를 벗어나는 `scope`(예: 승인되지 않은 `admin`)를 보내면 `400 invalid_scope` 이고 회전이 일어나지 않으며, **같은 refresh token 으로 올바른 scope 를 재시도하면 성공한다**(이전 토큰이 소진되지 않았다는 뜻).
+21. **재사용 탐지 → 계열 폐기** — 이미 소진(회전에 쓰인) refresh token 을 다시 제출하면 `invalid_grant`. 이 시점까지 발급된 계열의 행(초기 발급분 + 그때까지의 회전분) 전부가 DB 상 `REVOKED`/`REUSE_DETECTED` 로 바뀌고, 재사용 탐지 직전에 정상 발급됐던 최신 refresh token 으로도 회전이 `invalid_grant` 로 거부된다(계열 전체가 죽었기 때문).
+22. **revocation** — 살아있는 refresh token 을 `POST /oauth2/revoke` 하면 `200`, 존재하지 않는 토큰을 revoke 해도 `200`(RFC 7009 2.2, 응답으로 존재 여부를 노출하지 않는다). 폐기 후 그 토큰으로 회전을 시도하면 `invalid_grant`, introspect 하면 `{"active":false}`.
+23. **introspection 분기** — access token 을 다른 client(`article-api`)가 조회하면 `active:true` + `client_id` + `token_type:"Bearer"`. 살아있는 refresh token 을 조회하면 `active:true` 지만 `token_type` 은 없다. 폐기된 refresh token 은 `{"active":false}` 하나뿐(사유 미노출). 잘못된 client secret 으로 호출하면 `401`.
+24. **회귀** — `/userinfo` 는 여전히 `200` + claim, authorization code 재사용은 여전히 `invalid_grant`, discovery(`/.well-known/openid-configuration`) 에 `introspection_endpoint`·`revocation_endpoint`·`refresh_token`(grant_types_supported)·`offline_access`(scopes_supported) 가 모두 노출된다.
+25. **token-state 외부 비노출** — gateway 를 통해 `/internal/refresh-tokens/introspect` 를 호출하면 `404`. nginx 가 `/internal/*` 를 라우팅하지 않는다(gateway/nginx.conf 에 해당 location 자체가 없다).
 
 ## 슬라이스 3에서도 제외 (이후 sub-project)
 
@@ -506,6 +508,7 @@ client_credentials grant(+ introspect scope 로 introspection 권한을 좁히�
 - **access token 과 id token 을 구분할 수 있는 표식이 없다** — 둘 다 signing 의 같은 키로 서명되고 `iss`·`sub` 도 같으며 `typ` 헤더 구분이 없다. 지금은 id token 에 `scope` claim 이 없어 `/userinfo` 에 id token 을 들이밀면 `openid` scope 가 없다고 403 이 나므로 토큰 타입 혼동이 성립하지 않는다. 다만 그 방어는 우연에 가깝다 — **id token 에 `scope` 를 싣는 순간 혼동이 성립한다.** 정석은 RFC 9068 의 `typ: at+jwt` 헤더로 access token 을 명시하고 검증 시 그 값을 강제하는 것이다. signing 의 서명 API 계약(헤더를 signing 이 전적으로 소유한다)을 바꿔야 하므로 이번 슬라이스에서는 구현하지 않는다. 다음 슬라이스 대상.
 - **회전은 정상 client 의 재시도도 계열을 죽인다** — 회전은 이전 refresh token 을 즉시 CONSUMED 로 만들므로, 응답을 못 받은 client 가 같은 토큰으로 재시도하면 재사용 탐지에 걸려 계열 전체가 폐기된다. client 는 refresh 요청을 직렬화해야 한다(동시에 두 번 보내지 않는다). 유예 기간(짧은 시간 안의 재사용은 허용) 없이 즉시 폐기하는 쪽을 택했다.
 - **client 가 새 refresh token 을 저장하기 전에 죽으면 그 계열을 잃는다** — 회전 응답으로 새 refresh token 을 받았지만 디스크에 쓰기 전에 client 프로세스가 죽으면, 다음 기동 때는 이미 CONSUMED 된 이전 토큰만 남아 있어 그걸로 회전을 시도하는 순간 재사용 탐지로 계열이 죽는다. 유예 기간을 두지 않았기 때문이며, 이 경우 재인증(authorization_code)부터 다시 해야 한다.
+- **동시 회전 경쟁에서 형제 행 하나가 살아남을 수 있다** — 같은 refresh token 으로 동시 회전 두 건이 경쟁하면 재사용 탐지가 계열 전체를 폐기하는 것이 원칙이지만, h2(테스트 DB) 에서는 늦게 잠근 트랜잭션이 대기하는 동안 다른 트랜잭션이 새로 삽입·커밋한 형제 행(그 트랜잭션이 방금 회전으로 만든 새 refresh token)을 이번 잠금 조회가 항상 포함하지는 않아 그 행이 ACTIVE 로 남는 경우가 관찰됐다(design 문서 §8). 구현의 결함이 아니라 테스트 DB 의 관찰된 잠금 의미론이며, InnoDB(운영 DB, MySQL)에서 같은 경쟁이 일어날 때도 이 형제 행까지 폐기되는지는 검증하지 않았다.
 - **introspection 은 인증된 client 면 누구의 토큰이든 조회할 수 있다** — "자기 토큰만" 으로 제한하면 애초에 introspection 이 성립하지 않는다(resource server 가 검사하는 토큰은 언제나 다른 client 에게 발급된 것이므로). 권한을 좁히려면 client_credentials grant 로 받은 토큰의 `introspect` scope 를 보는 것이 정석이며, 이 서버에는 아직 그 grant 가 없다.
 - **access token 은 폐기하지 않는다** — RFC 7009 §2 는 access token 폐기를 MAY 로 두므로 표준 위반은 아니다. 이 서버는 access token 을 짧은 TTL 로 자연 만료시키는 쪽을 택했다(JWT 자가검증의 이점을 지키기 위함). `POST /oauth2/revoke` 에 access token 을 담고 `token_type_hint=access_token` 을 함께 보내면 `200` 이 오지만 실제로는 아무것도 하지 않는다. 반대로 refresh token 에 `token_type_hint=access_token` 이 잘못 붙어 오면 힌트를 그대로 믿어 폐기를 건너뛴다 — token_type_hint 를 "access_token 인지" 판정에만 쓰고 그 외에는 신뢰하지 않는 introspection 과 달리, revoke 는 이 한 갈래에서만 힌트를 신뢰한다는 뜻이라 알려진 한계로 남긴다.
 - HA(다중 인스턴스), 키 로테이션, purge 등은 production-ready-authorization-server 에서 다룬 주제.

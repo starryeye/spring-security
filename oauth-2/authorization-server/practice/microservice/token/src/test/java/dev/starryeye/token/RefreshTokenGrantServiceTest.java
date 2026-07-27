@@ -175,6 +175,22 @@ class RefreshTokenGrantServiceTest {
 		verify(accessTokenIssuer, never()).issue(any(), any(), any());
 	}
 
+	// F1: 구버전 token-state 는 RotateRequest 에 requestedScope 필드가 없어(2필드 계약) 역직렬화 시 그 값을
+	// 조용히 무시하고 축소 없는 평범한 회전으로 처리해 ROTATED + 저장 scope 전체를 돌려줄 수 있다
+	// (FAIL_ON_UNKNOWN_PROPERTIES=false 기본값 때문에 미지 필드를 보내도 예외가 나지 않는다). 이 경우
+	// requestedScope 를 그대로 믿고 effectiveScope 로 쓰면 부여된 적 없는 scope(admin)로 access token 이
+	// 나간다 -- 그래서 발급 직전에 rotation.scope() 의 부분집합인지 다시 한 번 방어적으로 확인해야 한다.
+	@Test
+	void rotatedScopeExceedingStoredScopeThrowsIllegalStateException() {
+		when(tokenStateClient.rotate("old-refresh", "my-client", "openid admin"))
+				.thenReturn(rotated("openid profile offline_access")); // admin 을 모르는 저장 scope
+
+		assertThatThrownBy(() -> service.grant(client(), "old-refresh", "openid admin"))
+				.isInstanceOf(IllegalStateException.class);
+
+		verify(accessTokenIssuer, never()).issue(any(), any(), any());
+	}
+
 	// 회전 후 id token 발급 중 사용자가 삭제된 경우: code 교환 경로(TokenEndpointController)와 같은 판단을 한다.
 	// 존재하지 않는 주체에 대한 인증 주장을 만들 수 없으므로 grant 자체를 무효로 보고 invalid_grant 로 내보낸다(500 아님).
 	@Test

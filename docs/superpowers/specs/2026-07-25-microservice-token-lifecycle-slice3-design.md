@@ -305,7 +305,7 @@ revocation_endpoint_auth_methods_supported     ["client_secret_basic"]
 
 - 회전 후 이전 토큰 재사용 → **계열 전체가 REVOKED 인지 DB 상태로 단언** (응답 status 만 보지 않는다)
 - 같은 토큰으로 **동시 회전 두 건**(`RefreshTokenServiceConcurrentRotateTest`) → 정확히 하나만 `ROTATED`, 다른 하나는 `REUSE_DETECTED` 이고 제출된 토큰이 DB 상 REVOKED(`revoked_reason=REUSE_DETECTED`)임을 확인한다. `TokenGenerator.hash` 에 장벽을 세워 두 트랜잭션이 각자의 첫 조회를 마친 뒤에야 잠금 경쟁에 들어가도록 인터리빙을 강제한다.
-  **한계.** "계열 전 행이 REVOKED" 는 여기서 단언하지 않는다. h2 는 차단된 `SELECT ... FOR UPDATE` 가 풀릴 때도 차단 이전 스냅샷을 쓰므로(InnoDB 의 locking read 와 달리 경쟁 중 삽입된 형제 행을 다시 읽어오지 않는다), 이 테스트에서는 그 형제 행 하나가 ACTIVE 로 남을 수 있다 — 구현의 결함이 아니라 테스트 DB(h2)의 잠금 의미론 차이다. 형제 행까지 폐기되는 성질은 이미 커밋된 행으로 구성해 h2 에서도 성립하는 위 단일 스레드 테스트가 고정한다. 이 동시성 테스트가 실제로 고정하는 것은 "회전이 정확히 한 번만 일어났다"(계열 행 개수가 3이 아니라 2)와 "제출된 토큰이 재사용으로 폐기됐다" 두 가지다.
+  **한계.** "계열 전 행이 REVOKED" 는 여기서 단언하지 않는다. h2 에서 관찰되는 동작은 이렇다 — 늦게 잠근 쪽의 차단됐던 `SELECT ... FOR UPDATE` 가 풀릴 때, **기다리던 그 행 자체는 다시 읽어 최신 커밋 상태(CONSUMED)를 반영한다**(그래서 REUSE_DETECTED 로 판정할 수 있다). 하지만 **대기하는 동안 다른 트랜잭션이 새로 삽입·커밋한 형제 행까지 이번 조회의 행 집합에 포함하지는 않는다** — 그래서 이 테스트에서는 그 형제 행 하나가 ACTIVE 로 남을 수 있다. 이것은 구현의 결함이 아니라 테스트 DB(h2)에서 관찰된 잠금 의미론이다. (InnoDB 의 locking read 가 이 경우 형제 행까지 다시 읽어와 잠그는지는 **검증하지 않았다** — MySQL 로 이 테스트를 재실행해 확인한 적이 없으므로 단정하지 않는다.) "**잠글 때 이미 존재하던** 행 전부가 폐기된다"는 이미 커밋된 행으로만 구성해 h2 에서도 성립하는 위 단일 스레드 테스트(`reusingConsumedTokenAfterMultipleRotationsRevokesEveryFamilyMember`)가 고정한다. 반면 "**대기 중 다른 트랜잭션이 삽입한** 형제 행도 폐기된다"는 어느 테스트도 덮지 않는다. 이 동시성 테스트가 실제로 고정하는 것은 "회전이 정확히 한 번만 일어났다"(계열 행 개수가 3이 아니라 2)와 "제출된 토큰이 재사용으로 폐기됐다" 두 가지뿐이다.
 - `family_expires_at` 초과 → `EXPIRED` (개별 `expires_at` 은 아직 유효한 상태로 구성해 절대 상한이 실제로 동작하는지 격리 검증)
 - client 불일치 → `CLIENT_MISMATCH`, 상태 변화 없음
 - scope 축소 요청이 **저장된 refresh 의 scope 를 바꾸지 않음**
