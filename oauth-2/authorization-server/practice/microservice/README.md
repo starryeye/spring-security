@@ -571,3 +571,5 @@ back-channel logout(sid), admin 등록 API(현재 seed), **내부 서비스 간 
 - 슬라이스 2(OIDC) 구현 계획: [docs/superpowers/plans/2026-07-25-microservice-oidc-slice2.md](../../../../docs/superpowers/plans/2026-07-25-microservice-oidc-slice2.md)
 - 슬라이스 3(토큰 수명 관리) 설계: [docs/superpowers/specs/2026-07-25-microservice-token-lifecycle-slice3-design.md](../../../../docs/superpowers/specs/2026-07-25-microservice-token-lifecycle-slice3-design.md)
 - 슬라이스 3(토큰 수명 관리) 구현 계획: [docs/superpowers/plans/2026-07-25-microservice-token-lifecycle-slice3.md](../../../../docs/superpowers/plans/2026-07-25-microservice-token-lifecycle-slice3.md)
+- 슬라이스 4(client 능력 scope · client_credentials) 설계: [docs/superpowers/specs/2026-07-28-microservice-client-credentials-slice4-design.md](../../../../docs/superpowers/specs/2026-07-28-microservice-client-credentials-slice4-design.md)
+- 슬라이스 4(client 능력 scope · client_credentials) 구현 계획: [docs/superpowers/plans/2026-07-28-microservice-client-credentials-slice4.md](../../../../docs/superpowers/plans/2026-07-28-microservice-client-credentials-slice4.md)
