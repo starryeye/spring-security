@@ -1,7 +1,7 @@
 ### 토큰 수명 관리(슬라이스 3) — refresh 회전 · 재사용 탐지 · introspection · revocation.
 ### refresh_token 은 authorize/token 흐름(authorize.http, token.http)에서 offline_access scope 로 동의해야 발급된다.
-### 모든 요청은 gateway(:9000) 경유. Basic bXktY2xpZW50OnNlY3JldA== = my-client:secret,
-### Basic YXJ0aWNsZS1hcGk6c2VjcmV0 = article-api:secret (resource server 역할 — introspection 호출 전용).
+### 모든 요청은 gateway(:9000) 경유. Basic bXktY2xpZW50OnNlY3JldA== = my-client:secret (revoke 는 여전히 이 방식).
+### introspection 은 슬라이스 4 부터 client 인증이 아니라 Bearer + introspect scope 다 — client-credentials.http 참고.
 
 ### refresh grant — 회전. 응답의 새 refresh_token 으로 교체해야 다음 회전이 된다
 POST http://localhost:9000/oauth2/token
@@ -25,23 +25,24 @@ Content-Type: application/x-www-form-urlencoded
 grant_type=refresh_token&refresh_token={이미_회전된_refresh_token}
 
 ### introspection — article-api 가 my-client 의 토큰을 조회한다 (호출자 != 토큰 주인)
+### 슬라이스 4 부터 client 인증(Basic) 이 아니라 Bearer + introspect scope 다. 토큰은 client-credentials.http 에서 받는다
 ### access token 이면 active:true + client_id + token_type:Bearer, 살아있는 refresh 면 active:true 이고 token_type 없음
 POST http://localhost:9000/oauth2/introspect
-Authorization: Basic YXJ0aWNsZS1hcGk6c2VjcmV0
+Authorization: Bearer {client_credentials_access_token}
 Content-Type: application/x-www-form-urlencoded
 
 token={access_token 또는 refresh_token}
 
 ### 폐기된 토큰 introspection -> {"active": false} 뿐. 사유를 구분해 주지 않는다
 POST http://localhost:9000/oauth2/introspect
-Authorization: Basic YXJ0aWNsZS1hcGk6c2VjcmV0
+Authorization: Bearer {client_credentials_access_token}
 Content-Type: application/x-www-form-urlencoded
 
 token={폐기된_refresh_token}
 
-### 잘못된 client secret -> 401
+### Basic 은 더 이상 받지 않는다 -> 401 WWW-Authenticate: Bearer (client 인증에서 protected resource 로 전환됐다)
 POST http://localhost:9000/oauth2/introspect
-Authorization: Basic YXJ0aWNsZS1hcGk6d3Jvbmc=
+Authorization: Basic YXJ0aWNsZS1hcGk6c2VjcmV0
 Content-Type: application/x-www-form-urlencoded
 
 token={access_token}

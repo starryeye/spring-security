@@ -1,9 +1,10 @@
-# microservice authorization server (슬라이스 1 + 슬라이스 2: OIDC + 슬라이스 3: 토큰 수명 관리)
+# microservice authorization server (슬라이스 1 + 슬라이스 2: OIDC + 슬라이스 3: 토큰 수명 관리 + 슬라이스 4: client 능력 scope 와 client_credentials)
 
 - Spring Authorization Server starter **없이** OAuth/OIDC 로직을 직접 구현하고, 하나의 인가 서버를 **8개 독립 마이크로서비스**로 쪼갠 학습 프로젝트다.
 - 슬라이스 1 의 목표: **authorization code + PKCE(S256) flow 하나**를 6개 서비스로 관통시키는 것. (완료)
 - 슬라이스 2 의 목표: 그 위에 **OIDC(id token 발급 · userinfo · consent 화면/기록 분리)** 를 얹는 것. consent 를 7번째 서비스로 신설하고, token 이 openid scope 요청 시 id token 을 함께 발급하며 `/userinfo` 를 제공한다. (완료)
 - 슬라이스 3 의 목표: **토큰 수명 관리(refresh token 회전 · 재사용 탐지 · introspection · revocation)**. refresh token 계열(family)과 폐기 상태를 소유하는 8번째 서비스 token-state 를 신설하고, token 이 `grant_type=refresh_token` / `POST /oauth2/introspect` / `POST /oauth2/revoke` 를 제공한다. (완료, 내부 서비스 간 인증/back-channel logout/admin 등록 API/Kafka 는 여전히 이후 과제)
+- 슬라이스 4 의 목표: **client 자체 능력을 scope 로 표현**하는 것. `clients` 에 관리자가 부여하는 `client_scopes` 컬럼을 신설해 사용자 위임 scope(`scopes`)와 분리하고, 사용자 없이 client 가 자기 자신으로서 토큰을 받는 `client_credentials` grant(RFC 6749 4.4)를 추가한다. 그 grant 로 받은 토큰의 `introspect` scope 를 요구하도록 `/oauth2/introspect` 를 client 인증(Basic) 기반에서 **Bearer + scope 기반 protected resource** 로 전환한다. (완료)
 - "빅테크는 인가 서버를 내부적으로 여러 서비스로 분해한다"(토큰 발급/로그인 UX/디렉토리/키 관리/동의 기록/토큰 상태 분리, KMS 키 격리)를 축소판으로 재현한다.
 
 ## 구도
@@ -97,7 +98,7 @@ flowchart TB
 |---|---|---|---|
 | gateway | 9000 | nginx 경로 라우팅 (front/back-channel 분리, /internal/* 격리) | 없음 |
 | auth | 8081 | front-channel: 로그인, `/oauth2/authorize`(동의 화면 렌더 포함), `/oauth2/consent`(제출), code 발급 | (Redis code, pending, 세션) |
-| token | 8082 | back-channel: `/oauth2/token`(authorization_code + refresh_token grant, id token 포함), `/userinfo`, `/oauth2/introspect`, `/oauth2/revoke`, jwks 프록시, discovery | (Redis code 소비) |
+| token | 8082 | back-channel: `/oauth2/token`(authorization_code + refresh_token + client_credentials grant, id token 포함), `/userinfo`, `/oauth2/introspect`(Bearer + `introspect` scope), `/oauth2/revoke`, jwks 프록시, discovery | (Redis code 소비) |
 | signing | 8083 | JWT 서명 전담 + jwks 공개. **개인키 독점** | keystore(PKCS12) |
 | user-directory | 8084 | 사용자 조회 + credential 검증(bcrypt 를 이 안에 가둠) + profile claim | users (MySQL) |
 | client-registry | 8085 | client 조회 API + Caffeine 캐시(30s) | clients (MySQL) |
@@ -110,6 +111,21 @@ flowchart TB
 - **상태 외부화** — auth 가 만든 code 를 token 이 Redis 로 넘겨받는다. 동의 화면 왕복 중인 인가 요청(pending)도 화면에는 불투명 id 만 내보내고 실제 값은 Redis 에 둔다. (서비스 경계를 넘는 flow)
 - **동의는 fail-closed** — consent 조회가 실패하면(다운 등) "승인 여부 모름"을 "승인함"으로 취급하지 않고 예외를 그대로 전파한다. 동의 없이 토큰이 발급되는 것을 막기 위함이다.
 - **회전은 한 번의 호출로 원자화** — token 이 refresh token 의 "유효한가"와 "다음 토큰으로 넘어간다"를 왕복 두 번으로 나누지 않고, token-state 의 `POST /internal/refresh-tokens/rotate` 하나로 위임한다. 판정과 전이를 쪼개면 그 사이 경쟁 창에서 재사용 탐지가 무력해진다.
+
+## `scopes` vs `client_scopes` — client 의 두 scope 컬럼
+
+`clients` 테이블은 이름이 비슷한 두 컬럼을 갖는다. 의미가 다르고, grant 별로 보는 컬럼도 다르다.
+
+| | `scopes` | `client_scopes` |
+|---|---|---|
+| 누가 부여하나 | **사용자**가 동의 화면에서 위임 | **관리자**가 client 에게 등록 |
+| 동의 화면 노출 | 뜬다 (미승인분만 `consent.html` 렌더) | **절대 뜨지 않는다** — 사용자가 위임하는 값이 아니다 |
+| 보는 grant | `authorization_code`, `refresh_token` | `client_credentials` |
+| 검증 주체 | auth(`authorize`) 가 요청 scope ⊆ `scopes` 확인, consent 가 승인 이력 소유 | token 의 `ClientCredentialsGrantService` 가 요청 scope ⊆ `client_scopes` 확인 |
+| seed 예시(`my-client`) | `openid,profile,email,offline_access` | `""` (client_credentials 미등록이라 비어 있어도 무방) |
+| seed 예시(`article-api`) | `""` (인가 흐름 자체에 참여하지 않는다) | `introspect` (딱 introspection 호출 능력만) |
+
+**주의.** 두 컬럼이 같은 문자열(`introspect` 등)을 담을 수 있다는 사실이 "값이 같으니 아무 grant 에나 통과시켜도 된다"는 뜻은 아니다. `ClientCredentialsGrantService` 는 오직 `client_scopes` 만 보고 `scopes` 는 쳐다보지 않는다 — 사용자가 없는 grant 에서 "사용자가 위임한 권한"을 내줄 방법이 없기 때문이다. 그래서 `my-client` 처럼 `scopes` 에 `openid` 등이 있어도 `client_credentials` 로는 절대 그 scope 가 나오지 않고, 반대로 `article-api` 의 `client_scopes=introspect` 는 `authorization_code` 로 요청해도(`scope=openid introspect`) `scopes` 에 없으므로 `invalid_scope` 로 거절된다.
 
 ## 기동 방법
 
@@ -131,10 +147,11 @@ flowchart TB
    java -jar token/build/libs/*.jar             # 8082
    java -jar auth/build/libs/*.jar              # 8081
    ```
-   - seed: user / 1111 (user-directory, profile 포함: name `Star Rye`, email `starryeye@example.com` 등), client `my-client` / `secret` (client-registry, redirectUri `http://127.0.0.1:8080/callback`, scope `openid profile email offline_access`, grantTypes `authorization_code refresh_token`), client `article-api` / `secret`(client-registry, resource server 역할 — 인가 흐름에는 참여하지 않고 introspection 호출자로만 쓰인다. grantTypes 가 비어 있어 토큰 발급 자체는 거절된다)
+   - seed: user / 1111 (user-directory, profile 포함: name `Star Rye`, email `starryeye@example.com` 등), client `my-client` / `secret` (client-registry, redirectUri `http://127.0.0.1:8080/callback`, scope `openid profile email offline_access`, grantTypes `authorization_code refresh_token`, clientScopes `""` — client_credentials 미등록이라 이 grant 는 `unauthorized_client` 로 거절된다), client `article-api` / `secret`(client-registry, resource server 역할 — scopes/redirectUris 가 비어 있어 인가 흐름(authorization_code)에는 참여할 수 없고, grantTypes `client_credentials` · clientScopes `introspect` 로 **자기 자신 앞으로 `introspect` scope 의 access token 만 받을 수 있다**. 그 토큰을 Bearer 로 실어야 `/oauth2/introspect` 를 호출할 수 있다)
    - 모든 요청은 gateway(http://localhost:9000) 로 보낸다.
    - 주의. `ddl-auto: update` 라 컨테이너/DB 를 재사용하면 seed 는 "이미 행이 있으면 스킵"으로 동작해 **이전 seed 스키마의 값이 남을 수 있다**(예: client 의 `email` scope, user 의 profile 컬럼이 나중에 추가된 경우). seed 코드와 실제 DB 값이 다르면 `UPDATE` 로 맞추거나 볼륨을 새로 만든다.
    - 주의. 슬라이스 1·2 때부터 존재하던 `my-client` 행이 그 예다. 슬라이스 3 seed 는 `scopes` 에 `offline_access`, `grant_types` 에 `refresh_token` 을 기대하지만, 기존 행은 `ddl-auto: update` 때문에 갱신되지 않는다. `scopes='openid,profile,email,offline_access'`, `grant_types='authorization_code,refresh_token'` 로 `UPDATE` 하고(seed 코드가 신규 client 에 실제로 심는 값과 동일하다 — 임의 값이 아니다) client-registry 를 재기동해 Caffeine 캐시(30s)를 비워야 한다.
+   - 주의. `ddl-auto: update` 로 **기존 행이 있는 테이블에 not null 컬럼을 추가**하면(Hibernate 가 `alter table clients add column client_scopes varchar(500) not null` 을 낸다) MySQL 은 명시적 `DEFAULT` 절이 없어도 실패하지 않고 컬럼 타입의 암묵적 기본값(문자열이면 빈 문자열)으로 기존 행을 채운 뒤 성공시킨다. 슬라이스 4 의 `client_scopes` 추가가 그 예다 — 이미 있던 `my-client`·`article-api` 행 모두 `client_scopes=''` 로 채워졌다(`my-client` 는 seed 가 원래 `""` 를 의도하므로 문제 없지만, `article-api` 는 `introspect` 를 기대하므로 값이 어긋난다). 게다가 `article-api` 행은 이번 슬라이스 이전부터 `grant_types` 도 빈 문자열이었다(이전 슬라이스에서는 client 인증만 되면 됐으므로) — 이번 slice 의 seed 는 `client_credentials` 를 기대하므로 이 값도 함께 어긋난다. client-registry 로그에서 컬럼 추가 자체가 실패했는지(구버전 MySQL 등에서는 not null 추가가 에러로 끝날 수 있다) 먼저 확인하고, 성공했다면 `UPDATE` 로 seed 가 의도하는 값(`article-api`: `client_scopes='introspect', grant_types='client_credentials'`)으로 보정한 뒤 client-registry 를 재기동해 Caffeine 캐시(30s)를 비워야 한다.
    - 주의. 위 기동 순서에서 token-state 를 token 보다 먼저 올려야 하는 이유가 하나 더 있다. token 이 보내는 rotate 요청에는 `requestedScope` 필드가 있는데, 구버전 token-state(2필드 계약, `requestedScope` 를 모름)는 이 필드를 역직렬화 시 조용히 무시하고(Spring 기본값 `FAIL_ON_UNKNOWN_PROPERTIES=false`) 축소 없는 평범한 회전으로 `ROTATED` + 저장 scope 전체를 돌려줄 수 있다. token 은 발급 직전에 `effectiveScope` 가 이 저장 scope 의 부분집합인지 방어적으로 재확인하므로 부여된 적 없는 scope 로 access token 이 나가는 일은 없지만(위반 시 `server_error`), refresh grant 자체는 실패한다. token-state 를 먼저 올려야 이 창을 열지 않는다.
 
 ## 관통 flow (http/ 참고)
@@ -150,7 +167,8 @@ flowchart TB
 9. `POST /oauth2/token` (grant_type=refresh_token, refresh_token) → token 이 client 인증 후 **판정과 전이를 한 번에 묶어** token-state 의 `POST /internal/refresh-tokens/rotate` 를 호출한다. 성공하면 이전 refresh token 은 CONSUMED 로 바뀌고 같은 계열(family)에 새 refresh token 이 발급되며, 새 access token(및 openid scope 면 id token — nonce 없이, auth_time 은 최초 인증 시각 유지)이 함께 나간다. `scope` 파라미터를 함께 보내면 이번 access token 에만 좁혀지고 저장된 refresh 의 scope 는 그대로다. 좁힌 scope 가 저장된 scope 를 벗어나면 token-state 가 회전과 같은 트랜잭션 안에서 이를 검사해 **회전 자체를 하지 않고** `invalid_scope` 를 돌려준다 — 이전 refresh token 이 그대로 살아 있으므로 client 는 같은 토큰으로 scope 를 고쳐 재시도할 수 있다. 회전 후 id token 발급 중 사용자가 삭제된 것으로 확인되면(user-directory 404) `invalid_grant`(500 아니다) — code 교환 경로와 같은 판단이다. token-state 가 빈 본문을 주면(역직렬화 결과 null) 실패로 뭉개지 않고 예외를 던져 `server_error` 로 끝낸다.
 10. 이미 소진(CONSUMED)된 refresh token 이 다시 오면 **재사용으로 간주해 계열 전체를 REVOKED 로 폐기**한다 — 공격자가 훔쳐 먼저 회전했든 정상 client 가 나중에 재시도했든, 늦게 온 쪽이 CONSUMED 를 만나 계열이 죽으므로 양쪽 다 재인증으로 떨어진다.
 11. `POST /oauth2/revoke` (Basic client:secret, token=refresh_token) → 해당 토큰이 속한 계열 전체를 폐기한다. 존재하지 않는 토큰·다른 client 의 토큰·이미 폐기된 토큰 모두 `200` 으로 동일하게 응답한다(RFC 7009 2.2, 탐색 방지). access token 은 폐기 대상이 아니다.
-12. `POST /oauth2/introspect` (Basic client:secret, token) → 먼저 JWT 로컬 검증을 시도하고(서명·`exp`), 성공하면 access token 으로 응답한다. 실패하면(형식이 다르거나 서명 불일치) refresh token 일 수 있으므로 token-state 에 조회를 위임한다. 인증된 client 라면 자신이 발급받지 않은 토큰도 조회할 수 있다(resource server 가 다른 client 의 토큰을 검사하는 것이 introspection 의 목적이므로). token-state 가 빈 본문을 주면(역직렬화 결과 null) `{"active": false}` 로 내리지 않고 `server_error` 로 끝낸다 — "확인하지 못했다"를 "비활성"으로 말하면 살아있는 토큰을 죽었다고 알리는 셈이다.
+12. `POST /oauth2/introspect` (Bearer {client_credentials 로 받은 access token}, token) → 이 엔드포인트는 client 인증 대상이 아니라 protected resource 다. `Authorization` 이 `Bearer` 가 아니면(Basic 포함) `401`+`WWW-Authenticate: Bearer`, Bearer 토큰이 무효면 `401 invalid_token`, 유효해도 `introspect` scope 가 없으면 `403 insufficient_scope`. 통과하면 검사 대상 토큰의 JWT 로컬 검증을 먼저 시도하고(서명·`exp`), 성공하면 access token 으로 응답한다. 실패하면(형식이 다르거나 서명 불일치) refresh token 일 수 있으므로 token-state 에 조회를 위임한다. token-state 가 빈 본문을 주면(역직렬화 결과 null) `{"active": false}` 로 내리지 않고 `server_error` 로 끝낸다 — "확인하지 못했다"를 "비활성"으로 말하면 살아있는 토큰을 죽었다고 알리는 셈이다.
+13. `POST /oauth2/token` (Basic client:secret, `grant_type=client_credentials`, `scope` 선택) → client 인증 후 `client_credentials` grant 등록 여부만 확인한다(미등록이면 `unauthorized_client`). `scope` 를 생략하면 client 의 `client_scopes` 전부가 기본값이 되고(RFC 6749 3.3), 지정하면 `client_scopes` 의 부분집합인지만 검사한다 — 사용자 위임 `scopes` 는 보지 않는다. 통과하면 access token 만 나간다. refresh token 과 id token 은 만들지 않는다(RFC 6749 4.4.3 SHOULD NOT, 인증한 사용자가 없다). `sub` 는 client_id 이고 `aud` 도 client_id 라 `sub == aud` 다(resource indicator 미사용 — 알려진 한계 참고).
 
 ## API 별 시퀀스 다이어그램
 
@@ -418,42 +436,63 @@ sequenceDiagram
     Note over A,TS: 계열의 다른 행(정상 client 가 직전 회전으로 받아 아직 쓰지 않은 최신 refresh token)으로<br/>다시 회전을 시도해도 이미 REVOKED 이므로 마찬가지로 invalid_grant 다. 재인증(authorization_code)부터 다시 해야 한다.
 ```
 
-### `POST /oauth2/introspect` — JWT 로컬 검증 우선, 실패 시에만 token-state 조회
+### `POST /oauth2/token`(`grant_type=client_credentials`) → `POST /oauth2/introspect` — client 능력 토큰 획득 후 introspection (슬라이스 4)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor V as 호출자 (인증된 client — 토큰 주인이 아니어도 된다)
+    actor RS as article-api (resource server)
     participant G as gateway · nginx
     participant T as token
+    participant C as client-registry
     participant S as signing
     participant TS as token-state
 
-    V->>G: POST /oauth2/introspect<br/>Basic(caller_client_id:secret), token, [token_type_hint]
+    RS->>G: POST /oauth2/token<br/>Basic(article-api:secret), grant_type=client_credentials, scope=introspect
     G->>T: proxy
-    Note over T: caller 를 client-registry 로 인증한다(bcrypt). 실패 → 401 invalid_client.<br/>token_type_hint 는 분기에 쓰지 않는다(RFC 7662 2.1 — 힌트는 틀릴 수 있다).
-    T->>T: AccessTokenVerifier.verify(token) 시도<br/>(JWT 파싱 → jwks 서명 검증 → exp/iss 확인)
-    alt JWT 로 유효 (access token)
-        Note over T: access token 은 여기서 끝난다 — token-state 를 조회하지 않는다.<br/>이 서버는 폐기를 refresh 한정으로 정했으므로 활성 여부는 서명·exp 만으로 결정된다.
-        T-->>V: 200 {active:true, sub, client_id, scope, exp, iat, iss, token_type=Bearer}
-    else JWT 파싱/검증 실패 (형식이 다르거나 signing 이 모르는 kid 등)
-        Note over T: refresh token 일 수 있으므로 token-state 에 묻는다.
-        T->>TS: POST /internal/refresh-tokens/introspect {refreshToken}
-        alt 존재 + ACTIVE + 미만료
-            TS-->>T: 200 {active:true, sub, clientId, scope, exp, iat}
-            Note over T: token_type 은 넣지 않는다 — refresh token 은 리소스 접근에 쓰이지 않는다.
-            T-->>V: 200 {active:true, sub, client_id, scope, exp, iat, iss}
-        else 없음 · REVOKED · CONSUMED · 만료
-            TS-->>T: 200 {active:false}
-            Note over T: 사유(만료 · 폐기 · 애초에 존재하지 않음)를 구분하지 않는다(RFC 7662 2.2).<br/>구분해 주면 토큰을 쥔 쪽이 그 토큰의 내력을 알아낼 수 있다.
-            T-->>V: 200 {active:false}
-        else 빈 본문(역직렬화 결과 null)
-            TS-->>T: 200 (본문 없음)
-            Note over T: "비활성" 이 아니라 "확인하지 못했다" 다. {active:false} 로 내리면<br/>살아있는 토큰을 죽었다고 말하는 셈이라 resource server 가 멀쩡한 요청을 거절한다.<br/>예외를 던져 500 server_error 로 끝낸다.
-            T-->>V: 500 server_error
+    T->>C: GET /internal/clients/article-api
+    C-->>T: 200 {clientSecretHash, grantTypes=[client_credentials], clientScopes=[introspect]}
+    Note over T: client 인증(bcrypt) 실패 → invalid_client 401<br/>ClientCredentialsGrantService.grant — grantTypes 에 client_credentials 없으면 unauthorized_client<br/>scope 생략 시 clientScopes 전부가 기본값(RFC 6749 3.3), 지정 시 clientScopes 의 부분집합인지만 검사(벗어나면 invalid_scope) — scopes(사용자 위임)는 보지 않는다
+    T->>S: POST /internal/sign {iss, sub=client_id, aud=client_id, iat, exp, scope=[introspect]}
+    S-->>T: {jwt}
+    Note over T: refresh_token · id_token 은 만들지 않는다(RFC 6749 4.4.3 SHOULD NOT — 인증한 사용자가 없다)
+    T-->>RS: 200 {access_token, token_type=Bearer, expires_in, scope=introspect}
+    Note over RS: sub == aud == article-api (RFC 9068). resource indicator(RFC 8707) 미사용 — 알려진 한계 참고
+
+    RS->>G: POST /oauth2/introspect<br/>Bearer {방금 받은 access token}, token={검사할 토큰}
+    G->>T: proxy
+    Note over T: Authorization 이 Bearer 가 아니면(Basic 포함) → 401 WWW-Authenticate: Bearer
+    T->>T: AccessTokenVerifier.verify(호출자 토큰) — jwks 서명 · exp 검증
+    alt 호출자 토큰 무효
+        T-->>RS: 401 WWW-Authenticate: Bearer error="invalid_token"
+    else 유효하지만 introspect scope 없음
+        T-->>RS: 403 WWW-Authenticate: Bearer error="insufficient_scope"
+    else 유효 + introspect scope 보유
+        T->>T: AccessTokenVerifier.verify(검사 대상 토큰) 시도<br/>(JWT 파싱 → jwks 서명 검증 → exp/iss 확인)
+        alt JWT 로 유효 (access token)
+            Note over T: access token 은 여기서 끝난다 — token-state 를 조회하지 않는다.<br/>이 서버는 폐기를 refresh 한정으로 정했으므로 활성 여부는 서명·exp 만으로 결정된다.
+            T-->>RS: 200 {active:true, sub, client_id, scope, exp, iat, iss, token_type=Bearer}
+        else JWT 파싱/검증 실패 (형식이 다르거나 signing 이 모르는 kid 등)
+            Note over T: refresh token 일 수 있으므로 token-state 에 묻는다.
+            T->>TS: POST /internal/refresh-tokens/introspect {refreshToken}
+            alt 존재 + ACTIVE + 미만료
+                TS-->>T: 200 {active:true, sub, clientId, scope, exp, iat}
+                Note over T: token_type 은 넣지 않는다 — refresh token 은 리소스 접근에 쓰이지 않는다.
+                T-->>RS: 200 {active:true, sub, client_id, scope, exp, iat, iss}
+            else 없음 · REVOKED · CONSUMED · 만료
+                TS-->>T: 200 {active:false}
+                Note over T: 사유(만료 · 폐기 · 애초에 존재하지 않음)를 구분하지 않는다(RFC 7662 2.2).<br/>구분해 주면 토큰을 쥔 쪽이 그 토큰의 내력을 알아낼 수 있다.
+                T-->>RS: 200 {active:false}
+            else 빈 본문(역직렬화 결과 null)
+                TS-->>T: 200 (본문 없음)
+                Note over T: "비활성" 이 아니라 "확인하지 못했다" 다. {active:false} 로 내리면<br/>살아있는 토큰을 죽었다고 말하는 셈이라 resource server 가 멀쩡한 요청을 거절한다.<br/>예외를 던져 500 server_error 로 끝낸다.
+                T-->>RS: 500 server_error
+            end
         end
     end
 ```
+
+주의. `POST /oauth2/revoke` 는 여전히 Basic client 인증이다(비대칭이 의도적이다) — revoke 는 "자기 토큰을 폐기"라 소유자 확인(client 인증)이 맞고, introspect 는 "남의 토큰을 검사"라 별도로 부여된 능력(scope)이 맞다.
 
 ## 검증된 성공 기준 (e2e, 게이트웨이 경유)
 
@@ -493,9 +532,19 @@ sequenceDiagram
 24. **회귀** — `/userinfo` 는 여전히 `200` + claim, authorization code 재사용은 여전히 `invalid_grant`, discovery(`/.well-known/openid-configuration`) 에 `introspection_endpoint`·`revocation_endpoint`·`refresh_token`(grant_types_supported)·`offline_access`(scopes_supported) 가 모두 노출된다.
 25. **token-state 외부 비노출** — gateway 를 통해 `/internal/refresh-tokens/introspect` 를 호출하면 `404`. nginx 가 `/internal/*` 를 라우팅하지 않는다(gateway/nginx.conf 에 해당 location 자체가 없다).
 
-## 슬라이스 3에서도 제외 (이후 sub-project)
+### 슬라이스 4 (client 능력 scope 와 client_credentials)
 
-client_credentials grant(+ introspect scope 로 introspection 권한을 좁히는 정석 경로), back-channel logout(sid), admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네트워크 가정), jwks 캐시, access token deny-list, Kafka 인증 이벤트 스트림, 관측성/서킷브레이커.
+26. **client_credentials 토큰 획득** — `article-api:secret` 로 `grant_type=client_credentials&scope=introspect` 요청하면 응답 `scope: introspect`, `refresh_token`·`id_token` 모두 부재, access token 의 `sub`·`aud` 모두 `article-api`.
+27. **introspection 이 protected resource 로 전환** — `article-api` 의 client_credentials 토큰을 **Bearer** 로 실어 `my-client` 의 access token 을 조회하면 `active:true`+`client_id:my-client`. **Basic**(`article-api:secret`) 으로 같은 엔드포인트를 호출하면 더 이상 client 인증으로 받아주지 않고 `401`+`WWW-Authenticate: Bearer`. `introspect` scope 가 없는(`my-client` 발급) access token 을 Bearer 로 실어 호출하면 `403`+`WWW-Authenticate: Bearer error="insufficient_scope"`.
+28. **관문** — `client_credentials` grant 가 등록되지 않은 `my-client` 로 `grant_type=client_credentials` 요청 시 `unauthorized_client`. `my-client` 가 `authorization_code` 로 `scope=openid introspect` 요청하면(`introspect` 가 `my-client` 의 `scopes` 에 없다) redirect 에 `error=invalid_scope`.
+29. **동의 화면 비노출** — `client_scopes` 는 관리자가 부여하는 값이라 동의 화면에 절대 뜨지 않는다. `openid profile` 재동의 화면에서 `introspect` 문자열 등장 `0`회.
+30. **discovery** — `grant_types_supported` 에 `client_credentials`, `scopes_supported` 에 `introspect` 가 노출된다. `introspection_endpoint_auth_methods_supported` 필드 자체가 없다(Bearer+scope 요구를 표현할 표준 필드가 없어 아예 생략한다). `revocation_endpoint_auth_methods_supported` 는 그대로 존재.
+31. **회귀** — client_credentials 토큰(`openid` scope 없음)으로 `/userinfo` 를 호출하면 `403`+`WWW-Authenticate: Bearer error="insufficient_scope"`. `POST /oauth2/revoke` 는 여전히 Basic 인증으로 `200`.
+32. **회귀(슬라이스 3)** — `offline_access` 동의 → refresh 발급, 정상 회전(새 access/refresh token), 이미 소진된 refresh token 재사용 시 `invalid_grant`+계열 전체가 `REVOKED`/`REUSE_DETECTED`, authorization code 재사용 시 `invalid_grant`. 모두 이번 e2e 에서 재확인했다.
+
+## 슬라이스 4에서도 제외 (이후 sub-project)
+
+back-channel logout(sid), admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네트워크 가정), jwks 캐시, access token deny-list, Kafka 인증 이벤트 스트림, 관측성/서킷브레이커, resource indicator(RFC 8707, client_credentials 의 `aud` 를 자원별로 좁히는 것).
 
 ## 알려진 한계 / 추후 개선
 
@@ -508,7 +557,9 @@ client_credentials grant(+ introspect scope 로 introspection 권한을 좁히�
 - **access token 과 id token 을 구분할 수 있는 표식이 없다** — 둘 다 signing 의 같은 키로 서명되고 `iss`·`sub` 도 같으며 `typ` 헤더 구분이 없다. 지금은 id token 에 `scope` claim 이 없어 `/userinfo` 에 id token 을 들이밀면 `openid` scope 가 없다고 403 이 나므로 토큰 타입 혼동이 성립하지 않는다. 다만 그 방어는 우연에 가깝다 — **id token 에 `scope` 를 싣는 순간 혼동이 성립한다.** 정석은 RFC 9068 의 `typ: at+jwt` 헤더로 access token 을 명시하고 검증 시 그 값을 강제하는 것이다. signing 의 서명 API 계약(헤더를 signing 이 전적으로 소유한다)을 바꿔야 하므로 이번 슬라이스에서는 구현하지 않는다. 다음 슬라이스 대상.
 - **회전은 정상 client 의 재시도도 계열을 죽인다** — 회전은 이전 refresh token 을 즉시 CONSUMED 로 만들므로, 응답을 못 받은 client 가 같은 토큰으로 재시도하면 재사용 탐지에 걸려 계열 전체가 폐기된다. client 는 refresh 요청을 직렬화해야 한다(동시에 두 번 보내지 않는다). 유예 기간(짧은 시간 안의 재사용은 허용) 없이 즉시 폐기하는 쪽을 택했다.
 - **client 가 새 refresh token 을 저장하기 전에 죽으면 그 계열을 잃는다** — 회전 응답으로 새 refresh token 을 받았지만 디스크에 쓰기 전에 client 프로세스가 죽으면, 다음 기동 때는 이미 CONSUMED 된 이전 토큰만 남아 있어 그걸로 회전을 시도하는 순간 재사용 탐지로 계열이 죽는다. 유예 기간을 두지 않았기 때문이며, 이 경우 재인증(authorization_code)부터 다시 해야 한다.
-- **introspection 은 인증된 client 면 누구의 토큰이든 조회할 수 있다** — "자기 토큰만" 으로 제한하면 애초에 introspection 이 성립하지 않는다(resource server 가 검사하는 토큰은 언제나 다른 client 에게 발급된 것이므로). 권한을 좁히려면 client_credentials grant 로 받은 토큰의 `introspect` scope 를 보는 것이 정석이며, 이 서버에는 아직 그 grant 가 없다.
+- **client_credentials 토큰의 `sub == aud`** — 둘 다 client_id 다(RFC 9068). 이 서버가 resource indicator(RFC 8707)를 쓰지 않아 발급 대상 자원(audience)을 표현할 방법이 없기 때문이다. 여러 resource server 를 구분해 발급하려면 `resource` 파라미터를 받아 `aud` 를 좁히는 확장이 필요하다.
+- **discovery 에 "Bearer 토큰 + 특정 scope 요구"를 표현할 표준 필드가 없다** — RFC 8414 의 `introspection_endpoint_auth_methods_supported` 는 client 인증 방식(`client_secret_basic` 등)을 담는 필드인데, 이 서버의 `/oauth2/introspect` 는 client 인증이 아니라 Bearer 토큰과 `introspect` scope 를 요구한다. 담을 값이 없다고 `"none"` 을 내보내면 "인증이 필요 없다"는 거짓이 되므로, 이 필드 자체를 아예 내보내지 않는다.
+- **`scopes_supported` 의 `introspect` 가 사용자 위임 가능 여부를 구분해 주지 않는다** — discovery 는 `introspect` 가 `client_scopes`(관리자 부여) 전용이고 `authorization_code` 로는 절대 요청할 수 없다는 것을 표현할 필드가 없다. client 가 이를 사용자 위임 가능한 scope 로 오해하고 authorize 요청에 넣었다가 `invalid_scope` 로 거절당하는 시행착오를 거쳐야 알 수 있다.
 - **access token 은 폐기하지 않는다** — RFC 7009 §2 는 access token 폐기를 MAY 로 두므로 표준 위반은 아니다. 이 서버는 access token 을 짧은 TTL 로 자연 만료시키는 쪽을 택했다(JWT 자가검증의 이점을 지키기 위함). `POST /oauth2/revoke` 에 access token 을 담고 `token_type_hint=access_token` 을 함께 보내면 `200` 이 오지만 실제로는 아무것도 하지 않는다. 반대로 refresh token 에 `token_type_hint=access_token` 이 잘못 붙어 오면 힌트를 그대로 믿어 폐기를 건너뛴다 — token_type_hint 를 "access_token 인지" 판정에만 쓰고 그 외에는 신뢰하지 않는 introspection 과 달리, revoke 는 이 한 갈래에서만 힌트를 신뢰한다는 뜻이라 알려진 한계로 남긴다.
 - HA(다중 인스턴스), 키 로테이션, purge 등은 production-ready-authorization-server 에서 다룬 주제.
 
