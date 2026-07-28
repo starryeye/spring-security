@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -182,6 +183,40 @@ class RefreshTokenServiceRotateTest {
 		assertThat(result.scope()).isEqualTo("openid profile offline_access"); // 응답은 저장된 grant 그대로다
 		RefreshTokenEntity fresh = repository.findByTokenHash(tokenGenerator.hash(result.refreshToken())).orElseThrow();
 		assertThat(fresh.getScopes()).isEqualTo("openid,profile,offline_access");
+	}
+
+	// 계열 상한이 개별 TTL 보다 가까우면 새 행의 수명은 상한에서 끊긴다.
+	// 그러지 않으면 응답의 expiresAt 이 실제보다 긴 수명을 알린다.
+	@Test
+	void rotatedTokenExpiryNeverExceedsFamilyCeiling() {
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		RefreshTokenEntity entity = repository.findByTokenHash(tokenGenerator.hash(issued.refreshToken())).orElseThrow();
+		Instant nearCeiling = Instant.now().plusSeconds(5);
+		repository.save(withFamilyExpiresAt(entity, nearCeiling));
+
+		RotateResult result = service.rotate(issued.refreshToken(), "my-client", null);
+
+		assertThat(result.status()).isEqualTo(RotateStatus.ROTATED);
+		RefreshTokenEntity rotated = repository.findByTokenHash(tokenGenerator.hash(result.refreshToken())).orElseThrow();
+		assertThat(rotated.getExpiresAt()).isEqualTo(rotated.getFamilyExpiresAt());
+		assertThat(result.expiresAt()).isEqualTo(nearCeiling.getEpochSecond());
+	}
+
+	private RefreshTokenEntity withFamilyExpiresAt(RefreshTokenEntity entity, Instant familyExpiresAt) {
+		RefreshTokenEntity replaced = RefreshTokenEntity.builder()
+				.tokenHash(entity.getTokenHash())
+				.familyId(entity.getFamilyId())
+				.clientId(entity.getClientId())
+				.sub(entity.getSub())
+				.scopes(entity.getScopes())
+				.authTime(entity.getAuthTime())
+				.issuedAt(entity.getIssuedAt())
+				.expiresAt(entity.getExpiresAt())
+				.familyExpiresAt(familyExpiresAt)
+				.build();
+		repository.delete(entity);
+		repository.flush();
+		return replaced;
 	}
 
 	private RefreshTokenEntity expireFamily(RefreshTokenEntity entity) {

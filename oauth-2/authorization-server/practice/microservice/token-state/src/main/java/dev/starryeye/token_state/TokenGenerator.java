@@ -4,6 +4,7 @@ import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
 
@@ -37,7 +38,7 @@ public class TokenGenerator {
 				hex.append(String.format("%02x", b));
 			}
 			return hex.toString();
-		} catch (Exception e) {
+		} catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException("SHA-256 unavailable", e);
 		}
 	}

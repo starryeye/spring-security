@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TokenGeneratorTest {
 
@@ -44,5 +45,12 @@ class TokenGeneratorTest {
 	@Test
 	void differentInputsProduceDifferentHashes() {
 		assertThat(generator.hash("abc")).isNotEqualTo(generator.hash("abd"));
+	}
+
+	// null 은 SHA-256 이 없다는 뜻이 아니다. 넓은 catch 가 NPE 를 삼켜 원인을 오도하지 않는지 고정한다.
+	@Test
+	void nullInputSurfacesAsNullPointerNotAlgorithmFailure() {
+		assertThatThrownBy(() -> generator.hash(null))
+				.isInstanceOf(NullPointerException.class);
 	}
 }

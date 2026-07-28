@@ -142,6 +142,11 @@ public class RefreshTokenService {
 
 		entity.consume(now);
 
+		Instant rotatedExpiresAt = now.plusSeconds(ttlSeconds);
+		if (rotatedExpiresAt.isAfter(entity.getFamilyExpiresAt())) {
+			rotatedExpiresAt = entity.getFamilyExpiresAt(); // 계열 상한을 넘는 수명을 알리지 않는다
+		}
+
 		String token = tokenGenerator.generate();
 		RefreshTokenEntity rotated = RefreshTokenEntity.builder()
 				.tokenHash(tokenGenerator.hash(token))
@@ -151,7 +156,7 @@ public class RefreshTokenService {
 				.scopes(entity.getScopes()) // 축소 요청이 있어도 저장 scope 는 그대로다
 				.authTime(entity.getAuthTime())
 				.issuedAt(now)
-				.expiresAt(now.plusSeconds(ttlSeconds))
+				.expiresAt(rotatedExpiresAt)
 				.familyExpiresAt(entity.getFamilyExpiresAt()) // 절대 상한은 복사만, 연장하지 않는다
 				.build();
 		repository.save(rotated);

@@ -72,4 +72,19 @@ class RefreshTokenServiceRevokeTest {
 		RefreshTokenEntity entity = repository.findByTokenHash(tokenGenerator.hash(issued.refreshToken())).orElseThrow();
 		assertThat(entity.getStatus()).isEqualTo(RefreshTokenStatus.ACTIVE);
 	}
+
+	// 재사용 탐지로 폐기된 계열에 client 폐기가 뒤따라도 최초 사유가 남아야 한다.
+	@Test
+	void revokeDoesNotOverwriteReuseDetectedReason() {
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		RotateResult rotated = service.rotate(issued.refreshToken(), "my-client", null);
+		service.rotate(issued.refreshToken(), "my-client", null); // 재사용 -> 계열 REUSE_DETECTED
+
+		service.revoke(rotated.refreshToken(), "my-client");
+
+		String familyId = repository.findByTokenHash(tokenGenerator.hash(issued.refreshToken()))
+				.orElseThrow().getFamilyId();
+		assertThat(repository.findByFamilyId(familyId))
+				.allMatch(e -> "REUSE_DETECTED".equals(e.getRevokedReason()));
+	}
 }
