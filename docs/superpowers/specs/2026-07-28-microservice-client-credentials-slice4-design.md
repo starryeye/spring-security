@@ -214,7 +214,9 @@ token=<검사할 토큰>
 - `my-client` 가 authorization_code 로 `introspect` 요청 → `invalid_scope`
 - client_credentials 토큰으로 `/userinfo` 호출 → 403 `insufficient_scope`
 - discovery 에 `introspection_endpoint_auth_methods_supported` **부재**, `grant_types_supported` 에 `client_credentials` 존재
-- 기존 token 92개 · token-state 39개 · auth 테스트 전부 통과
+- 슬라이스 4 착수 전 token 96개 → 완료 후 109개, token-state 39개 → 완료 후 42개, auth 테스트 전부 통과
+
+**주의.** 1절은 "새 서비스는 없다" 를 전제했지만, 실제 구현에서는 client-registry 에 **테스트 전용 인프라**가 새로 생겼다 — `build.gradle` 에 `com.h2database:h2` 를 추가하고(최종 리뷰 이후 `testRuntimeOnly` 로 좁혔다 — `runtimeOnly` 는 운영 bootJar 에도 h2 를 실어 보낸다), `src/test/resources/application.yml` 을 신설해 `ddl-auto: create-drop` 의 h2 in-memory DB 를 붙였다. 새 서비스를 추가한 것은 아니므로 1절의 전제와 정면으로 모순되지는 않지만, 계획에는 없던 변경이므로 기록해 둔다.
 
 ### e2e 성공 기준
 
