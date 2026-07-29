@@ -257,6 +257,23 @@ class TokenEndpointControllerTest {
 				.andExpect(jsonPath("$.claims_supported", hasItem("at_hash")));
 	}
 
+	// discovery 의 scopes_supported 와 client_credentials 거부 집합의 관계를 고정한다.
+	// 두 목록은 서로 다른 파일의 별개 리터럴이라 결합이 코드로 강제되지 않는다 — 사용자 위임 scope 를
+	// discovery 에만 추가하면 그 scope 가 client_credentials 로 새어나간다. 이 테스트가 그 이탈을 잡는다.
+	@Test
+	void userDelegatedScopeSetCoversEveryAdvertisedScopeExceptIntrospect() throws Exception {
+		String body = mockMvc.perform(get("/.well-known/openid-configuration"))
+				.andExpect(status().isOk())
+				.andReturn().getResponse().getContentAsString();
+
+		List<String> advertised = com.jayway.jsonpath.JsonPath.read(body, "$.scopes_supported");
+
+		// introspect 는 client 능력 scope 라 유일하게 거부 집합 밖이다.
+		assertThat(advertised).contains("introspect");
+		assertThat(advertised.stream().filter(scope -> !scope.equals("introspect")).toList())
+				.containsExactlyInAnyOrderElementsOf(ClientCredentialsGrantService.USER_DELEGATED_SCOPES);
+	}
+
 	// discovery metadata: 두 표준 경로 (oauth-authorization-server, openid-configuration) 가 동일한 문서를 서빙하는지 검증
 	@Test
 	void bothDiscoveryPathsReturnIdenticalDocument() throws Exception {

@@ -214,9 +214,10 @@ token=<검사할 토큰>
 - `my-client` 가 authorization_code 로 `introspect` 요청 → `invalid_scope`
 - client_credentials 토큰으로 `/userinfo` 호출 → 403 `insufficient_scope`
 - discovery 에 `introspection_endpoint_auth_methods_supported` **부재**, `grant_types_supported` 에 `client_credentials` 존재
-- 슬라이스 4 착수 전 token 96개 → 완료 후 109개, token-state 39개 → 완료 후 42개, auth 테스트 전부 통과
+- 슬라이스 4 착수 전(`91f281b`) token 96개, token-state 39개 → 7개 태스크 완료 시점(`ba3b1b9`) token 109개, token-state 42개, auth 테스트 전부 통과
+  (최종 리뷰 후속으로 token 이 112개까지 늘었다. 위 수치는 태스크 완료 시점에 고정된 값이라 오늘 세어 보면 다르다.)
 
-**주의.** 1절은 "새 서비스는 없다" 를 전제했지만, 실제 구현에서는 client-registry 에 **테스트 전용 인프라**가 새로 생겼다 — `build.gradle` 에 `com.h2database:h2` 를 추가하고(최종 리뷰 이후 `testRuntimeOnly` 로 좁혔다 — `runtimeOnly` 는 운영 bootJar 에도 h2 를 실어 보낸다), `src/test/resources/application.yml` 을 신설해 `ddl-auto: create-drop` 의 h2 in-memory DB 를 붙였다. 새 서비스를 추가한 것은 아니므로 1절의 전제와 정면으로 모순되지는 않지만, 계획에는 없던 변경이므로 기록해 둔다.
+**주의.** 1절은 "새 서비스는 없다" 를 전제하지만, client-registry 에는 **테스트 전용 인프라**가 함께 생긴다 — `build.gradle` 의 `testRuntimeOnly 'com.h2database:h2'` 와 `src/test/resources/application.yml` 의 `ddl-auto: create-drop` h2 in-memory DB 다. h2 는 `testRuntimeOnly` 여야 한다. `runtimeOnly` 는 운영 런타임 classpath 와 bootJar 에도 h2 를 실어 보낸다. 새 서비스가 생긴 것은 아니라 1절의 전제와 정면으로 모순되지는 않지만, 계획에 없던 변경이므로 기록해 둔다.
 
 ### e2e 성공 기준
 

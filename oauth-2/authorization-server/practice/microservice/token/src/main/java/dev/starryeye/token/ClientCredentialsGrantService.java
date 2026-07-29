@@ -39,7 +39,10 @@ public class ClientCredentialsGrantService {
 	// 전부 사용자 위임을 전제로 한다 — openid 는 최종 사용자 인증 요청의 표식(OIDC Core 3.1.2.1),
 	// profile/email 은 사용자 claim, offline_access 는 사용자 동의가 전제인 refresh 발급 신호다.
 	// 사용자가 없는 이 grant 에서는 셋 다 의미가 없다.
-	private static final Set<String> USER_DELEGATED_SCOPES = Set.of("openid", "profile", "email", "offline_access");
+	//
+	// 주의. deny-list 라 discovery 에 사용자 위임 scope 를 추가하면서 이 집합을 잊으면 구멍이 조용히 다시 열린다.
+	//      그래서 package-private 이다 — TokenEndpointControllerTest 가 scopes_supported 와의 관계를 단언한다.
+	static final Set<String> USER_DELEGATED_SCOPES = Set.of("openid", "profile", "email", "offline_access");
 
 	private final AccessTokenIssuer accessTokenIssuer;
 	private final long accessTokenTtlSeconds;
