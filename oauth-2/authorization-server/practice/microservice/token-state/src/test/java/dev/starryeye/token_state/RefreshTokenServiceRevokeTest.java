@@ -84,6 +84,10 @@ class RefreshTokenServiceRevokeTest {
 
 		String familyId = repository.findByTokenHash(tokenGenerator.hash(issued.refreshToken()))
 				.orElseThrow().getFamilyId();
+		// 계열은 최초 발급분 1행 + 첫 회전으로 생긴 1행, 총 2행이다. 재사용 탐지는 새 행을 만들지 않고
+		// 기존 행들만 REVOKED 로 전이한다. hasSize 없이 allMatch 만 쓰면 빈 컬렉션에서도 공허하게 통과하므로
+		// 행 수를 먼저 고정한다.
+		assertThat(repository.findByFamilyId(familyId)).hasSize(2);
 		assertThat(repository.findByFamilyId(familyId))
 				.allMatch(e -> "REUSE_DETECTED".equals(e.getRevokedReason()));
 	}

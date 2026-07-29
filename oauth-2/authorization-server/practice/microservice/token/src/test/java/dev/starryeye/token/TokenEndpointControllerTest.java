@@ -398,9 +398,18 @@ class TokenEndpointControllerTest {
 				.andExpect(jsonPath("$.error").value("invalid_grant"));
 	}
 
+	// client-registry 가 준 clientScopes 가 grant 판정에 실제로 도달하는지를 확인한다. eq()/any() 만으로는
+	// 컨트롤러가 client-registry 응답 대신 빈 ClientInfo 를 넘겨도 스위트가 초록일 수 있으므로,
+	// ArgumentCaptor 로 실제로 넘어간 ClientInfo 를 잡아 client-registry stub 이 준 clientScopes 와 비교한다.
 	@Test
-	void clientCredentialsGrantDelegatesToItsService() throws Exception {
-		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
+	void clientCredentialsGrantDelegatesToItsServiceWithClientRegistryClientScopes() throws Exception {
+		ClientInfo clientWithClientScopes = new ClientInfo("my-client",
+				List.of("http://127.0.0.1:8080/callback"),
+				List.of("openid", "profile"),
+				clientInfo().clientSecretHash(),
+				List.of("client_credentials"),
+				List.of("introspect", "audit"));
+		when(clientRegistryClient.getClient("my-client")).thenReturn(clientWithClientScopes);
 		when(clientCredentialsGrantService.grant(any(), eq("introspect")))
 				.thenReturn(GrantResult.ok(new TokenResponse("cc-token", "Bearer", 300L,
 						"introspect", null, null)));
@@ -413,6 +422,10 @@ class TokenEndpointControllerTest {
 				.andExpect(jsonPath("$.access_token").value("cc-token"))
 				.andExpect(jsonPath("$.refresh_token").doesNotExist())
 				.andExpect(jsonPath("$.id_token").doesNotExist());
+
+		ArgumentCaptor<ClientInfo> clientCaptor = ArgumentCaptor.forClass(ClientInfo.class);
+		verify(clientCredentialsGrantService).grant(clientCaptor.capture(), eq("introspect"));
+		assertThat(clientCaptor.getValue().clientScopes()).isEqualTo(List.of("introspect", "audit"));
 	}
 
 	@Test

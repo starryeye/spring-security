@@ -26,8 +26,9 @@ class ClientControllerTest {
 	@MockitoBean
 	ClientController.ClientLookupService lookupService;
 
+	// my-client 처럼 사용자 위임 scope 는 있고 client 능력(clientScopes)은 없는 client.
 	@Test
-	void returnsClient() throws Exception {
+	void returnsClientWithUserDelegatedScopesOnly() throws Exception {
 		when(lookupService.findByClientId("my-client")).thenReturn(new ClientResponse(
 				"my-client",
 				List.of("http://127.0.0.1:8080/callback"),
@@ -44,9 +45,12 @@ class ClientControllerTest {
 				.andExpect(jsonPath("$.clientSecretHash").exists())
 				.andExpect(jsonPath("$.grantTypes", contains("authorization_code")))
 				.andExpect(jsonPath("$.clientScopes.length()").value(0));
+	}
 
-		// article-api 처럼 사용자 위임 scope 없이 client 능력만 갖는 client 를 흉내낸다.
-		// scopes(사용자 위임)와 clientScopes(관리자 부여)가 응답에서 분리돼 실리는지 확인한다.
+	// article-api 처럼 사용자 위임 scope 없이 client 능력만 갖는 client.
+	// scopes(사용자 위임)와 clientScopes(관리자 부여)가 응답에서 분리돼 실리는지 확인한다.
+	@Test
+	void returnsClientWithClientScopesOnly() throws Exception {
 		when(lookupService.findByClientId("article-api")).thenReturn(new ClientResponse(
 				"article-api",
 				List.of(),
