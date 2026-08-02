@@ -2987,14 +2987,25 @@ class SecurityConfigTest {
 		mockMvc.perform(get("/me")).andExpect(status().is3xxRedirection());
 	}
 
-	// back-channel 수신 경로는 인증을 요구하지 않아야 한다. 요구하면 OP 의 POST 가 302 로 튕겨
-	// 로그아웃이 조용히 실패한다. 토큰이 없으므로 400 이 정상이며, 302/401 이면 배선이 틀린 것이다.
+	// back-channel 수신 경로는 인증을 요구하지 않아야 한다. 요구하면 OP 의 POST 가 로그인으로 튕겨
+	// 로그아웃이 조용히 실패한다. logout_token 이 없으므로 성공하지는 않지만, 거절 사유가
+	// "인증이 없다"(302/401)여서는 안 된다. 그 두 가지가 아님을 단언한다.
 	@Test
 	void backChannelEndpointIsReachableWithoutAuthentication() throws Exception {
-		mockMvc.perform(post("/logout/connect/back-channel/microservice"))
-				.andExpect(status().isBadRequest());
+		int status = mockMvc.perform(post("/logout/connect/back-channel/microservice"))
+				.andReturn().getResponse().getStatus();
+
+		assertThat(status).isNotEqualTo(302).isNotEqualTo(401);
 	}
 }
+```
+
+**주의.** 이 테스트는 특정 상태 코드를 고정하지 않는다. 우리가 확인하려는 성질은 "인증 때문에 거절되지 않는다" 하나이고, `logout_token` 이 없을 때 Spring Security 가 어떤 4xx 를 내는지는 우리 계약이 아니다. 관측한 값을 그대로 기대값으로 적으면 성질이 아니라 구현을 베끼게 된다.
+
+`assertThat` import 를 추가한다.
+
+```java
+import static org.assertj.core.api.Assertions.assertThat;
 ```
 
 - [ ] **Step 6: 테스트 실행**
