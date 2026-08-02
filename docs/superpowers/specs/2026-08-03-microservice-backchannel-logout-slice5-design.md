@@ -32,7 +32,7 @@ back-channel logout 이 **세 번째 토큰 타입**을 추가하므로 이번�
 | 서비스 | 변경 |
 |---|---|
 | **session**(8088) | **신규.** `(sid, sub, client_id)` 레지스트리 소유 + logout token 발송 |
-| **demo-rp**(8080) | **신규.** 진짜 Spring Security RP. e2e 검증자 |
+| **demo-rp**(8095) | **신규.** 진짜 Spring Security RP. e2e 검증자 |
 | **auth**(8081) | 로그인 시 `sid` 생성·세션 저장 · authorize 에서 code 에 `sid` · `GET /oauth2/logout` 신설 |
 | **token**(8082) | id token 에 `sid` claim · session 등록 호출 · `typ` 전달 · discovery 3항목 |
 | **signing**(8083) | 서명 API 가 `typ` 을 받는다 (헤더 소유권 계약 변경) |
@@ -183,19 +183,21 @@ backchannel_logout_supported          true
 backchannel_logout_session_supported  true
 ```
 
-### demo-rp(8080) — 검증자
+### demo-rp(8095) — 검증자
 
 `spring-boot-starter-oauth2-client` 로 `issuer-uri: http://localhost:9000` 을 두고 discovery 로 설정을 끌어온다. `oauth2Login` + `oidcLogout().backChannel()` + `OidcClientInitiatedLogoutSuccessHandler`.
 
 registrationId 를 `microservice` 로 두면 URI 가 정해진다.
 
 ```
-redirect_uri            http://localhost:8080/login/oauth2/code/microservice
-backchannel_logout_uri  http://localhost:8080/logout/connect/back-channel/microservice
-post_logout_redirect    http://localhost:8080/
+redirect_uri            http://localhost:8095/login/oauth2/code/microservice
+backchannel_logout_uri  http://localhost:8095/logout/connect/back-channel/microservice
+post_logout_redirect    http://localhost:8095/
 ```
 
 `ClientSeedInitializer` 에 `demo-rp` client 를 추가한다 — 위 세 URI, `scopes` 는 `openid,profile,email`, `grant_types` 는 `authorization_code,refresh_token`, `client_scopes` 는 빈 문자열이다. 기존 `my-client`(curl 용)와 `article-api`(client_credentials 용)는 그대로 둔다.
+
+**주의.** 포트는 8095 다. `my-client` 의 `redirect_uri` 가 `http://127.0.0.1:8080/callback` 이라 8080 을 쓰면 문서에서 두 client 가 같은 포트로 보인다(실제로 8080 에 뜨는 것은 없고 curl 은 Location 헤더만 읽으므로 충돌은 없지만, 읽는 사람이 헷갈린다).
 
 demo-rp 에는 로그인이 필요한 보호 페이지를 하나 둔다. e2e 4번 기준이 이 페이지의 상태 코드로 판정된다.
 
@@ -262,6 +264,8 @@ token 이 code 를 교환할 때 session 등록에 실패하면 **토큰 발급 
 11. 회귀(슬라이스 1~4): code 재사용·PKCE 변조 `invalid_grant`, refresh 회전·재사용 탐지, introspection Bearer 인가, client_credentials
 
 **주의.** 4번이 이 슬라이스의 핵심 기준이다. logout token 을 "보냈다"가 아니라 **RP 가 받아서 세션을 끊었다**를 증명해야 한다. 발송 로그만 보고 통과로 판정하지 않는다.
+
+**주의.** 4번은 **OP 를 직접 로그아웃시켜** 판정한다. RP 가 시작하는 로그아웃(RP 의 `/logout`)으로 판정하면 안 된다. Spring Security 의 `LogoutFilter` 가 RP 세션을 **먼저 로컬에서 무효화**한 뒤 사용자를 `end_session_endpoint` 로 보내기 때문에, back-channel 이 전혀 동작하지 않아도 보호 페이지가 302 가 되어 통과처럼 보인다. RP 를 건드리지 않고 OP 세션 쿠키만으로 로그아웃해야 RP 세션을 끊을 수 있는 원인이 logout token 하나로 좁혀진다.
 
 ---
 
