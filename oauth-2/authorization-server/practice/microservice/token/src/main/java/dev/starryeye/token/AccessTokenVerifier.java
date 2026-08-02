@@ -1,5 +1,6 @@
 package dev.starryeye.token;
 
+import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.crypto.RSASSAVerifier;
@@ -32,7 +33,13 @@ public class AccessTokenVerifier {
 	 *      다만 jwks 에 토큰의 kid 가 없는 경우는 키 확보 실패가 아니라 위조 kid 이므로 InvalidTokenException 이다.
 	 *
 	 * 주의. jwks 를 매 요청 조회하면 signing 에 부하가 걸린다. 캐시는 이후 개선 항목이다.
+	 *
+	 * 주의. typ 이 at+jwt 인지 확인한다(RFC 9068 2.1). 같은 키로 id token 과 logout token 도 서명되므로,
+	 *      이 검사가 없으면 세 토큰이 서로 통한다. id token 에 scope claim 이 없고 logout token 에 exp 가
+	 *      없어서 지금은 우연히 막히지만, 그 결손이 메워지는 순간 방어가 사라진다.
 	 */
+
+	private static final String ACCESS_TOKEN_TYP = "at+jwt";
 
 	private final SigningClient signingClient;
 
@@ -74,6 +81,11 @@ public class AccessTokenVerifier {
 			throw e;
 		} catch (Exception e) {
 			throw new InvalidTokenException("signature verification failed");
+		}
+
+		JOSEObjectType type = signedJWT.getHeader().getType();
+		if (type == null || !ACCESS_TOKEN_TYP.equals(type.toString())) {
+			throw new InvalidTokenException("unexpected token type");
 		}
 
 		Date expiration = claims.getExpirationTime();

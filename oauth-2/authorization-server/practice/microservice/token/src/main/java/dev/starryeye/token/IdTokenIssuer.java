@@ -33,6 +33,9 @@ public class IdTokenIssuer {
 	 *      필수 claim 만으로도 표준상 유효한 id token 이므로, 프로필 조회 실패로 인증까지 막지 않는다.
 	 */
 
+	// OIDC Core 는 id token 에 별도 typ 을 요구하지 않는다. 일반 JWT 로 둔다.
+	private static final String ID_TOKEN_TYP = "JWT";
+
 	private final SigningClient signingClient;
 	private final UserDirectoryClient userDirectoryClient;
 	private final ProfileClaimMapper profileClaimMapper;
@@ -76,7 +79,7 @@ public class IdTokenIssuer {
 			claims.putAll(profileClaimMapper.toClaims(scopes, lookupProfile(sub)));
 		}
 
-		return signingClient.sign(claims);
+		return signingClient.sign(claims, ID_TOKEN_TYP);
 	}
 
 	/**

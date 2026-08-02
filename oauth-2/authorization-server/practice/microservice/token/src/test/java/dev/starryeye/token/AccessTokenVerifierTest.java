@@ -1,5 +1,6 @@
 package dev.starryeye.token;
 
+import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.crypto.RSASSASigner;
@@ -46,7 +47,12 @@ class AccessTokenVerifierTest {
 		doReturn(jwks).when(signingClient).jwks();
 	}
 
+	// 기존 호출부는 typ 을 신경 쓰지 않으므로, 검증 대상인 at+jwt 를 기본값으로 채운다.
 	private String sign(RSAKey signingKey, String issuer, Date expiration, String sub, List<String> scope) throws Exception {
+		return sign(signingKey, issuer, expiration, sub, scope, "at+jwt");
+	}
+
+	private String sign(RSAKey signingKey, String issuer, Date expiration, String sub, List<String> scope, String typ) throws Exception {
 		JWTClaimsSet claims = new JWTClaimsSet.Builder()
 				.subject(sub)
 				.issuer(issuer)
@@ -55,11 +61,18 @@ class AccessTokenVerifierTest {
 				.issueTime(Date.from(Instant.now().minusSeconds(60)))
 				.claim("scope", scope)
 				.build();
-		SignedJWT signedJWT = new SignedJWT(
-				new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(signingKey.getKeyID()).build(),
-				claims);
+		JWSHeader.Builder headerBuilder = new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(signingKey.getKeyID());
+		if (typ != null) {
+			headerBuilder.type(new JOSEObjectType(typ));
+		}
+		SignedJWT signedJWT = new SignedJWT(headerBuilder.build(), claims);
 		signedJWT.sign(new RSASSASigner(signingKey));
 		return signedJWT.serialize();
+	}
+
+	// typ 만 바꿔 가며 검증기의 typ 강제를 테스트하기 위한 헬퍼. 나머지 claim 은 verifiesValidToken 과 같은 정상값으로 고정한다.
+	private String signWithTyp(String typ) throws Exception {
+		return sign(rsaKey, ISSUER, futureExpiration(), "user-sub-0001", List.of("openid"), typ);
 	}
 
 	private Date futureExpiration() {
@@ -124,6 +137,31 @@ class AccessTokenVerifierTest {
 		assertThatThrownBy(() -> accessTokenVerifier.verify(token))
 				.isInstanceOf(AccessTokenVerifier.InvalidTokenException.class)
 				.hasMessage("unknown kid");
+	}
+
+	// typ 이 at+jwt 가 아니면 거부한다. 같은 키로 서명된 id token·logout token 이 access token 으로
+	// 통하는 것을 막는 구조적 방어이며, scope claim 부재 같은 우연한 결손에 의존하지 않는다.
+	@Test
+	void rejectsTokenWhoseTypIsNotAccessToken() throws Exception {
+		String idTokenLike = signWithTyp("JWT");
+
+		assertThatThrownBy(() -> accessTokenVerifier.verify(idTokenLike))
+				.isInstanceOf(AccessTokenVerifier.InvalidTokenException.class);
+	}
+
+	@Test
+	void rejectsLogoutTokenPresentedAsAccessToken() throws Exception {
+		String logoutTokenLike = signWithTyp("logout+jwt");
+
+		assertThatThrownBy(() -> accessTokenVerifier.verify(logoutTokenLike))
+				.isInstanceOf(AccessTokenVerifier.InvalidTokenException.class);
+	}
+
+	@Test
+	void acceptsTokenWithAccessTokenTyp() throws Exception {
+		String accessToken = signWithTyp("at+jwt");
+
+		assertThat(accessTokenVerifier.verify(accessToken).sub()).isEqualTo("user-sub-0001");
 	}
 
 	@Test

@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -79,12 +80,12 @@ class ProfileClaimMapperTest {
 
 		// id token 경로
 		SigningClient signingClient = mock(SigningClient.class);
-		when(signingClient.sign(anyMap())).thenReturn("signed.jwt.value");
+		when(signingClient.sign(anyMap(), any())).thenReturn("signed.jwt.value");
 		IdTokenIssuer issuer = new IdTokenIssuer(signingClient, userDirectoryClient, mapper,
 				"http://localhost:9000", 300);
 		issuer.issue("user-sub-0001", "my-client", String.join(" ", scopes), null, 1700000000L, "at");
 		ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
-		verify(signingClient).sign(captor.capture());
+		verify(signingClient).sign(captor.capture(), any());
 		Map<String, Object> idTokenClaims = captor.getValue();
 
 		// userinfo 경로

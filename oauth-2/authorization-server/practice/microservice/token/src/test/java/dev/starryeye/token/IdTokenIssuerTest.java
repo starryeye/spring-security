@@ -12,6 +12,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -29,7 +30,7 @@ class IdTokenIssuerTest {
 	void setUp() {
 		signingClient = mock(SigningClient.class);
 		userDirectoryClient = mock(UserDirectoryClient.class);
-		when(signingClient.sign(anyMap())).thenReturn("signed.jwt.value");
+		when(signingClient.sign(anyMap(), any())).thenReturn("signed.jwt.value");
 		// ProfileClaimMapper 는 mock 이 아니라 실제 구현을 쓴다 (userinfo 와 공유하는 매핑 자체가 검증 대상이다)
 		issuer = new IdTokenIssuer(signingClient, userDirectoryClient, new ProfileClaimMapper(),
 				"http://localhost:9000", 300);
@@ -54,7 +55,7 @@ class IdTokenIssuerTest {
 		issuer.issue("user-sub-0001", "my-client", "openid", "nonce-1", 1700000000L, "access-token-value");
 
 		ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
-		verify(signingClient).sign(captor.capture());
+		verify(signingClient).sign(captor.capture(), any());
 		Map<String, Object> claims = captor.getValue();
 
 		assertThat(claims).containsEntry("iss", "http://localhost:9000");
@@ -73,7 +74,7 @@ class IdTokenIssuerTest {
 		issuer.issue("user-sub-0001", "my-client", "openid", null, 1700000000L, "access-token-value");
 
 		ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
-		verify(signingClient).sign(captor.capture());
+		verify(signingClient).sign(captor.capture(), any());
 		assertThat(captor.getValue()).doesNotContainKey("nonce");
 	}
 
@@ -84,7 +85,7 @@ class IdTokenIssuerTest {
 		issuer.issue("user-sub-0001", "my-client", "openid profile", null, 1700000000L, "at");
 
 		ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
-		verify(signingClient).sign(captor.capture());
+		verify(signingClient).sign(captor.capture(), any());
 		Map<String, Object> claims = captor.getValue();
 		assertThat(claims).containsEntry("name", "Star Rye");
 		assertThat(claims).containsEntry("nickname", "starry");
@@ -99,7 +100,7 @@ class IdTokenIssuerTest {
 		issuer.issue("user-sub-0001", "my-client", "openid email", null, 1700000000L, "at");
 
 		ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
-		verify(signingClient).sign(captor.capture());
+		verify(signingClient).sign(captor.capture(), any());
 		Map<String, Object> claims = captor.getValue();
 		assertThat(claims).containsEntry("email", "starryeye@example.com");
 		assertThat(claims).containsEntry("email_verified", true);
@@ -115,7 +116,7 @@ class IdTokenIssuerTest {
 
 		assertThat(idToken).isEqualTo("signed.jwt.value");
 		ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
-		verify(signingClient).sign(captor.capture());
+		verify(signingClient).sign(captor.capture(), any());
 		Map<String, Object> claims = captor.getValue();
 		assertThat(claims).containsEntry("sub", "user-sub-0001"); // 필수 claim 은 유지
 		assertThat(claims).doesNotContainKey("name");             // 프로필만 degrade
@@ -131,7 +132,7 @@ class IdTokenIssuerTest {
 		assertThatThrownBy(() -> issuer.issue("user-sub-0001", "my-client", "openid profile", null, 1700000000L, "at"))
 				.isInstanceOf(UserDirectoryClient.UserNotFoundException.class);
 
-		verify(signingClient, never()).sign(anyMap());
+		verify(signingClient, never()).sign(anyMap(), any());
 	}
 
 	// email 값이 없으면 email_verified 만 홀로 나가지 않는다 (검증 대상 없는 검증 플래그는 해석 불가)
@@ -144,7 +145,7 @@ class IdTokenIssuerTest {
 		issuer.issue("user-sub-0001", "my-client", "openid email", null, 1700000000L, "at");
 
 		ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
-		verify(signingClient).sign(captor.capture());
+		verify(signingClient).sign(captor.capture(), any());
 		assertThat(captor.getValue()).doesNotContainKeys("email", "email_verified");
 	}
 

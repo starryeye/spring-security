@@ -22,6 +22,9 @@ public class AccessTokenIssuer {
 	 *      배열을 써 왔고 AccessTokenVerifier 도 배열로 읽는다. 형식을 바꾸려면 양쪽을 함께 바꿔야 한다.
 	 */
 
+	// RFC 9068 2.1 이 access token 에 규정한 typ 이다.
+	private static final String ACCESS_TOKEN_TYP = "at+jwt";
+
 	private final SigningClient signingClient;
 
 	@Value("${my.issuer}")
@@ -39,6 +42,6 @@ public class AccessTokenIssuer {
 		claims.put("iat", now.getEpochSecond());
 		claims.put("exp", now.plusSeconds(accessTokenTtlSeconds).getEpochSecond());
 		claims.put("scope", Arrays.asList(scope.split(" ")));
-		return signingClient.sign(claims);
+		return signingClient.sign(claims, ACCESS_TOKEN_TYP);
 	}
 }

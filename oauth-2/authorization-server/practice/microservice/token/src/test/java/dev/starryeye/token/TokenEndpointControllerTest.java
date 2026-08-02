@@ -144,7 +144,7 @@ class TokenEndpointControllerTest {
 		when(codeStore.consume("code123")).thenReturn(java.util.Optional.of(
 				new AuthorizationCodeData("my-client", "http://127.0.0.1:8080/callback", "openid profile", "user-sub-0001",
 						"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", "nonce-abc", 1700000000L)));
-		when(signingClient.sign(any())).thenReturn("signed-access-token");
+		when(signingClient.sign(any(), any())).thenReturn("signed-access-token");
 		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any())).thenReturn("signed-id-token");
 
 		mockMvc.perform(post("/oauth2/token")
@@ -182,7 +182,7 @@ class TokenEndpointControllerTest {
 		when(codeStore.consume("code123")).thenReturn(java.util.Optional.of(
 				new AuthorizationCodeData("my-client", "http://127.0.0.1:8080/callback", "profile", "user-sub-0001",
 						"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", null, 1700000000L)));
-		when(signingClient.sign(any())).thenReturn("signed-access-token");
+		when(signingClient.sign(any(), any())).thenReturn("signed-access-token");
 
 		mockMvc.perform(post("/oauth2/token")
 						.header("Authorization", BASIC)
@@ -204,7 +204,7 @@ class TokenEndpointControllerTest {
 		when(codeStore.consume("code123")).thenReturn(java.util.Optional.of(
 				new AuthorizationCodeData("my-client", "http://127.0.0.1:8080/callback", "openid profile", "user-sub-0001",
 						"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", null, 1700000000L)));
-		when(signingClient.sign(any())).thenReturn("signed-access-token");
+		when(signingClient.sign(any(), any())).thenReturn("signed-access-token");
 		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any()))
 				.thenThrow(new dev.starryeye.token.client.UserDirectoryClient.UserNotFoundException());
 
@@ -299,7 +299,7 @@ class TokenEndpointControllerTest {
 				"my-client", "http://127.0.0.1:8080/callback", "openid offline_access", "user-sub-0001",
 				"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", "nonce-1", 1700000000L)));
 		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
-		when(signingClient.sign(any())).thenReturn("signed-access-token");
+		when(signingClient.sign(any(), any())).thenReturn("signed-access-token");
 		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any())).thenReturn("signed-id-token");
 		when(tokenStateClient.issue(eq("my-client"), eq("user-sub-0001"), eq("openid offline_access"), eq(1700000000L)))
 				.thenReturn(new IssuedRefreshToken("refresh-token-1", 1800000000L, "family-1"));
@@ -321,7 +321,7 @@ class TokenEndpointControllerTest {
 				"my-client", "http://127.0.0.1:8080/callback", "openid profile", "user-sub-0001",
 				"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", "nonce-1", 1700000000L)));
 		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
-		when(signingClient.sign(any())).thenReturn("signed-access-token");
+		when(signingClient.sign(any(), any())).thenReturn("signed-access-token");
 		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any())).thenReturn("signed-id-token");
 
 		mockMvc.perform(post("/oauth2/token")
@@ -344,7 +344,7 @@ class TokenEndpointControllerTest {
 				"my-client", "http://127.0.0.1:8080/callback", "openid offline_access", "user-sub-0001",
 				"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", "nonce-1", 1700000000L)));
 		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfoWithoutRefreshTokenGrant());
-		when(signingClient.sign(any())).thenReturn("signed-access-token");
+		when(signingClient.sign(any(), any())).thenReturn("signed-access-token");
 		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any())).thenReturn("signed-id-token");
 
 		mockMvc.perform(post("/oauth2/token")
@@ -369,7 +369,7 @@ class TokenEndpointControllerTest {
 				"my-client", "http://127.0.0.1:8080/callback", "openid offline_access", "user-sub-0001",
 				"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", "nonce-1", 1700000000L)));
 		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
-		when(signingClient.sign(any())).thenReturn("signed-access-token");
+		when(signingClient.sign(any(), any())).thenReturn("signed-access-token");
 		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any())).thenReturn("signed-id-token");
 		when(tokenStateClient.issue(any(), any(), any(), anyLong()))
 				.thenThrow(new IllegalStateException("token-state is down"));
