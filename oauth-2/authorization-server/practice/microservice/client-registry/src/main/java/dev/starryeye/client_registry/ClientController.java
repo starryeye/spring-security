@@ -45,7 +45,9 @@ public class ClientController {
 					List.of(StringUtils.commaDelimitedListToStringArray(entity.getScopes())),
 					entity.getClientSecretHash(),
 					List.of(StringUtils.commaDelimitedListToStringArray(entity.getGrantTypes())),
-					List.of(StringUtils.commaDelimitedListToStringArray(entity.getClientScopes()))
+					List.of(StringUtils.commaDelimitedListToStringArray(entity.getClientScopes())),
+					entity.getBackchannelLogoutUri(),
+					List.of(StringUtils.commaDelimitedListToStringArray(entity.getPostLogoutRedirectUris()))
 			);
 		}
 	}

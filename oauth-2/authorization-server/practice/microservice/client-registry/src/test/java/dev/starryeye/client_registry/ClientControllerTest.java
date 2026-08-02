@@ -35,6 +35,8 @@ class ClientControllerTest {
 				List.of("openid", "profile"),
 				"{bcrypt}$2a$10$hash",
 				List.of("authorization_code"),
+				List.of(),
+				null,
 				List.of()));
 
 		mockMvc.perform(get("/internal/clients/my-client"))
@@ -44,7 +46,9 @@ class ClientControllerTest {
 				.andExpect(jsonPath("$.scopes", contains("openid", "profile")))
 				.andExpect(jsonPath("$.clientSecretHash").exists())
 				.andExpect(jsonPath("$.grantTypes", contains("authorization_code")))
-				.andExpect(jsonPath("$.clientScopes.length()").value(0));
+				.andExpect(jsonPath("$.clientScopes.length()").value(0))
+				.andExpect(jsonPath("$.backchannelLogoutUri").doesNotExist())
+				.andExpect(jsonPath("$.postLogoutRedirectUris.length()").value(0));
 	}
 
 	// article-api 처럼 사용자 위임 scope 없이 client 능력만 갖는 client.
@@ -57,13 +61,44 @@ class ClientControllerTest {
 				List.of(),
 				"{bcrypt}$2a$10$hash",
 				List.of("client_credentials"),
-				List.of("introspect")));
+				List.of("introspect"),
+				null,
+				List.of()));
 
 		mockMvc.perform(get("/internal/clients/article-api"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.clientScopes[0]").value("introspect"))
 				.andExpect(jsonPath("$.clientScopes.length()").value(1))
-				.andExpect(jsonPath("$.scopes.length()").value(0));
+				.andExpect(jsonPath("$.scopes.length()").value(0))
+				.andExpect(jsonPath("$.backchannelLogoutUri").doesNotExist())
+				.andExpect(jsonPath("$.postLogoutRedirectUris.length()").value(0));
+	}
+
+	// demo-rp: 로그아웃 URI 두 개가 각각 제 필드로 실리는지 확인한다.
+	// redirect_uri 와 post_logout_redirect_uri 는 목적이 달라 절대 같은 필드로 나가면 안 된다.
+	@Test
+	void returnsClientWithLogoutUris() throws Exception {
+		when(lookupService.findByClientId("demo-rp")).thenReturn(new ClientResponse(
+				"demo-rp",
+				List.of("http://localhost:8095/login/oauth2/code/microservice"),
+				List.of("openid", "profile", "email"),
+				"{bcrypt}$2a$10$hash",
+				List.of("authorization_code", "refresh_token"),
+				List.of(),
+				"http://localhost:8095/logout/connect/back-channel/microservice",
+				List.of("http://localhost:8095/")));
+
+		mockMvc.perform(get("/internal/clients/demo-rp"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.clientId").value("demo-rp"))
+				.andExpect(jsonPath("$.redirectUris[0]")
+						.value("http://localhost:8095/login/oauth2/code/microservice"))
+				.andExpect(jsonPath("$.redirectUris.length()").value(1))
+				.andExpect(jsonPath("$.backchannelLogoutUri")
+						.value("http://localhost:8095/logout/connect/back-channel/microservice"))
+				.andExpect(jsonPath("$.postLogoutRedirectUris[0]").value("http://localhost:8095/"))
+				.andExpect(jsonPath("$.postLogoutRedirectUris.length()").value(1))
+				.andExpect(jsonPath("$.clientScopes.length()").value(0));
 	}
 
 	@Test

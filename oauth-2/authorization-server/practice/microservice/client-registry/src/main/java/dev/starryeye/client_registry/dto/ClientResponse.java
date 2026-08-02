@@ -8,6 +8,8 @@ public record ClientResponse(
 		List<String> scopes,
 		String clientSecretHash,
 		List<String> grantTypes,
-		List<String> clientScopes
+		List<String> clientScopes,
+		String backchannelLogoutUri,
+		List<String> postLogoutRedirectUris
 ) {
 }

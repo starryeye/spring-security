@@ -35,6 +35,8 @@ public class ClientSeedInitializer implements ApplicationRunner {
 					.scopes("openid,profile,email,offline_access")
 					.grantTypes("authorization_code,refresh_token")
 					.clientScopes("")
+					.backchannelLogoutUri(null) // curl 용 가상 client — 받을 서버가 없다
+					.postLogoutRedirectUris("")
 					.build());
 		}
 
@@ -48,6 +50,23 @@ public class ClientSeedInitializer implements ApplicationRunner {
 					.scopes("")
 					.grantTypes("client_credentials")
 					.clientScopes("introspect")
+					.backchannelLogoutUri(null) // 사용자 세션이 없는 client 라 로그아웃 통지 대상이 아니다
+					.postLogoutRedirectUris("")
+					.build());
+		}
+
+		// 진짜 Spring Security RP. back-channel logout 상호운용성을 실증하는 client 다.
+		// URI 3개는 Spring Security 의 기본 경로 규약을 따른다 (registrationId = microservice).
+		if (!repository.existsById("demo-rp")) {
+			repository.save(ClientEntity.builder()
+					.clientId("demo-rp")
+					.clientSecretHash(encoder.encode("secret"))
+					.redirectUris("http://localhost:8095/login/oauth2/code/microservice")
+					.scopes("openid,profile,email")
+					.grantTypes("authorization_code,refresh_token")
+					.clientScopes("")
+					.backchannelLogoutUri("http://localhost:8095/logout/connect/back-channel/microservice")
+					.postLogoutRedirectUris("http://localhost:8095/")
 					.build());
 		}
 	}

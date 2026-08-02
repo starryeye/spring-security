@@ -36,6 +36,8 @@ class ClientSeedInitializerTest {
 				.scopes("")
 				.grantTypes("")
 				.clientScopes("")
+				.backchannelLogoutUri(null)
+				.postLogoutRedirectUris("")
 				.build());
 
 		initializer.run(mock(ApplicationArguments.class));
@@ -44,12 +46,12 @@ class ClientSeedInitializerTest {
 	}
 
 	@Test
-	void seedsBothClientsOnEmptyDatabase() {
+	void seedsAllClientsOnEmptyDatabase() {
 		initializer.run(mock(ApplicationArguments.class));
 
-		assertThat(repository.existsById("my-client")).isTrue();
-		assertThat(repository.existsById("article-api")).isTrue();
-		assertThat(repository.findById("article-api").orElseThrow().getClientScopes()).isEqualTo("introspect");
-		assertThat(repository.findById("article-api").orElseThrow().getGrantTypes()).isEqualTo("client_credentials");
+		assertThat(repository.count()).isEqualTo(3);
+		assertThat(repository.findById("demo-rp")).get()
+				.extracting(ClientEntity::getBackchannelLogoutUri)
+				.isEqualTo("http://localhost:8095/logout/connect/back-channel/microservice");
 	}
 }
