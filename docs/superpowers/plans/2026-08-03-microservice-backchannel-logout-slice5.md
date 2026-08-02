@@ -81,7 +81,6 @@ auth  GET /oauth2/logout?id_token_hint&post_logout_redirect_uri&state    ← 신
 | `IdTokenIssuer.java` (수정) | `JWT` · `sid` claim |
 | `AccessTokenVerifier.java` (수정) | `typ != at+jwt` 거부 |
 | `AuthorizationCodeData.java` (수정) | `sid` (**맨 뒤**) |
-| `client/ClientInfo.java` (수정) | 두 필드 (**맨 뒤**) |
 | `client/SessionClient.java` (신규) | session 서비스 호출 |
 | `TokenEndpointController.java` (수정) | session 등록, discovery 3항목 |
 
@@ -121,7 +120,11 @@ auth  GET /oauth2/logout?id_token_hint&post_logout_redirect_uri&state    ← 신
 
 **gateway** — `nginx.conf` 에 `/oauth2/logout` 라우팅
 
-**주의.** 두 record(`ClientResponse` · `ClientInfo`)와 `AuthorizationCodeData` · `PendingAuthorization` 에 필드를 **맨 뒤에** 추가한다. 중간에 끼우면 기존 위치 기반 생성자 호출에서 같은 타입 필드끼리 순서가 바뀌어도 컴파일이 통과해 조용히 어긋난다.
+**주의.** `ClientResponse` · `AuthorizationCodeData` · `PendingAuthorization` · auth 의 `ClientInfo` 에 필드를 **맨 뒤에** 추가한다. 중간에 끼우면 기존 위치 기반 생성자 호출에서 같은 타입 필드끼리 순서가 바뀌어도 컴파일이 통과해 조용히 어긋난다.
+
+**주의.** **token 의 `ClientInfo` 는 이번 슬라이스에서 바뀌지 않는다.** token 은 logout token 을 보내지도(session 이 한다) `post_logout_redirect_uri` 를 검증하지도(auth 가 한다) 않으므로 두 값을 알 필요가 없다. `@JsonIgnoreProperties(ignoreUnknown = true)` 가 붙어 있어 client-registry 응답에 새 필드가 실려도 무시한다 — 슬라이스 1에서 auth 의 `ClientInfo` 에서 `clientSecretHash` 를 뺀 것과 같은 과다보유 방지 원칙이다.
+
+**주의.** 뮤테이션 검증 대상은 **테스트가 실제로 실행하는 객체 안**에 있어야 한다. `@WebMvcTest` 로 협력자를 `@MockitoBean` 으로 치환한 테스트에서 그 협력자 내부를 망가뜨리면 테스트는 통과한다 — 그 코드가 아예 실행되지 않기 때문이다. client-registry 의 `ClientControllerTest` 가 그 경우이고, 변환 로직을 실제로 무는 것은 `@SpringBootTest` 인 `ClientControllerIntegrationTest` 다.
 
 ---
 
