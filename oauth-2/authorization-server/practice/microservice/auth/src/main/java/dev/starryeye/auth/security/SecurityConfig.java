@@ -6,6 +6,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 
 @Configuration
 public class SecurityConfig {
@@ -17,14 +18,25 @@ public class SecurityConfig {
 	 */
 
 	@Bean
-	public SecurityFilterChain filterChain(HttpSecurity http, RemoteAuthenticationProvider provider) throws Exception {
+	public SecurityFilterChain filterChain(HttpSecurity http, RemoteAuthenticationProvider provider,
+			SessionIdIssuer sessionIdIssuer) throws Exception {
+		SavedRequestAwareAuthenticationSuccessHandler successHandler =
+				new SavedRequestAwareAuthenticationSuccessHandler();
+
 		http
 				.authenticationProvider(provider)
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/login", "/error").permitAll()
 						.anyRequest().authenticated()
 				)
-				.formLogin(form -> form.permitAll())
+				.formLogin(form -> form
+						.permitAll()
+						.successHandler((request, response, authentication) -> {
+							// 세션 고정 방어로 세션이 새로 만들어진 뒤이므로 여기가 sid 를 만들 자리다.
+							sessionIdIssuer.issue(request.getSession(true));
+							successHandler.onAuthenticationSuccess(request, response, authentication);
+						})
+				)
 				.csrf(csrf -> csrf.ignoringRequestMatchers("/oauth2/authorize")); // GET authorize 는 CSRF 무관, 편의상 제외
 
 		return http.build();

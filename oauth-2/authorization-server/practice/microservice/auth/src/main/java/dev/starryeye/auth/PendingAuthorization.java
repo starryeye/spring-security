@@ -11,6 +11,7 @@ public record PendingAuthorization(
 		String codeChallenge,
 		String state,
 		String nonce,
-		long authTime
+		long authTime,
+		String sid
 ) {
 }

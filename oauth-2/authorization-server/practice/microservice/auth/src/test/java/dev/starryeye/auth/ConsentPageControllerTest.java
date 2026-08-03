@@ -42,7 +42,7 @@ class ConsentPageControllerTest {
 
 	private PendingAuthorization pending() {
 		return new PendingAuthorization("my-client", "http://127.0.0.1:8080/callback",
-				"openid profile email", "user-sub-0001", "chal", "xyz789", "nonce-1", 1700000000L);
+				"openid profile email", "user-sub-0001", "chal", "xyz789", "nonce-1", 1700000000L, "sid-0001");
 	}
 
 	// pending 의 nonce·authTime 이 code 발급 인자로 그대로 흘러야 한다.
@@ -51,7 +51,7 @@ class ConsentPageControllerTest {
 	void approvedScopesAreSavedAndCodeIssued() throws Exception {
 		when(pendingStore.consume("p1")).thenReturn(Optional.of(pending()));
 		when(consentClient.getGrantedScopes("user-sub-0001", "my-client")).thenReturn(List.of());
-		when(codeIssuer.issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong()))
+		when(codeIssuer.issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong(), anyString()))
 				.thenReturn("issued-code");
 
 		mockMvc.perform(post("/oauth2/consent").with(user("user-sub-0001")).with(csrf())
@@ -62,14 +62,14 @@ class ConsentPageControllerTest {
 
 		verify(consentClient).saveConsent(eq("user-sub-0001"), eq("my-client"), any());
 		verify(codeIssuer).issue(eq("my-client"), eq("http://127.0.0.1:8080/callback"), eq("openid profile"),
-				eq("user-sub-0001"), eq("chal"), eq("nonce-1"), eq(1700000000L));
+				eq("user-sub-0001"), eq("chal"), eq("nonce-1"), eq(1700000000L), eq("sid-0001"));
 	}
 
 	@Test
 	void scopesBeyondPendingAreIgnored() throws Exception {
 		when(pendingStore.consume("p1")).thenReturn(Optional.of(pending()));
 		when(consentClient.getGrantedScopes("user-sub-0001", "my-client")).thenReturn(List.of());
-		when(codeIssuer.issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong()))
+		when(codeIssuer.issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong(), anyString()))
 				.thenReturn("issued-code");
 
 		// pending 에 없는 admin 을 끼워 제출해도 승인되면 안 된다 (폼 조작 방어)
@@ -80,7 +80,7 @@ class ConsentPageControllerTest {
 
 		verify(consentClient).saveConsent("user-sub-0001", "my-client", List.of("openid"));
 		verify(codeIssuer).issue(eq("my-client"), eq("http://127.0.0.1:8080/callback"), eq("openid"),
-				eq("user-sub-0001"), eq("chal"), eq("nonce-1"), eq(1700000000L));
+				eq("user-sub-0001"), eq("chal"), eq("nonce-1"), eq(1700000000L), eq("sid-0001"));
 	}
 
 	@Test
@@ -92,7 +92,7 @@ class ConsentPageControllerTest {
 				.andExpect(status().is3xxRedirection())
 				.andExpect(redirectedUrlPattern("http://127.0.0.1:8080/callback?error=access_denied*"));
 
-		verify(codeIssuer, never()).issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong());
+		verify(codeIssuer, never()).issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong(), anyString());
 	}
 
 	@Test
@@ -109,7 +109,7 @@ class ConsentPageControllerTest {
 	void previouslyGrantedScopesAreUnionedIntoIssuedCode() throws Exception {
 		when(pendingStore.consume("p1")).thenReturn(Optional.of(pending()));
 		when(consentClient.getGrantedScopes("user-sub-0001", "my-client")).thenReturn(List.of("openid"));
-		when(codeIssuer.issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong()))
+		when(codeIssuer.issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong(), anyString()))
 				.thenReturn("issued-code");
 
 		// 이번엔 profile 만 체크했지만, 이미 승인한 openid 가 code 의 scope 에 합쳐져야 한다
@@ -120,7 +120,7 @@ class ConsentPageControllerTest {
 
 		org.mockito.ArgumentCaptor<String> scopeCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
 		verify(codeIssuer).issue(eq("my-client"), eq("http://127.0.0.1:8080/callback"), scopeCaptor.capture(),
-				eq("user-sub-0001"), eq("chal"), eq("nonce-1"), eq(1700000000L));
+				eq("user-sub-0001"), eq("chal"), eq("nonce-1"), eq(1700000000L), eq("sid-0001"));
 		assertThat(scopeCaptor.getValue().split(" ")).containsExactlyInAnyOrder("openid", "profile");
 	}
 
@@ -133,6 +133,6 @@ class ConsentPageControllerTest {
 						.param("scope", "openid"))
 				.andExpect(status().isForbidden());
 
-		verify(codeIssuer, never()).issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong());
+		verify(codeIssuer, never()).issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong(), anyString());
 	}
 }

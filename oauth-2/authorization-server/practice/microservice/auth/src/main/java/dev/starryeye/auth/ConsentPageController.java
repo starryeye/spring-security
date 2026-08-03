@@ -89,7 +89,7 @@ public class ConsentPageController {
 
 		String code = codeIssuer.issue(pending.clientId(), pending.redirectUri(),
 				String.join(" ", finalScopes), pending.sub(), pending.codeChallenge(),
-				pending.nonce(), pending.authTime());
+				pending.nonce(), pending.authTime(), pending.sid());
 
 		UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(pending.redirectUri())
 				.queryParam("code", code);

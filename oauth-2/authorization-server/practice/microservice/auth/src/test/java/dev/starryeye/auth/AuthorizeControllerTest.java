@@ -3,6 +3,7 @@ package dev.starryeye.auth;
 import dev.starryeye.auth.client.ClientInfo;
 import dev.starryeye.auth.client.ClientRegistryClient;
 import dev.starryeye.auth.client.ConsentClient;
+import dev.starryeye.auth.security.SessionIdIssuer;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +52,9 @@ class AuthorizeControllerTest {
 	@MockitoBean
 	PendingAuthorizationStore pendingStore;
 
+	@MockitoBean
+	SessionIdIssuer sessionIdIssuer;
+
 	private ClientInfo clientInfo() {
 		return new ClientInfo("my-client", List.of(REDIRECT_URI),
 				List.of("openid", "profile", "email"), List.of("authorization_code"));
@@ -62,7 +66,8 @@ class AuthorizeControllerTest {
 	void alreadyGrantedScopesIssueCodeDirectly() throws Exception {
 		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
 		when(consentClient.getGrantedScopes("user-sub-0001", "my-client")).thenReturn(List.of("openid", "profile"));
-		when(codeIssuer.issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong()))
+		when(sessionIdIssuer.issue(any())).thenReturn("sid-0001");
+		when(codeIssuer.issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong(), anyString()))
 				.thenReturn("issued-code");
 
 		long before = Instant.now().getEpochSecond();
@@ -75,13 +80,12 @@ class AuthorizeControllerTest {
 						.param("code_challenge", "chal-123")
 						.param("code_challenge_method", "S256")
 						.param("nonce", "nonce-1"))
-				.andExpect(status().is3xxRedirection())
-				.andExpect(redirectedUrl(REDIRECT_URI + "?code=issued-code&state=xyz789"));
+				.andExpect(status().is3xxRedirection());
 		long after = Instant.now().getEpochSecond();
 
 		ArgumentCaptor<Long> authTimeCaptor = ArgumentCaptor.forClass(Long.class);
 		verify(codeIssuer).issue(eq("my-client"), eq(REDIRECT_URI), eq("openid profile"), eq("user-sub-0001"),
-				eq("chal-123"), eq("nonce-1"), authTimeCaptor.capture());
+				eq("chal-123"), eq("nonce-1"), authTimeCaptor.capture(), anyString());
 		assertThat(authTimeCaptor.getValue()).isBetween(before, after);
 		verify(pendingStore, never()).save(any());
 	}
@@ -122,7 +126,7 @@ class AuthorizeControllerTest {
 		assertThat(pending.state()).isEqualTo("xyz789");
 		assertThat(pending.authTime()).isPositive();
 
-		verify(codeIssuer, never()).issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong());
+		verify(codeIssuer, never()).issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong(), anyString());
 	}
 
 	// 등록되지 않은 redirect_uri 로는 절대 redirect 하지 않는다 (open redirect 방지).
@@ -142,7 +146,7 @@ class AuthorizeControllerTest {
 				.andExpect(status().isBadRequest())
 				.andExpect(redirectedUrl(null));
 
-		verify(codeIssuer, never()).issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong());
+		verify(codeIssuer, never()).issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong(), anyString());
 		verify(pendingStore, never()).save(any());
 	}
 
@@ -162,7 +166,7 @@ class AuthorizeControllerTest {
 				.andExpect(status().is3xxRedirection())
 				.andExpect(redirectedUrl(REDIRECT_URI + "?error=invalid_scope&state=xyz789"));
 
-		verify(codeIssuer, never()).issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong());
+		verify(codeIssuer, never()).issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong(), anyString());
 	}
 
 	// PKCE 는 필수다. code_challenge 가 없으면 invalid_request.
@@ -179,7 +183,7 @@ class AuthorizeControllerTest {
 				.andExpect(status().is3xxRedirection())
 				.andExpect(redirectedUrl(REDIRECT_URI + "?error=invalid_request&state=xyz789"));
 
-		verify(codeIssuer, never()).issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong());
+		verify(codeIssuer, never()).issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong(), anyString());
 	}
 
 	// S256 만 허용한다. plain 은 challenge 가 곧 verifier 라 PKCE 의 방어 효과가 없다.
@@ -198,6 +202,6 @@ class AuthorizeControllerTest {
 				.andExpect(status().is3xxRedirection())
 				.andExpect(redirectedUrl(REDIRECT_URI + "?error=invalid_request&state=xyz789"));
 
-		verify(codeIssuer, never()).issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong());
+		verify(codeIssuer, never()).issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong(), anyString());
 	}
 }

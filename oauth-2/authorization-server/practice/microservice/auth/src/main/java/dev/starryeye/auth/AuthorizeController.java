@@ -3,6 +3,8 @@ package dev.starryeye.auth;
 import dev.starryeye.auth.client.ClientInfo;
 import dev.starryeye.auth.client.ClientRegistryClient;
 import dev.starryeye.auth.client.ConsentClient;
+import dev.starryeye.auth.security.SessionIdIssuer;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -33,6 +35,7 @@ public class AuthorizeController {
 	private final AuthorizationCodeIssuer codeIssuer;
 	private final ConsentClient consentClient;
 	private final PendingAuthorizationStore pendingStore;
+	private final SessionIdIssuer sessionIdIssuer;
 
 	@GetMapping("/oauth2/authorize")
 	public Object authorize(
@@ -45,7 +48,8 @@ public class AuthorizeController {
 			@RequestParam(value = "code_challenge", required = false) String codeChallenge,
 			@RequestParam(value = "code_challenge_method", required = false) String codeChallengeMethod,
 			@RequestParam(value = "nonce", required = false) String nonce,
-			Model model
+			Model model,
+			HttpSession session
 	) {
 		ClientInfo client;
 		try {
@@ -87,11 +91,12 @@ public class AuthorizeController {
 		}
 
 		long authTime = java.time.Instant.now().getEpochSecond();
+		String sid = sessionIdIssuer.issue(session); // 로그인 시 만들어져 있다. 없으면(세션 재생성 등) 여기서 만든다
 
 		if (!missing.isEmpty()) {
 			// 미승인 scope 가 있으면 동의 화면으로 보낸다. 진행 중 인가는 서버(Redis)에 두고 화면에는 불투명 id 만 노출한다.
 			String pendingId = pendingStore.save(new PendingAuthorization(
-					clientId, redirectUri, effectiveScope, principal.getName(), codeChallenge, state, nonce, authTime));
+					clientId, redirectUri, effectiveScope, principal.getName(), codeChallenge, state, nonce, authTime, sid));
 			model.addAttribute("pendingId", pendingId);
 			model.addAttribute("clientId", clientId);
 			model.addAttribute("requestedScopes", missing);
@@ -100,7 +105,7 @@ public class AuthorizeController {
 		}
 
 		String code = codeIssuer.issue(clientId, redirectUri, effectiveScope, principal.getName(), codeChallenge,
-				nonce, authTime);
+				nonce, authTime, sid);
 
 		UriComponentsBuilder builder =
 				UriComponentsBuilder.fromUriString(redirectUri).queryParam("code", code);

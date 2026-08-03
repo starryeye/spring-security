@@ -24,7 +24,7 @@ class AuthorizationCodeIssuerTest {
 
 		AuthorizationCodeIssuer issuer = new AuthorizationCodeIssuer(redis, new ObjectMapper(), 60);
 		String code = issuer.issue("my-client", "http://127.0.0.1:8080/callback", "openid profile",
-				"user-sub-0001", "chal", "n-0S6_WzA2Mj", 1700000000L);
+				"user-sub-0001", "chal", "n-0S6_WzA2Mj", 1700000000L, "sid-0001");
 
 		assertThat(code).isNotBlank();
 
