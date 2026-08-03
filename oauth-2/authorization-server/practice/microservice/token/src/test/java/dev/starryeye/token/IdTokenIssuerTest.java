@@ -15,6 +15,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -52,7 +53,7 @@ class IdTokenIssuerTest {
 	void includesRequiredClaimsAndNonce() {
 		when(userDirectoryClient.getUser("user-sub-0001")).thenReturn(profile());
 
-		issuer.issue("user-sub-0001", "my-client", "openid", "nonce-1", 1700000000L, "access-token-value");
+		issuer.issue("user-sub-0001", "my-client", "openid", "nonce-1", 1700000000L, "access-token-value", null);
 
 		ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
 		verify(signingClient).sign(captor.capture(), any());
@@ -71,7 +72,7 @@ class IdTokenIssuerTest {
 	void omitsNonceWhenNotRequested() {
 		when(userDirectoryClient.getUser("user-sub-0001")).thenReturn(profile());
 
-		issuer.issue("user-sub-0001", "my-client", "openid", null, 1700000000L, "access-token-value");
+		issuer.issue("user-sub-0001", "my-client", "openid", null, 1700000000L, "access-token-value", null);
 
 		ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
 		verify(signingClient).sign(captor.capture(), any());
@@ -82,7 +83,7 @@ class IdTokenIssuerTest {
 	void includesProfileClaimsOnlyWhenScopePresent() {
 		when(userDirectoryClient.getUser("user-sub-0001")).thenReturn(profile());
 
-		issuer.issue("user-sub-0001", "my-client", "openid profile", null, 1700000000L, "at");
+		issuer.issue("user-sub-0001", "my-client", "openid profile", null, 1700000000L, "at", null);
 
 		ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
 		verify(signingClient).sign(captor.capture(), any());
@@ -97,7 +98,7 @@ class IdTokenIssuerTest {
 	void includesEmailClaimsWhenScopePresent() {
 		when(userDirectoryClient.getUser("user-sub-0001")).thenReturn(profile());
 
-		issuer.issue("user-sub-0001", "my-client", "openid email", null, 1700000000L, "at");
+		issuer.issue("user-sub-0001", "my-client", "openid email", null, 1700000000L, "at", null);
 
 		ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
 		verify(signingClient).sign(captor.capture(), any());
@@ -112,7 +113,7 @@ class IdTokenIssuerTest {
 	void issuesWithoutProfileClaimsWhenUserDirectoryFails() {
 		when(userDirectoryClient.getUser("user-sub-0001")).thenThrow(new RuntimeException("user-directory down"));
 
-		String idToken = issuer.issue("user-sub-0001", "my-client", "openid profile", null, 1700000000L, "at");
+		String idToken = issuer.issue("user-sub-0001", "my-client", "openid profile", null, 1700000000L, "at", null);
 
 		assertThat(idToken).isEqualTo("signed.jwt.value");
 		ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
@@ -129,7 +130,7 @@ class IdTokenIssuerTest {
 		when(userDirectoryClient.getUser("user-sub-0001"))
 				.thenThrow(new UserDirectoryClient.UserNotFoundException());
 
-		assertThatThrownBy(() -> issuer.issue("user-sub-0001", "my-client", "openid profile", null, 1700000000L, "at"))
+		assertThatThrownBy(() -> issuer.issue("user-sub-0001", "my-client", "openid profile", null, 1700000000L, "at", null))
 				.isInstanceOf(UserDirectoryClient.UserNotFoundException.class);
 
 		verify(signingClient, never()).sign(anyMap(), any());
@@ -142,7 +143,7 @@ class IdTokenIssuerTest {
 				new UserProfile("user-sub-0001", "user", List.of("ROLE_USER"),
 						"Star Rye", "starry", "starryeye", null, true));
 
-		issuer.issue("user-sub-0001", "my-client", "openid email", null, 1700000000L, "at");
+		issuer.issue("user-sub-0001", "my-client", "openid email", null, 1700000000L, "at", null);
 
 		ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
 		verify(signingClient).sign(captor.capture(), any());
@@ -152,8 +153,33 @@ class IdTokenIssuerTest {
 	// openid 만 요청하면 프로필 claim 이 필요 없으므로 user-directory 를 호출하지 않는다
 	@Test
 	void doesNotCallUserDirectoryForOpenidOnlyScope() {
-		issuer.issue("user-sub-0001", "my-client", "openid", "nonce-1", 1700000000L, "at");
+		issuer.issue("user-sub-0001", "my-client", "openid", "nonce-1", 1700000000L, "at", null);
 
 		verify(userDirectoryClient, never()).getUser(anyString());
+	}
+
+	// RP 는 id token 의 sid 로 자기 세션을 색인한다. 이 claim 이 없으면 세션 단위 로그아웃이 불가능하고
+	// sub 로 그 사용자의 모든 세션을 통째로 죽이는 것만 가능해진다.
+	@Test
+	void idTokenCarriesSid() {
+		issuer.issue("user-sub-0001", "demo-rp", "openid", null, 1700000000L, "access-token", "SID-ABC");
+
+		assertThat(capturedClaims()).containsEntry("sid", "SID-ABC");
+	}
+
+	// refresh 로 재발급하는 id token 에도 원래 세션의 sid 가 그대로 실려야 한다.
+	// 새 값을 만들면 RP 가 색인해 둔 세션과 어긋나 로그아웃 통지가 그 세션을 못 찾는다.
+	@Test
+	void idTokenOmitsSidWhenSessionIsUnknown() {
+		issuer.issue("user-sub-0001", "demo-rp", "openid", null, 1700000000L, "access-token", null);
+
+		assertThat(capturedClaims()).doesNotContainKey("sid");
+	}
+
+	@SuppressWarnings("unchecked")
+	private Map<String, Object> capturedClaims() {
+		ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+		verify(signingClient).sign(captor.capture(), eq("JWT"));
+		return captor.getValue();
 	}
 }

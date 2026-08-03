@@ -43,7 +43,7 @@ class RefreshTokenGrantServiceTest {
 	void rotatedGrantReturnsNewAccessAndRefreshToken() {
 		when(tokenStateClient.rotate("old-refresh", "my-client", null)).thenReturn(rotated("openid offline_access"));
 		when(accessTokenIssuer.issue(any(), any(), any())).thenReturn("new-access");
-		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any())).thenReturn("new-id");
+		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any(), any())).thenReturn("new-id");
 
 		GrantResult result = service.grant(client(), "old-refresh", null);
 
@@ -59,12 +59,12 @@ class RefreshTokenGrantServiceTest {
 	void refreshedIdTokenHasNoNonceAndKeepsOriginalAuthTime() {
 		when(tokenStateClient.rotate("old-refresh", "my-client", null)).thenReturn(rotated("openid"));
 		when(accessTokenIssuer.issue(any(), any(), any())).thenReturn("new-access");
-		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any())).thenReturn("new-id");
+		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any(), any())).thenReturn("new-id");
 
 		service.grant(client(), "old-refresh", null);
 
 		verify(idTokenIssuer).issue(eq("user-sub-0001"), eq("my-client"), eq("openid"),
-				isNull(), eq(1700000000L), eq("new-access"));
+				isNull(), eq(1700000000L), eq("new-access"), isNull());
 	}
 
 	// 회전 실패 사유는 전부 invalid_grant 로 뭉갠다
@@ -197,7 +197,7 @@ class RefreshTokenGrantServiceTest {
 	void userNotFoundDuringIdTokenIssuanceBecomesInvalidGrant() {
 		when(tokenStateClient.rotate("old-refresh", "my-client", null)).thenReturn(rotated("openid"));
 		when(accessTokenIssuer.issue(any(), any(), any())).thenReturn("new-access");
-		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any()))
+		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any(), any()))
 				.thenThrow(new UserDirectoryClient.UserNotFoundException());
 
 		GrantResult result = service.grant(client(), "old-refresh", null);

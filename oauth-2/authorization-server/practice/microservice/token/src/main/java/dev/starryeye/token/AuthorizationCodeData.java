@@ -8,6 +8,7 @@ public record AuthorizationCodeData(
 		String sub,
 		String codeChallenge,
 		String nonce,
-		long authTime
+		long authTime,
+		String sid
 ) {
 }

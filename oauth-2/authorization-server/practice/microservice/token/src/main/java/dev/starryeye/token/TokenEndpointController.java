@@ -116,7 +116,7 @@ public class TokenEndpointController {
 		if (Arrays.asList(data.scope().split(" ")).contains("openid")) {
 			try {
 				idToken = idTokenIssuer.issue(data.sub(), client.clientId(), data.scope(),
-						data.nonce(), data.authTime(), jwt);
+						data.nonce(), data.authTime(), jwt, data.sid());
 			} catch (UserDirectoryClient.UserNotFoundException e) {
 				// code 발급 후 사용자가 삭제된 경우다. 존재하지 않는 주체에 대한 인증 주장(id token)을 만들 수 없으므로
 				// grant 자체를 무효로 본다. code 는 이미 소비됐으니 재시도로 우회되지 않는다.

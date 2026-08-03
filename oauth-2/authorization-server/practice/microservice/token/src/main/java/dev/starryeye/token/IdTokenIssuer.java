@@ -31,6 +31,9 @@ public class IdTokenIssuer {
 	 *      존재하지 않는 주체에 대해 "이 사람이 로그인했다"는 인증 주장을 서명해 내보낼 수 없기 때문이다.
 	 *      그 외 장애(연결 실패·5xx)는 사용자 존재 여부가 미확정이므로 프로필 claim 없이 발급을 계속한다.
 	 *      필수 claim 만으로도 표준상 유효한 id token 이므로, 프로필 조회 실패로 인증까지 막지 않는다.
+	 *
+	 * 주의. sid 는 authorize 시점의 OP 세션 식별자를 그대로 나른다. 여기서 새로 만들면 RP 가 색인해 둔 값과
+	 *      어긋나 로그아웃 통지가 그 세션을 찾지 못한다.
 	 */
 
 	// OIDC Core 는 id token 에 별도 typ 을 요구하지 않는다. 일반 JWT 로 둔다.
@@ -59,7 +62,7 @@ public class IdTokenIssuer {
 	/**
 	 * scope 는 공백 구분 문자열이며 호출부(TokenEndpointController)가 code 레코드에서 읽어 그대로 넘긴다. (null 이 올 수 없는 계약)
 	 */
-	public String issue(String sub, String clientId, String scope, String nonce, long authTime, String accessToken) {
+	public String issue(String sub, String clientId, String scope, String nonce, long authTime, String accessToken, String sid) {
 
 		Instant now = Instant.now();
 		Map<String, Object> claims = new LinkedHashMap<>();
@@ -72,6 +75,9 @@ public class IdTokenIssuer {
 		claims.put("at_hash", computeAtHash(accessToken));
 		if (StringUtils.hasText(nonce)) {
 			claims.put("nonce", nonce); // 요청에 있었으면 그대로 되돌려준다 (표준 요구)
+		}
+		if (StringUtils.hasText(sid)) {
+			claims.put("sid", sid); // RP 가 자기 세션을 색인하는 키다 (Back-Channel Logout 1.0)
 		}
 
 		List<String> scopes = Arrays.asList(scope.split(" "));

@@ -83,7 +83,7 @@ class ProfileClaimMapperTest {
 		when(signingClient.sign(anyMap(), any())).thenReturn("signed.jwt.value");
 		IdTokenIssuer issuer = new IdTokenIssuer(signingClient, userDirectoryClient, mapper,
 				"http://localhost:9000", 300);
-		issuer.issue("user-sub-0001", "my-client", String.join(" ", scopes), null, 1700000000L, "at");
+		issuer.issue("user-sub-0001", "my-client", String.join(" ", scopes), null, 1700000000L, "at", null);
 		ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
 		verify(signingClient).sign(captor.capture(), any());
 		Map<String, Object> idTokenClaims = captor.getValue();
