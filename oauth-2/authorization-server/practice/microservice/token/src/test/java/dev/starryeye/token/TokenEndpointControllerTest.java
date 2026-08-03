@@ -143,7 +143,7 @@ class TokenEndpointControllerTest {
 		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
 		when(codeStore.consume("code123")).thenReturn(java.util.Optional.of(
 				new AuthorizationCodeData("my-client", "http://127.0.0.1:8080/callback", "openid profile", "user-sub-0001",
-						"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", "nonce-abc", 1700000000L, null)));
+						"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", "nonce-abc", 1700000000L, "SID-XYZ")));
 		when(signingClient.sign(any(), any())).thenReturn("signed-access-token");
 		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any(), any())).thenReturn("signed-id-token");
 
@@ -163,8 +163,9 @@ class TokenEndpointControllerTest {
 		ArgumentCaptor<String> nonceCaptor = ArgumentCaptor.forClass(String.class);
 		ArgumentCaptor<Long> authTimeCaptor = ArgumentCaptor.forClass(Long.class);
 		ArgumentCaptor<String> accessTokenCaptor = ArgumentCaptor.forClass(String.class);
+		ArgumentCaptor<String> sidCaptor = ArgumentCaptor.forClass(String.class);
 		verify(idTokenIssuer).issue(subCaptor.capture(), clientIdCaptor.capture(), scopeCaptor.capture(),
-				nonceCaptor.capture(), authTimeCaptor.capture(), accessTokenCaptor.capture(), any());
+				nonceCaptor.capture(), authTimeCaptor.capture(), accessTokenCaptor.capture(), sidCaptor.capture());
 
 		assertThat(subCaptor.getValue()).isEqualTo("user-sub-0001");
 		assertThat(clientIdCaptor.getValue()).isEqualTo("my-client");
@@ -173,6 +174,8 @@ class TokenEndpointControllerTest {
 		assertThat(authTimeCaptor.getValue()).isEqualTo(1700000000L);
 		// at_hash 는 access token 으로 계산돼야 하므로, signingClient.sign(...) 이 방금 반환한 access token 과 같아야 한다
 		assertThat(accessTokenCaptor.getValue()).isEqualTo("signed-access-token");
+		// code 레코드의 sid 가 컨트롤러 배선을 거쳐 그대로 전달돼야 RP 가 색인해 둔 세션과 어긋나지 않는다
+		assertThat(sidCaptor.getValue()).isEqualTo("SID-XYZ");
 	}
 
 	// 성공 경로: openid 가 없는 scope 는 id_token 을 발급하지 않고 idTokenIssuer 를 호출하지도 않는다
