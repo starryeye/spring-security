@@ -1,0 +1,21 @@
+server:
+  port: 8088
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/microservice_as
+    username: root
+    password: 1111
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+my:
+  issuer: http://localhost:9000
+  signing-base-url: http://localhost:8083
+  client-registry-base-url: http://localhost:8085
+
+logging:
+  level:
+    dev.starryeye: DEBUG
