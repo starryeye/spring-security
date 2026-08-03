@@ -80,12 +80,13 @@ class AuthorizeControllerTest {
 						.param("code_challenge", "chal-123")
 						.param("code_challenge_method", "S256")
 						.param("nonce", "nonce-1"))
-				.andExpect(status().is3xxRedirection());
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl(REDIRECT_URI + "?code=issued-code&state=xyz789"));
 		long after = Instant.now().getEpochSecond();
 
 		ArgumentCaptor<Long> authTimeCaptor = ArgumentCaptor.forClass(Long.class);
 		verify(codeIssuer).issue(eq("my-client"), eq(REDIRECT_URI), eq("openid profile"), eq("user-sub-0001"),
-				eq("chal-123"), eq("nonce-1"), authTimeCaptor.capture(), anyString());
+				eq("chal-123"), eq("nonce-1"), authTimeCaptor.capture(), eq("sid-0001"));
 		assertThat(authTimeCaptor.getValue()).isBetween(before, after);
 		verify(pendingStore, never()).save(any());
 	}
@@ -96,6 +97,7 @@ class AuthorizeControllerTest {
 	void missingScopesRenderConsentPageWithPendingNonce() throws Exception {
 		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
 		when(consentClient.getGrantedScopes("user-sub-0001", "my-client")).thenReturn(List.of("openid"));
+		when(sessionIdIssuer.issue(any())).thenReturn("sid-0001");
 		when(pendingStore.save(any(PendingAuthorization.class))).thenReturn("pending-1");
 
 		mockMvc.perform(get("/oauth2/authorize").with(user("user-sub-0001"))
@@ -125,6 +127,7 @@ class AuthorizeControllerTest {
 		assertThat(pending.codeChallenge()).isEqualTo("chal-123");
 		assertThat(pending.state()).isEqualTo("xyz789");
 		assertThat(pending.authTime()).isPositive();
+		assertThat(pending.sid()).isEqualTo("sid-0001");
 
 		verify(codeIssuer, never()).issue(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyLong(), anyString());
 	}

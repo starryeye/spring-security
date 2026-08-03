@@ -42,6 +42,7 @@ class AuthorizationCodeIssuerTest {
 				.containsEntry("sub", "user-sub-0001")
 				.containsEntry("codeChallenge", "chal")
 				.containsEntry("nonce", "n-0S6_WzA2Mj")
-				.containsEntry("authTime", 1700000000);
+				.containsEntry("authTime", 1700000000)
+				.containsEntry("sid", "sid-0001");
 	}
 }
