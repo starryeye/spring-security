@@ -7,6 +7,7 @@ public record ClientInfo(
 		String clientId,
 		List<String> redirectUris,
 		List<String> scopes,
-		List<String> grantTypes
+		List<String> grantTypes,
+		List<String> postLogoutRedirectUris
 ) {
 }

@@ -26,7 +26,7 @@ public class SecurityConfig {
 		http
 				.authenticationProvider(provider)
 				.authorizeHttpRequests(auth -> auth
-						.requestMatchers("/login", "/error").permitAll()
+						.requestMatchers("/login", "/error", "/oauth2/logout").permitAll()
 						.anyRequest().authenticated()
 				)
 				.formLogin(form -> form

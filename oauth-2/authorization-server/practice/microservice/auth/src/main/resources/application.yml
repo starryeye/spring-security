@@ -13,6 +13,9 @@ my:
   authorization-code-ttl-seconds: 60
   pending-authorization-ttl-seconds: 300
   consent-base-url: http://localhost:8086
+  issuer: http://localhost:9000
+  session-base-url: http://localhost:8088
+  signing-base-url: http://localhost:8083
 logging:
   level:
     dev.starryeye: DEBUG

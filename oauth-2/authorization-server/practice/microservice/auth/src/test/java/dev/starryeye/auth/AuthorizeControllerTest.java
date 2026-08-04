@@ -57,7 +57,7 @@ class AuthorizeControllerTest {
 
 	private ClientInfo clientInfo() {
 		return new ClientInfo("my-client", List.of(REDIRECT_URI),
-				List.of("openid", "profile", "email"), List.of("authorization_code"));
+				List.of("openid", "profile", "email"), List.of("authorization_code"), List.of());
 	}
 
 	// 요청 scope 가 전부 기승인이면 동의 화면 없이 바로 code 를 발급한다.
