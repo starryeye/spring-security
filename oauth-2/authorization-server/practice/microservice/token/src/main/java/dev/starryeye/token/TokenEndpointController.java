@@ -1,6 +1,7 @@
 package dev.starryeye.token;
 
 import dev.starryeye.token.client.ClientInfo;
+import dev.starryeye.token.client.SessionClient;
 import dev.starryeye.token.client.SigningClient;
 import dev.starryeye.token.client.TokenStateClient;
 import dev.starryeye.token.client.UserDirectoryClient;
@@ -10,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -37,6 +39,7 @@ public class TokenEndpointController {
 	private final TokenStateClient tokenStateClient;
 	private final RefreshTokenGrantService refreshTokenGrantService;
 	private final ClientCredentialsGrantService clientCredentialsGrantService;
+	private final SessionClient sessionClient;
 
 	@Value("${my.issuer}")
 	private String issuer;
@@ -121,6 +124,11 @@ public class TokenEndpointController {
 				// code 발급 후 사용자가 삭제된 경우다. 존재하지 않는 주체에 대한 인증 주장(id token)을 만들 수 없으므로
 				// grant 자체를 무효로 본다. code 는 이미 소비됐으니 재시도로 우회되지 않는다.
 				return error(HttpStatus.BAD_REQUEST, "invalid_grant", "subject of the grant no longer exists");
+			}
+
+			// RP 세션은 id token 을 내주는 이 순간 선다. sid 가 없으면(구버전 code 레코드) 등록할 것이 없다.
+			if (StringUtils.hasText(data.sid())) {
+				sessionClient.register(data.sid(), data.sub(), client.clientId());
 			}
 		}
 

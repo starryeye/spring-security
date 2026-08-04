@@ -3,6 +3,7 @@ package dev.starryeye.token;
 import dev.starryeye.token.client.ClientInfo;
 import dev.starryeye.token.client.ClientRegistryClient;
 import dev.starryeye.token.client.IssuedRefreshToken;
+import dev.starryeye.token.client.SessionClient;
 import dev.starryeye.token.client.SigningClient;
 import dev.starryeye.token.client.TokenStateClient;
 import dev.starryeye.token.dto.TokenResponse;
@@ -37,6 +38,7 @@ class TokenEndpointControllerTest {
 	@MockitoBean TokenStateClient tokenStateClient;
 	@MockitoBean RefreshTokenGrantService refreshTokenGrantService;
 	@MockitoBean ClientCredentialsGrantService clientCredentialsGrantService;
+	@MockitoBean SessionClient sessionClient;
 
 	private static final String BASIC = "Basic " + java.util.Base64.getEncoder()
 			.encodeToString("my-client:secret".getBytes());
@@ -176,6 +178,69 @@ class TokenEndpointControllerTest {
 		assertThat(accessTokenCaptor.getValue()).isEqualTo("signed-access-token");
 		// code 레코드의 sid 가 컨트롤러 배선을 거쳐 그대로 전달돼야 RP 가 색인해 둔 세션과 어긋나지 않는다
 		assertThat(sidCaptor.getValue()).isEqualTo("SID-XYZ");
+	}
+
+	// RP 세션은 id token 을 내주는 순간 선다. 그 사실을 등록하지 않으면 그 RP 는 로그아웃 통지를 받지 못한다.
+	@Test
+	void idTokenIssuanceRegistersTheRpSession() throws Exception {
+		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
+		when(codeStore.consume("code123")).thenReturn(Optional.of(
+				new AuthorizationCodeData("my-client", "http://127.0.0.1:8080/callback", "openid", "user-sub-0001",
+						"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", null, 1700000000L, "SID-ABC")));
+		when(signingClient.sign(any(), any())).thenReturn("signed-access-token");
+		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any(), any())).thenReturn("signed-id-token");
+
+		mockMvc.perform(post("/oauth2/token")
+						.header("Authorization", BASIC)
+						.param("grant_type", "authorization_code")
+						.param("code", "code123")
+						.param("redirect_uri", "http://127.0.0.1:8080/callback")
+						.param("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))
+				.andExpect(status().isOk());
+
+		verify(sessionClient).register("SID-ABC", "user-sub-0001", "my-client");
+	}
+
+	// openid 가 없으면 id token 이 없고 RP 세션도 서지 않는다. 등록할 것이 없다.
+	@Test
+	void nonOpenidExchangeDoesNotRegisterASession() throws Exception {
+		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
+		when(codeStore.consume("code123")).thenReturn(Optional.of(
+				new AuthorizationCodeData("my-client", "http://127.0.0.1:8080/callback", "profile", "user-sub-0001",
+						"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", null, 1700000000L, "SID-ABC")));
+		when(signingClient.sign(any(), any())).thenReturn("signed-access-token");
+
+		mockMvc.perform(post("/oauth2/token")
+						.header("Authorization", BASIC)
+						.param("grant_type", "authorization_code")
+						.param("code", "code123")
+						.param("redirect_uri", "http://127.0.0.1:8080/callback")
+						.param("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))
+				.andExpect(status().isOk());
+
+		verify(sessionClient, never()).register(any(), any(), any());
+	}
+
+	// 등록 실패를 삼키면 그 RP 는 영원히 로그아웃 통지를 못 받고, 그 사실을 알 방법도 없다.
+	// discovery 가 backchannel_logout_supported: true 를 광고하는 이상 조용히 약속을 깨면 안 된다.
+	@Test
+	void sessionRegistrationFailureFailsTheExchange() throws Exception {
+		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
+		when(codeStore.consume("code123")).thenReturn(Optional.of(
+				new AuthorizationCodeData("my-client", "http://127.0.0.1:8080/callback", "openid", "user-sub-0001",
+						"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", null, 1700000000L, "SID-ABC")));
+		when(signingClient.sign(any(), any())).thenReturn("signed-access-token");
+		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any(), any())).thenReturn("signed-id-token");
+		doThrow(new RuntimeException("session down")).when(sessionClient).register(any(), any(), any());
+
+		mockMvc.perform(post("/oauth2/token")
+						.header("Authorization", BASIC)
+						.param("grant_type", "authorization_code")
+						.param("code", "code123")
+						.param("redirect_uri", "http://127.0.0.1:8080/callback")
+						.param("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))
+				.andExpect(status().isInternalServerError())
+				.andExpect(jsonPath("$.error").value("server_error"));
 	}
 
 	// 성공 경로: openid 가 없는 scope 는 id_token 을 발급하지 않고 idTokenIssuer 를 호출하지도 않는다
