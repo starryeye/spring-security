@@ -691,8 +691,13 @@ Spring Security 6.4.5 의 `OidcBackChannelLogoutTokenValidator` 바이트코드�
    ```
    [session.log]  logout token 발송 완료. sid=Km4frKBhRWWVeVfgCEVhKw clientId=demo-rp
    [demo-rp.log]  Securing POST /logout/connect/back-channel/microservice
-   [demo-rp.log]  Invalidated session E5FD2D5AEA24E3A4411300F1A21B5934   ← Step 3 에서 demo-rp 가 발급한 바로 그 JSESSIONID
+   [demo-rp.log]  Invalidated session E5FD2D5AEA24E3A4411300F1A21B5934
    ```
+   같은 시각(같은 로그 타임스탬프) demo-rp 의 `OidcBackChannelLogoutFilter`(경유 필터)가 실제로 세션 하나를
+   `SecurityContextLogoutHandler` 로 무효화한 로그가 남는다 — 로그인 시점 쿠키의 JSESSIONID 값과 나란히
+   대조하지는 않았으므로(로그인 단계에서 그 값을 별도로 뽑아 두지 않았다), "그 세션과 동일한 값이다"까지는
+   주장하지 않는다. 이 항목의 판정 근거는 그 위의 200→302(demo-rp 쿠키를 건드리지 않은 상태에서의 상태 전이)
+   이고, 이 로그는 그 전이가 실제 세션 무효화 이벤트로 일어났다는 보조 정황이다.
 
 5. **`post_logout_redirect_uri` 로 `state` 와 함께 돌아온다 (RP-Initiated, 4번과 별개 세션으로 재검증)**
    ```

@@ -47,4 +47,16 @@ class SecurityConfigTest {
 
 		assertThat(status).isNotEqualTo(302).isNotEqualTo(401);
 	}
+
+	// 이 AS 는 client 종류와 무관하게 PKCE(S256)를 요구한다(OAuth 2.1 방향). 그런데 Spring Security 는
+	// confidential client 에 PKCE 를 자동으로 붙이지 않으므로, withPkce() 배선이 없으면 로그인이
+	// authorize 단계에서 invalid_request 로 끝난다. 그 배선이 살아 있는지 고정한다.
+	@Test
+	void authorizationRequestCarriesPkce() throws Exception {
+		String location = mockMvc.perform(get("/oauth2/authorization/microservice"))
+				.andExpect(status().is3xxRedirection())
+				.andReturn().getResponse().getHeader("Location");
+
+		assertThat(location).contains("code_challenge=").contains("code_challenge_method=S256");
+	}
 }
