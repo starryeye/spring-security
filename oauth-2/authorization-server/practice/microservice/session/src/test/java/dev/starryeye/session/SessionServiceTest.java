@@ -5,14 +5,24 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doAnswer;
 
 @SpringBootTest
 class SessionServiceTest {
 
 	@Autowired SessionService service;
-	@Autowired OidcSessionEntityRepository repository;
+	@MockitoSpyBean OidcSessionEntityRepository repository;
 
 	@BeforeEach
 	void clean() {
@@ -74,5 +84,38 @@ class SessionServiceTest {
 
 		assertThat(targets.sub()).isNull();
 		assertThat(targets.clientIds()).isEmpty();
+	}
+
+	// register 의 선검사(existsBySidAndClientId)만으로는 동시 호출을 막지 못한다. existsBySidAndClientId 에
+	// 장벽을 세워 두 스레드가 나란히 "없음" 을 확인하게 강제한 뒤, 그래도 둘 다 예외 없이 끝나고 행이
+	// 하나만 남는지 본다 — h2 가 uk_sid_client 를 강제한다는 전제와, register 가 그 위반을 흡수한다는
+	// 전제를 한 번에 검증한다.
+	@Test
+	void concurrentRegisterForTheSameClientInsertsExactlyOneRowWithoutThrowing() throws Exception {
+		CountDownLatch bothEnteredCheck = new CountDownLatch(2);
+		doAnswer(invocation -> {
+			// existsBySidAndClientId 는 Spring Data 가 만든 프록시 메서드라 callRealMethod() 를 쓸 수 없다.
+			// @BeforeEach 로 테이블을 비워둔 상태이므로 실제 조회 결과와 같은 값(false)을 직접 돌려준다 —
+			// 중요한 건 반환값이 아니라, 두 스레드가 이 지점에서 나란히 멈췄다가 함께 풀려나는 것이다.
+			bothEnteredCheck.countDown();
+			bothEnteredCheck.await(10, TimeUnit.SECONDS);
+			return false;
+		}).when(repository).existsBySidAndClientId("SID-1", "demo-rp");
+
+		Callable<Void> register = () -> {
+			service.register("SID-1", "user-sub-0001", "demo-rp");
+			return null;
+		};
+		ExecutorService pool = Executors.newFixedThreadPool(2);
+		try {
+			List<Future<Void>> futures = pool.invokeAll(List.of(register, register));
+			for (Future<Void> future : futures) {
+				future.get(30, TimeUnit.SECONDS);
+			}
+		} finally {
+			pool.shutdownNow();
+		}
+
+		assertThat(repository.findBySid("SID-1")).hasSize(1);
 	}
 }
