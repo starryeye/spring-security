@@ -172,6 +172,11 @@ public class TokenEndpointController {
 		metadata.put("userinfo_endpoint", issuer + "/userinfo");
 		metadata.put("introspection_endpoint", issuer + "/oauth2/introspect");
 		metadata.put("revocation_endpoint", issuer + "/oauth2/revoke");
+		metadata.put("end_session_endpoint", issuer + "/oauth2/logout");
+		// back-channel logout 을 지원하고, logout token 에 sid 를 실어 세션 단위 로그아웃이 가능함을 알린다.
+		// RP 는 이 두 값을 보고 자기 세션 관리를 설계하므로, 광고한 이상 등록 실패를 삼키면 안 된다.
+		metadata.put("backchannel_logout_supported", true);
+		metadata.put("backchannel_logout_session_supported", true);
 		metadata.put("code_challenge_methods_supported", List.of("S256"));
 		metadata.put("grant_types_supported", List.of("authorization_code", "refresh_token", "client_credentials"));
 		metadata.put("response_types_supported", List.of("code"));
