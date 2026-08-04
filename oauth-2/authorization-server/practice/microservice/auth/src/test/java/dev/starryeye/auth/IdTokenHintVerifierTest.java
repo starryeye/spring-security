@@ -85,4 +85,18 @@ class IdTokenHintVerifierTest {
 		assertThatThrownBy(() -> verifier.verify("not-a-jwt"))
 				.isInstanceOf(IdTokenHintVerifier.InvalidHintException.class);
 	}
+
+	// signing 장애로 키를 못 구하는 것과 힌트가 무효한 것은 다른 사건이지만, 로그아웃에서는 둘 다
+	// "어디로 돌려보낼지 모른다" 로 귀결된다. 다른 예외가 새어나가면 컨트롤러가 그것을 잡지 못해
+	// 로그아웃 자체가 500 으로 죽는다.
+	@Test
+	void rejectsHintWhenJwksIsUnavailable() throws Exception {
+		SigningJwksClient failing = mock(SigningJwksClient.class);
+		when(failing.jwks()).thenThrow(new RuntimeException("signing down"));
+
+		IdTokenHintVerifier verifierWithoutJwks = new IdTokenHintVerifier(failing, ISSUER);
+
+		assertThatThrownBy(() -> verifierWithoutJwks.verify(sign("demo-rp", ISSUER, Instant.now())))
+				.isInstanceOf(IdTokenHintVerifier.InvalidHintException.class);
+	}
 }

@@ -20,7 +20,12 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
+// 이 클래스만 SessionAutoConfiguration 을 꺼서 돈다. Spring Session 의 SessionRepositoryFilter 는
+// 세션을 쿠키로만 조회하므로(spring-session-core 소스 확인) .session(mockHttpSession) 으로 직접 붙인
+// 세션을 무시한다 — spring.session.store-type 은 Boot 3.4 의 SessionProperties 에서 이미 사라진 죽은
+// 키라 그걸로는 못 끈다. 이 프로퍼티를 build.gradle 의 test 태스크에 걸면 모듈의 다른 모든 테스트가
+// 조용히 같은 예외를 상속받으므로, 필요한 이 클래스에만 좁혀서 건다.
+@SpringBootTest(properties = "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.session.SessionAutoConfiguration")
 @AutoConfigureMockMvc
 class LogoutControllerTest {
 
@@ -96,5 +101,14 @@ class LogoutControllerTest {
 
 		verify(sessionClient).logout(any());
 		verify(hintVerifier, never()).verify(any());
+	}
+
+	// 이미 로그아웃한 사용자가 다시 로그아웃하는 것은 오류가 아니다. 끊을 세션이 없으면 통지도 없다.
+	@Test
+	void logoutWithoutSessionIsNotAnError() throws Exception {
+		mockMvc.perform(get("/oauth2/logout"))
+				.andExpect(status().is2xxSuccessful());
+
+		verify(sessionClient, never()).logout(any());
 	}
 }
