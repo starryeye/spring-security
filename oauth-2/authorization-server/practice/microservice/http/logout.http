@@ -1,0 +1,49 @@
+### RP-Initiated Logout 1.0(슬라이스 5) — end_session_endpoint 호출 예시와 negative 2건.
+### 브라우저 상호작용(로그인) 이 먼저 필요해 .http 단독으로는 완주하기 어렵다. {id_token} 은
+### authorize.http/token.http 흐름으로 받은 id_token, 또는 demo-rp 로 로그인한 뒤 그 세션의 id token 을 쓴다.
+### 모든 요청은 gateway(:9000) 경유. discovery 의 end_session_endpoint 가 바로 이 경로다.
+
+### 1. 정상 — id_token_hint + 등록된 post_logout_redirect_uri + state
+### auth 세션 쿠키가 있으면(브라우저/curl -b 세션 쿠키) 그 세션을 끊고 session 에 로그아웃을 통지한 뒤
+### post_logout_redirect_uri 로 302, state 를 그대로 붙여 돌려준다.
+### 세션 쿠키가 없어도 리다이렉트 검증(id_token_hint 서명 · post_logout_redirect_uri 등록 여부)은 그대로 수행된다.
+GET http://localhost:9000/oauth2/logout?id_token_hint={id_token}&post_logout_redirect_uri=http://localhost:8095/&state=xyz
+
+### 2. id_token_hint 없이 호출 — 리다이렉트 대상을 정할 client 를 알 수 없으므로 200 자체 완료 페이지
+GET http://localhost:9000/oauth2/logout
+
+### negative 1. 미등록 post_logout_redirect_uri — evil.example 로 가지 않는다. 302 가 아니라 200(자체 완료 페이지)
+### 주의. 이 경우에도 세션은 끊기고 통지는 나간다 — 로그아웃은 fail-open, 리다이렉트만 거부한다(open redirect 방지).
+GET http://localhost:9000/oauth2/logout?id_token_hint={id_token}&post_logout_redirect_uri=http://evil.example/
+
+### negative 2. 위조/깨진 id_token_hint — 302 가 아니라 200(자체 완료 페이지)
+### 주의. 이 경우에도 세션은 끊기고 통지는 나간다 — id_token_hint 는 사용자 식별이 아니라
+### "어느 client 기준으로 post_logout_redirect_uri 를 검증할지" 를 정하는 데만 쓰인다.
+GET http://localhost:9000/oauth2/logout?id_token_hint=aaa.bbb.ccc&post_logout_redirect_uri=http://localhost:8095/
+
+### discovery — end_session_endpoint · backchannel_logout_supported · backchannel_logout_session_supported 확인
+GET http://localhost:9000/.well-known/openid-configuration
+
+### session(8088)은 내부 전용이라 gateway 가 라우팅하지 않는다 — 게이트웨이 경유로는 404
+POST http://localhost:9000/internal/sessions/logout
+Content-Type: application/json
+
+{"sid": "x"}
+
+### --- 아래는 SQL. curl 로 보내는 요청이 아니라 mysql 클라이언트(또는 docker exec)로 실행한다 ---
+###
+### oidc_sessions 전체 조회 — (sid, sub, client_id) 가 로그인 시 RP 마다 한 행씩 쌓인다
+### docker exec -i microservice-as-mysql-1 mysql -uroot -p1111 microservice_as \
+###   -e "select sid, sub, client_id, created_at from oidc_sessions order by created_at desc;"
+###
+### 특정 sid 로 걸린 RP 목록만 — 로그아웃 시 이 목록 전부에 logout token 이 나간다
+### docker exec -i microservice-as-mysql-1 mysql -uroot -p1111 microservice_as \
+###   -e "select client_id from oidc_sessions where sid='{sid}';"
+###
+### 로그아웃 후 행이 사라졌는지(성공 기준 6번) — 통지 성공 여부와 무관하게 통지 시점에 즉시 삭제된다
+### docker exec -i microservice-as-mysql-1 mysql -uroot -p1111 microservice_as \
+###   -e "select count(*) from oidc_sessions;"
+###
+### client 의 backchannel_logout_uri/post_logout_redirect_uris 확인(client-registry 소유 컬럼)
+### docker exec -i microservice-as-mysql-1 mysql -uroot -p1111 microservice_as \
+###   -e "select client_id, backchannel_logout_uri, post_logout_redirect_uris from clients;"
