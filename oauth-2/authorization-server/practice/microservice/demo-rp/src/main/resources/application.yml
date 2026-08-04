@@ -1,0 +1,23 @@
+server:
+  port: 8095
+
+spring:
+  application:
+    name: demo-rp
+  security:
+    oauth2:
+      client:
+        provider:
+          microservice:
+            issuer-uri: http://localhost:9000
+        registration:
+          microservice:
+            client-id: demo-rp
+            client-secret: secret
+            authorization-grant-type: authorization_code
+            scope: openid,profile,email
+            redirect-uri: http://localhost:8095/login/oauth2/code/microservice
+
+logging:
+  level:
+    org.springframework.security: DEBUG
