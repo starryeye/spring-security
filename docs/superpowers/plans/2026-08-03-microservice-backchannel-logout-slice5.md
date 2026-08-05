@@ -1334,6 +1334,13 @@ public record LogoutTargets(String sub, List<String> clientIds) {
 }
 ```
 
+**주의.** 이 스케치의 모양은 최종 구현과 다르다. 한 `sid` 아래 여러 행이 서로 다른 `sub` 를 가질 수 있으므로,
+대표 `sub` 하나와 client 목록으로는 그 관계를 표현할 수 없다. logout token 의 `sub` 는 그 RP 세션의 주체여야
+하므로, 최종 구현은 `LogoutTargets` 를 `record LogoutTargets(List<Target> targets)` 로 두고 중첩
+`record Target(String clientId, String sub)` 로 `(clientId, sub)` 쌍을 나른다 —
+`SessionService.consumeForLogout` 도 `sessions.get(0).getSub()` 로 대표값을 뽑는 대신 각 행을 그대로
+`(session.getClientId(), session.getSub())` 쌍으로 매핑한다.
+
 `SessionService.java`:
 
 ```java
