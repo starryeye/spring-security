@@ -31,8 +31,8 @@ public class SessionController {
 	@PostMapping("/internal/sessions/logout")
 	public ResponseEntity<Void> logout(@RequestBody LogoutRequest request) {
 		LogoutTargets targets = sessionService.consumeForLogout(request.sid());
-		if (!targets.clientIds().isEmpty()) {
-			logoutTokenSender.send(request.sid(), targets.sub(), targets.clientIds());
+		if (!targets.targets().isEmpty()) {
+			logoutTokenSender.send(request.sid(), targets.targets());
 		}
 		return ResponseEntity.ok().build();
 	}

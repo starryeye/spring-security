@@ -15,7 +15,7 @@ public class AuthorizationCodeIssuer {
 
 	/**
 	 * authorization code 를 만들어 Redis 에 저장한다. (token 이 소비할 공유 계약)
-	 *      key "auth:code:{code}", value 는 {clientId, redirectUri, scope, sub, codeChallenge, nonce, authTime} JSON.
+	 *      key "auth:code:{code}", value 는 {clientId, redirectUri, scope, sub, codeChallenge, nonce, authTime, sid} JSON.
 	 *
 	 * nonce/authTime 을 함께 싣는 이유..
 	 *      두 값은 authorize 시점(이 서비스)에만 알 수 있는데 정작 필요한 곳은 id token 을 만드는 token 서비스다.

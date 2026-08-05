@@ -17,6 +17,12 @@ public class SessionIdIssuer {
 	 *      실제 세션 id 를 그대로 쓰면 세션 탈취 표면이 된다.
 	 *
 	 * 주의. 추측 가능한 값이면 남의 세션을 지목하는 logout token 을 위조할 근거가 되므로 SecureRandom 을 쓴다.
+	 *
+	 * 주의. issue 는 멱등이고 renew 는 항상 새로 만든다 — 용도가 다르다. authorize 경로는 이미 로그인된
+	 *      세션에서 여러 RP 가 같은 sid 를 봐야 하므로 issue 를 쓴다. 로그인 성공 핸들러는 새 OP 세션의
+	 *      시작이므로 renew 를 써야 한다. Spring Security 의 세션 고정 방어(changeSessionId)는 세션 id 만
+	 *      바꾸고 세션 속성은 그대로 옮기므로, 로그인 성공 시점에도 issue 를 쓰면 로그아웃 없이 다른 사용자로
+	 *      재로그인했을 때 이전 사용자의 sid 를 그대로 물려받는다.
 	 */
 
 	static final String SESSION_ATTRIBUTE = "OP_SID";
@@ -29,6 +35,10 @@ public class SessionIdIssuer {
 		if (existing != null) {
 			return existing;
 		}
+		return renew(session);
+	}
+
+	public String renew(HttpSession session) {
 		byte[] bytes = new byte[BYTE_LENGTH];
 		RANDOM.nextBytes(bytes);
 		String sid = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);

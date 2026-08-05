@@ -167,8 +167,9 @@ class IdTokenIssuerTest {
 		assertThat(capturedClaims()).containsEntry("sid", "SID-ABC");
 	}
 
-	// refresh 로 재발급하는 id token 에도 원래 세션의 sid 가 그대로 실려야 한다.
-	// 새 값을 만들면 RP 가 색인해 둔 세션과 어긋나 로그아웃 통지가 그 세션을 못 찾는다.
+	// sid 인자가 null 이면(호출부가 세션을 모르면) id token 에도 sid 를 싣지 않는다. 없는 값을 지어내면
+	// RP 가 실재하지 않는 세션을 가리키는 claim 을 받게 된다. (refresh 재발급이 이 경로를 탄다 — refresh
+	// 레코드가 sid 를 보관하지 않아 항상 null 을 넘긴다)
 	@Test
 	void idTokenOmitsSidWhenSessionIsUnknown() {
 		issuer.issue("user-sub-0001", "demo-rp", "openid", null, 1700000000L, "access-token", null);

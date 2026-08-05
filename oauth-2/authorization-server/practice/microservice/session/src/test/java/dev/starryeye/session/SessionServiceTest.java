@@ -5,6 +5,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 import java.util.List;
@@ -16,7 +17,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 
 @SpringBootTest
 class SessionServiceTest {
@@ -53,8 +56,23 @@ class SessionServiceTest {
 
 		LogoutTargets targets = service.consumeForLogout("SID-1");
 
-		assertThat(targets.sub()).isEqualTo("user-sub-0001");
-		assertThat(targets.clientIds()).containsExactlyInAnyOrder("demo-rp", "other-rp");
+		assertThat(targets.targets()).containsExactlyInAnyOrder(
+				new LogoutTargets.Target("demo-rp", "user-sub-0001"),
+				new LogoutTargets.Target("other-rp", "user-sub-0001"));
+	}
+
+	// 하나의 sid 아래 서로 다른 사용자의 행이 공존할 수 있다(재로그인이 sid 를 재사용한 적이 있었다면).
+	// 대표값 하나를 모든 RP 에 재사용하면 남의 sub 가 새어나간다 — 각 RP 는 반드시 자기 행의 sub 를 받아야 한다.
+	@Test
+	void consumeForLogoutPairsEachClientWithItsOwnSub() {
+		service.register("SID-1", "user-sub-A", "rp1");
+		service.register("SID-1", "user-sub-B", "rp2");
+
+		LogoutTargets targets = service.consumeForLogout("SID-1");
+
+		assertThat(targets.targets()).containsExactlyInAnyOrder(
+				new LogoutTargets.Target("rp1", "user-sub-A"),
+				new LogoutTargets.Target("rp2", "user-sub-B"));
 	}
 
 	// 세션은 로그아웃 시점에 끝난다. 발송 성공 여부와 무관하게 행을 지운다 —
@@ -82,8 +100,7 @@ class SessionServiceTest {
 	void unknownSessionYieldsEmptyTargets() {
 		LogoutTargets targets = service.consumeForLogout("SID-NONE");
 
-		assertThat(targets.sub()).isNull();
-		assertThat(targets.clientIds()).isEmpty();
+		assertThat(targets.targets()).isEmpty();
 	}
 
 	// register 의 선검사(existsBySidAndClientId)만으로는 동시 호출을 막지 못한다. existsBySidAndClientId 에
@@ -93,14 +110,25 @@ class SessionServiceTest {
 	@Test
 	void concurrentRegisterForTheSameClientInsertsExactlyOneRowWithoutThrowing() throws Exception {
 		CountDownLatch bothEnteredCheck = new CountDownLatch(2);
+		// existsBySidAndClientId 는 Spring Data 가 만든 프록시 메서드라 callRealMethod() 를 쓸 수 없다.
+		// @BeforeEach 로 테이블을 비워둔 상태이므로 실제 조회 결과와 같은 값(false)을 직접 돌려준다 —
+		// 중요한 건 반환값이 아니라, 두 스레드가 이 지점에서 나란히 멈췄다가 함께 풀려나는 것이다.
+		//
+		// register 는 이 메서드를 최대 두 번 부른다: 선검사, 그리고(A-3) save() 가 유니크 위반으로 실패했을 때의
+		// 재확인. 재확인 호출은 인과적으로 두 스레드의 선검사보다 항상 뒤에 온다 — 진 쪽이 save() 에서 예외를
+		// 받으려면 두 스레드 모두 먼저 이 지점을 통과해 있어야 하기 때문이다. 그래서 처음 두 번의 호출에는
+		// 래치로 두 스레드를 동시에 세워 실제 경합을 만들고, 그 이후 호출(진 쪽의 재확인)에는 이미 이긴
+		// 스레드가 저장을 마친 뒤이므로 실제 사실(true)을 그대로 돌려준다.
 		doAnswer(invocation -> {
-			// existsBySidAndClientId 는 Spring Data 가 만든 프록시 메서드라 callRealMethod() 를 쓸 수 없다.
-			// @BeforeEach 로 테이블을 비워둔 상태이므로 실제 조회 결과와 같은 값(false)을 직접 돌려준다 —
-			// 중요한 건 반환값이 아니라, 두 스레드가 이 지점에서 나란히 멈췄다가 함께 풀려나는 것이다.
 			bothEnteredCheck.countDown();
 			bothEnteredCheck.await(10, TimeUnit.SECONDS);
 			return false;
-		}).when(repository).existsBySidAndClientId("SID-1", "demo-rp");
+		}).doAnswer(invocation -> {
+			bothEnteredCheck.countDown();
+			bothEnteredCheck.await(10, TimeUnit.SECONDS);
+			return false;
+		}).doReturn(true)
+				.when(repository).existsBySidAndClientId("SID-1", "demo-rp");
 
 		Callable<Void> register = () -> {
 			service.register("SID-1", "user-sub-0001", "demo-rp");
@@ -117,5 +145,18 @@ class SessionServiceTest {
 		}
 
 		assertThat(repository.findBySid("SID-1")).hasSize(1);
+	}
+
+	// DataIntegrityViolationException 은 유니크 위반만이 아니라 길이 초과 등 다른 제약 위반에서도 난다.
+	// clientId 는 컬럼 길이가 100 이므로, 이를 넘기면 uk_sid_client 와 무관한 위반이 나야 하고 register 는
+	// 재확인(existsBySidAndClientId) 결과 행이 없으므로 흡수하지 않고 그대로 전파해야 한다.
+	@Test
+	void registerPropagatesConstraintViolationsThatAreNotUniqueViolations() {
+		String clientIdTooLongForItsColumn = "c".repeat(101);
+
+		assertThatThrownBy(() -> service.register("SID-1", "user-sub-0001", clientIdTooLongForItsColumn))
+				.isInstanceOf(DataIntegrityViolationException.class);
+
+		assertThat(repository.findBySid("SID-1")).isEmpty();
 	}
 }

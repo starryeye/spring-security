@@ -55,4 +55,17 @@ class SessionIdIssuerTest {
 
 		assertThat(issuer.currentSid(session)).isEqualTo(issued);
 	}
+
+	// 로그인은 새 OP 세션의 시작이다. 세션 고정 방어(changeSessionId)가 이전 sid 속성을 그대로 옮겨도,
+	// renew 는 그 값을 무시하고 항상 새 sid 를 만들어야 재로그인이 이전 세션의 sid 를 물려받지 않는다.
+	@Test
+	void renewAlwaysIssuesANewSidEvenIfOneAlreadyExists() {
+		HttpSession session = new MockHttpSession();
+		String first = issuer.issue(session);
+
+		String renewed = issuer.renew(session);
+
+		assertThat(renewed).isNotEqualTo(first);
+		assertThat(issuer.currentSid(session)).isEqualTo(renewed);
+	}
 }

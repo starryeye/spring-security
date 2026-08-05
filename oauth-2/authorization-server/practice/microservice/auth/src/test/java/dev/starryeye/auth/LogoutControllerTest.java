@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -51,15 +52,19 @@ class LogoutControllerTest {
 	void redirectsToRegisteredPostLogoutUriAndNotifiesSession() throws Exception {
 		when(hintVerifier.verify("hint")).thenReturn("demo-rp");
 		when(clientRegistryClient.getClient("demo-rp")).thenReturn(demoRp());
+		MockHttpSession session = loggedInSession();
+		String sid = sessionIdIssuer.currentSid(session);
 
-		mockMvc.perform(get("/oauth2/logout").session(loggedInSession())
+		mockMvc.perform(get("/oauth2/logout").session(session)
 						.param("id_token_hint", "hint")
 						.param("post_logout_redirect_uri", "http://localhost:8095/")
 						.param("state", "xyz"))
 				.andExpect(status().is3xxRedirection())
 				.andExpect(redirectedUrl("http://localhost:8095/?state=xyz"));
 
-		verify(sessionClient).logout(any());
+		// HTTP 세션 id 가 아니라 sessionIdIssuer 가 실제로 발급한 sid 와 대조한다 — SessionIdIssuer javadoc 이
+		// 명시적으로 금지하는 실수(HTTP 세션 id 를 sid 로 흘리는 것)를 any() 로는 잡을 수 없다.
+		verify(sessionClient).logout(eq(sid));
 	}
 
 	// 미등록 주소로는 돌려보내지 않는다. authorize 의 redirect_uri 정확 일치와 같은 원칙(open redirect 방지).
@@ -69,13 +74,15 @@ class LogoutControllerTest {
 	void doesNotRedirectToUnregisteredUriButStillLogsOut() throws Exception {
 		when(hintVerifier.verify("hint")).thenReturn("demo-rp");
 		when(clientRegistryClient.getClient("demo-rp")).thenReturn(demoRp());
+		MockHttpSession session = loggedInSession();
+		String sid = sessionIdIssuer.currentSid(session);
 
-		mockMvc.perform(get("/oauth2/logout").session(loggedInSession())
+		mockMvc.perform(get("/oauth2/logout").session(session)
 						.param("id_token_hint", "hint")
 						.param("post_logout_redirect_uri", "http://evil.example/"))
 				.andExpect(status().isOk());
 
-		verify(sessionClient).logout(any());
+		verify(sessionClient).logout(eq(sid));
 	}
 
 	// 힌트 검증이 실패해도 로그아웃은 한다. 검증은 어디로 돌려보낼지를 정할 때만 필요하다.
@@ -84,22 +91,27 @@ class LogoutControllerTest {
 	void logsOutEvenWhenHintIsInvalid() throws Exception {
 		when(hintVerifier.verify(any()))
 				.thenThrow(new IdTokenHintVerifier.InvalidHintException("signature verification failed"));
+		MockHttpSession session = loggedInSession();
+		String sid = sessionIdIssuer.currentSid(session);
 
-		mockMvc.perform(get("/oauth2/logout").session(loggedInSession())
+		mockMvc.perform(get("/oauth2/logout").session(session)
 						.param("id_token_hint", "forged")
 						.param("post_logout_redirect_uri", "http://localhost:8095/"))
 				.andExpect(status().isOk());
 
-		verify(sessionClient).logout(any());
+		verify(sessionClient).logout(eq(sid));
 	}
 
 	@Test
 	@WithMockUser("user-sub-0001")
 	void logsOutWithoutHint() throws Exception {
-		mockMvc.perform(get("/oauth2/logout").session(loggedInSession()))
+		MockHttpSession session = loggedInSession();
+		String sid = sessionIdIssuer.currentSid(session);
+
+		mockMvc.perform(get("/oauth2/logout").session(session))
 				.andExpect(status().isOk());
 
-		verify(sessionClient).logout(any());
+		verify(sessionClient).logout(eq(sid));
 		verify(hintVerifier, never()).verify(any());
 	}
 

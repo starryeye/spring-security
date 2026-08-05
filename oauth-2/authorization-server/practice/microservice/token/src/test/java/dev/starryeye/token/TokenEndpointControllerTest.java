@@ -386,6 +386,8 @@ class TokenEndpointControllerTest {
 	}
 
 	// 동의하지 않았으면 발급하지 않는다. token-state 를 부르지도 않는다.
+	// 이 code 레코드는 openid scope 는 있는데 sid 는 null 이다(구버전 code 레코드와 같은 모양) — 그 조합에서
+	// StringUtils.hasText(data.sid()) 게이트가 실제로 sessionClient.register 호출을 막는지도 함께 고정한다.
 	@Test
 	void withoutOfflineAccessScopeNoRefreshTokenIsIssued() throws Exception {
 		when(codeStore.consume("code-1")).thenReturn(Optional.of(new AuthorizationCodeData(
@@ -405,6 +407,7 @@ class TokenEndpointControllerTest {
 				.andExpect(jsonPath("$.refresh_token").doesNotExist());
 
 		verify(tokenStateClient, never()).issue(any(), any(), any(), anyLong());
+		verify(sessionClient, never()).register(any(), any(), any());
 	}
 
 	// offline_access 는 동의됐지만 client 의 grantTypes 에 refresh_token 이 없으면 발급하지 않는다.

@@ -24,12 +24,12 @@ public class LogoutTokenSender {
 	private final LogoutTokenDelivery delivery;
 
 	@Async
-	public void send(String sid, String sub, List<String> clientIds) {
-		for (String clientId : clientIds) {
+	public void send(String sid, List<LogoutTargets.Target> targets) {
+		for (LogoutTargets.Target target : targets) {
 			try {
-				delivery.deliver(sid, sub, clientId);
+				delivery.deliver(sid, target.sub(), target.clientId());
 			} catch (Exception e) {
-				log.warn("logout token 발송 실패. sid={} clientId={}", sid, clientId, e);
+				log.warn("logout token 발송 실패. sid={} clientId={}", sid, target.clientId(), e);
 			}
 		}
 	}

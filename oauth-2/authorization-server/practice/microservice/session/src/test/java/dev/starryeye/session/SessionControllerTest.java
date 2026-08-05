@@ -52,8 +52,10 @@ class SessionControllerTest {
 						.content("{\"sid\":\"SID-1\"}"))
 				.andExpect(status().isOk());
 
-		verify(logoutTokenSender).send(eq("SID-1"), eq("user-sub-0001"),
-				argThat(ids -> ids.containsAll(List.of("demo-rp", "other-rp")) && ids.size() == 2));
+		verify(logoutTokenSender).send(eq("SID-1"), argThat(targets -> targets.size() == 2
+				&& targets.containsAll(List.of(
+						new LogoutTargets.Target("demo-rp", "user-sub-0001"),
+						new LogoutTargets.Target("other-rp", "user-sub-0001")))));
 		assertThat(repository.findBySid("SID-1")).isEmpty();
 	}
 
@@ -64,6 +66,6 @@ class SessionControllerTest {
 						.content("{\"sid\":\"SID-NONE\"}"))
 				.andExpect(status().isOk());
 
-		verify(logoutTokenSender, never()).send(any(), any(), any());
+		verify(logoutTokenSender, never()).send(any(), any());
 	}
 }

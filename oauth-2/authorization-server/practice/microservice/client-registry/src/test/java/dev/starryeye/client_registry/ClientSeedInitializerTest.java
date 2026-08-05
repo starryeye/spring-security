@@ -50,6 +50,13 @@ class ClientSeedInitializerTest {
 		initializer.run(mock(ApplicationArguments.class));
 
 		assertThat(repository.count()).isEqualTo(3);
+		assertThat(repository.existsById("my-client")).isTrue();
+		assertThat(repository.existsById("article-api")).isTrue();
+		// article-api 는 client_credentials 전용 resource server 다 — clientScopes 로 introspect 능력만
+		// 부여받고, 인가 흐름에는 참여하지 않으므로 grantTypes 에 authorization_code 가 없어야 한다.
+		assertThat(repository.findById("article-api")).get()
+				.extracting(ClientEntity::getClientScopes, ClientEntity::getGrantTypes)
+				.containsExactly("introspect", "client_credentials");
 		assertThat(repository.findById("demo-rp")).get()
 				.extracting(ClientEntity::getBackchannelLogoutUri)
 				.isEqualTo("http://localhost:8095/logout/connect/back-channel/microservice");

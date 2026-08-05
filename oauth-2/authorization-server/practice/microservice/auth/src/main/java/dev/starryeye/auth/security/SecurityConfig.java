@@ -33,7 +33,9 @@ public class SecurityConfig {
 						.permitAll()
 						.successHandler((request, response, authentication) -> {
 							// 세션 고정 방어로 세션이 새로 만들어진 뒤이므로 여기가 sid 를 만들 자리다.
-							sessionIdIssuer.issue(request.getSession(true));
+							// renew 를 쓴다 — 로그인은 새 OP 세션의 시작이므로, 세션 고정 방어가 속성을
+							// 보존해 넘긴 이전 사용자의 sid 가 있어도 여기서 반드시 새로 만든다.
+							sessionIdIssuer.renew(request.getSession(true));
 							successHandler.onAuthenticationSuccess(request, response, authentication);
 						})
 				)

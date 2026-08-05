@@ -157,6 +157,17 @@ class AccessTokenVerifierTest {
 				.isInstanceOf(AccessTokenVerifier.InvalidTokenException.class);
 	}
 
+	// typ 헤더가 아예 없는(null) 토큰 -> 슬라이스 5 이전에 발급된 access token 이 전부 이 모양이다.
+	// 헬퍼의 if (typ != null) 분기가 이 테스트 없이는 죽은 코드였다.
+	@Test
+	void rejectsTokenWithMissingTyp() throws Exception {
+		String token = sign(rsaKey, ISSUER, futureExpiration(), "user-sub-0001", List.of("openid"), null);
+
+		assertThatThrownBy(() -> accessTokenVerifier.verify(token))
+				.isInstanceOf(AccessTokenVerifier.InvalidTokenException.class)
+				.hasMessage("unexpected token type");
+	}
+
 	@Test
 	void acceptsTokenWithAccessTokenTyp() throws Exception {
 		String accessToken = signWithTyp("at+jwt");
