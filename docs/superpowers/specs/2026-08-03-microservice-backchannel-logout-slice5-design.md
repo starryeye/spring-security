@@ -58,6 +58,8 @@ Google 도 두 개념을 다른 엔드포인트로 갈라 둔다 — 세션은 `
 
 로그인 한 번에 `sid` 하나가 나오고, 그 세션에서 authorize 하는 **모든 RP 가 같은 `sid`** 를 받는다. 로그아웃 후 재로그인하면 새 `sid` 다(다른 OP 세션이므로).
 
+**주의.** 이 문장이 성립하려면 로그인 성공 핸들러가 `sid` 를 **무조건** 새로 만들어야 한다. `SessionIdIssuer` 가 `issue`(있으면 재사용, 없으면 새로 만드는 멱등 버전)와 `renew`(항상 새로 만드는 버전)로 나뉘는 이유가 그것이다 — authorize 경로는 같은 세션의 여러 RP 가 같은 `sid` 를 봐야 하므로 `issue` 를 쓰고, 로그인 성공 핸들러는 `renew` 를 쓴다. Spring Security 의 세션 고정 방어(`changeSessionId`)는 세션 id 만 바꾸고 세션 속성은 그대로 옮기므로, 로그인 성공 시점에도 `issue` 를 쓰면 로그아웃 없이 다른 사용자로 재로그인했을 때 이전 사용자의 `sid` 를 그대로 물려받아 이 문장이 깨진다.
+
 `sid` 가 관통하는 경로:
 
 ```
@@ -173,7 +175,7 @@ RP-Initiated Logout 1.0 의 `end_session_endpoint` 다. 처리 순서:
 
 **주의.** 로그아웃 시점에 id token 이 만료돼 있는 것은 정상이다. 그래서 `exp` 를 검사하지 않는다. 이 저장소에서 만료를 일부러 무시하는 유일한 검증이다.
 
-Spring Security 의 `/logout` 도 같은 통지 경로를 탄다.
+**주의.** `SecurityConfig` 는 `.logout(...)` 을 배선하지 않는다 — 위 `GET /oauth2/logout` 이 이 서비스의 유일한 로그아웃 경로다. 그 결과 Spring Boot 기본 `LogoutFilter` 가 그대로 살아 있어, `POST /logout` 을 호출하면 session 서비스에 통지하지 않고 auth 자신의 세션만 끊는다(RP 세션은 살아남는다). gateway 도 `/logout` 을 라우팅하지 않으므로(라우팅 대상은 `/oauth2/logout` 뿐이다) 이 경로에 외부에서 도달할 방법도 없다.
 
 ### discovery(token) — 3항목 추가
 

@@ -819,9 +819,9 @@ HTTP/1.1 302
 Location: http://localhost/login   # 같은 쿠키인데도 다시 로그인을 요구한다 — 세션이 진짜로 죽었다
 ```
 
-## 슬라이스 4에서도 제외 (이후 sub-project)
+## 슬라이스 5에서도 제외 (이후 sub-project)
 
-back-channel logout(sid), admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네트워크 가정), jwks 캐시, access token deny-list, Kafka 인증 이벤트 스트림, 관측성/서킷브레이커, resource indicator(RFC 8707, client_credentials 의 `aud` 를 자원별로 좁히는 것).
+admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네트워크 가정), jwks 캐시, access token deny-list, Kafka 인증 이벤트 스트림, 관측성/서킷브레이커, resource indicator(RFC 8707, client_credentials 의 `aud` 를 자원별로 좁히는 것).
 
 ## 알려진 한계 / 추후 개선
 
@@ -845,6 +845,10 @@ back-channel logout(sid), admin 등록 API(현재 seed), **내부 서비스 간 
 - **`jti` 재생 방지는 RP 몫이다** — session 은 logout token 마다 `UUID.randomUUID()` 로 고유한 `jti` 를 채우기만 할 뿐, 같은 `jti` 가 재사용됐는지 자기 쪽에서 추적하지 않는다. 스펙도 재생 방지를 RP 측 선택 사항으로 둔다.
 - **refresh 로 재발급한 id token 에는 `sid` 가 없다** — refresh token 레코드(token-state)가 애초에 `sid` 를 보관하지 않으므로, `grant_type=refresh_token` 경로에서 재발급되는 id token 은 `sid` claim 자체가 빠진다. RP 세션 등록도 code 교환 경로에서만 일어나므로, refresh 만으로 받은 id token 으로는 로그아웃 통지 대상 세션을 새로 특정할 방법이 없다.
 - **슬라이스 5 이전에 발급된 access token 은 전부 무효가 된다** — `AccessTokenVerifier` 가 이번 슬라이스부터 `typ` 헤더가 `at+jwt` 가 아니면 거부한다. 슬라이스 5 배포 이전에 발급된 access token 은 애초에 `typ` 헤더가 없으므로(signing 이 헤더를 전적으로 소유하던 예전 계약) 전부 `invalid_token` 으로 거부된다. 짧은 TTL(300초)로 자연스럽게 걸러지긴 하지만, 배포 순간 살아있던 토큰은 만료 전이라도 즉시 무효가 된다.
+- **session 서비스가 다운돼 있으면 통지 시도 직후 `sid` 가 영구히 고아가 된다** — auth 의 `SessionClient.logout` 은 통지 실패를 로그로 흡수하는 fail-open 이고(이 슬라이스에서 유일하게 실패를 삼키는 지점), `LogoutController` 는 그 호출 직후 통지 성공 여부와 무관하게 곧바로 `session.invalidate()` 로 자신의 세션을 끊어 `sid` 를 파괴한다. session 서비스가 그 순간 응답하지 못했다면, 그 `sid` 로 걸린 `oidc_sessions` 행은 그 뒤 어떤 경로로도 다시 조회·소비될 수 없다 — RP 세션은 살아남고 행은 레지스트리에 영구히 남는다. fail-open 을 선택한 대가다.
+- **consent 대기(pending) 중 세션이 바뀌면 승인된 code 에 stale `sid` 가 실릴 수 있다** — `ConsentPageController` 는 `pending.sub()` 와 현재 principal 만 대조하고 `sid` 는 대조하지 않는다. `GET /oauth2/authorize`(sid A)로 pending 이 만들어진 뒤 TTL(300초) 안에 로그아웃하거나 세션이 만료되고 같은 사용자로 재로그인해(sid B) 그 pending 을 승인하면, 발급되는 code·id token·`oidc_sessions` 행은 전부 sid A 인데 브라우저의 실제 OP 세션은 sid B 다. 이후 로그아웃은 sid B 를 통지하므로 sid A 행은 조회되지 않고 남는다.
+- **`oidc_sessions` 에 정리 수단이 없다** — `createdAt` 은 기록만 되고 그 값을 읽는 코드도 오래된 행을 지우는 purge 작업도 없다. 통지 실패(위 session 다운 항목)나 자연 만료(auth 세션 만료 항목)로 소비되지 못한 행은 무한히 쌓인다. 위 항목들은 사용자 관점("logout token 이 나가지 않는다")까지만 다루지만, 이 항목은 운영 관점이다 — 레지스트리 테이블 자체가 무한정 커진다.
+- **session(8088) 에 네트워크로 도달하면 `sid` 하나로 남의 세션을 강제 로그아웃시킬 수 있다** — `sid` 의 엔트로피(128비트)는 충분하지만 설계상 비밀은 아니다. id token 에 실려 그 세션의 모든 RP 에게 배포되고 로그에도 남는다. 그리고 `POST /internal/sessions/logout` 은 인증이 없다(gateway 가 라우팅하지 않는다는 사실은 위 서비스 표에 있지만, 그것이 네트워크 도달 자체를 막지는 않는다). 따라서 그 `sid` 를 아는 누구든(같은 세션의 임의의 RP, 로그 접근자) session 서비스에 네트워크로 도달하기만 하면 그 사용자를 다른 모든 RP 에서 강제 로그아웃시킬 수 있다. `POST /internal/sessions` 로 가짜 `(sid, sub, clientId)` 행을 심는 것도 마찬가지로 인증이 없다. 다만 실제 피해는 가용성(원치 않는 강제 로그아웃)에 국한된다 — 개인키는 signing 만 보유하므로 이 경로로 다른 사용자를 사칭하는 access token·id token 서명 위조는 불가능하다.
 - HA(다중 인스턴스), 키 로테이션, purge 등은 production-ready-authorization-server 에서 다룬 주제.
 
 ## `custom-oidc-logout` 의 TODO 를 이 AS 로 닫는 법

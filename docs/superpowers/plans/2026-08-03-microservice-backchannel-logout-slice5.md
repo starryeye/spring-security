@@ -1388,6 +1388,8 @@ public class SessionService {
 }
 ```
 
+**주의.** `register` 의 메서드 레벨 `@Transactional` 은 이 스케치와 다르게 최종 구현에서 빠진다. `IDENTITY` 채번에서는 `save` 가 즉시 flush 하므로, 메서드를 `@Transactional` 로 감싸면 동시 등록 경쟁으로 나는 `DataIntegrityViolationException` 이 그 순간 바깥 트랜잭션 전체를 rollback-only 로 표시한다 — `catch` 로 잡아도 이미 죽은 트랜잭션이라 메서드가 정상 반환된 뒤 commit 시점에 `UnexpectedRollbackException` 이 새로 터진다. 최종 구현은 `register` 에서 `@Transactional` 을 빼 `existsBySidAndClientId` 선검사와 `save` 가 각각 레포지토리 자신의 트랜잭션으로 돌게 하고, `save` 를 `try/catch` 로 감싸 `DataIntegrityViolationException` 을 잡는다 — 잡은 뒤에는 무조건 흡수하지 않고 `existsBySidAndClientId` 로 재확인해, 행이 실제로 생겼을 때만(동시 등록이 이긴 경우) 흡수하고 아니면(길이 초과 등 다른 제약 위반) 다시 던진다. 무조건 흡수하면 등록이 진짜로 실패했는데도 호출자에게는 성공으로 보여, token 쪽 fail-closed(등록 실패 시 토큰 발급 전체 실패)가 조용히 무효화되기 때문이다.
+
 `dto/RegisterSessionRequest.java`:
 
 ```java
@@ -2952,6 +2954,8 @@ public class SecurityConfig {
 	}
 }
 ```
+
+**주의.** 이 스케치의 `.oauth2Login(Customizer.withDefaults())` 만으로는 로그인이 성립하지 않는다. demo-rp 는 client-secret 을 쓰는 confidential client 라 Spring Security 가 기본으로는 PKCE 파라미터를 붙이지 않는다(자동 PKCE 는 `client-authentication-method=none` 인 public client 에만 적용된다). 이 AS 의 `AuthorizeController` 는 client 종류와 무관하게 PKCE(S256)를 항상 강제하므로, `oauth2Login` 의 `authorizationEndpoint` 에 `DefaultOAuth2AuthorizationRequestResolver` + `OAuth2AuthorizationRequestCustomizers.withPkce()` 를 명시적으로 걸어야 한다. 최종 `SecurityConfig.java` 는 이 리졸버를 구성해 `authorizationEndpoint(endpoint -> endpoint.authorizationRequestResolver(...))` 로 `oauth2Login` 에 연결한다.
 
 - [ ] **Step 5: 배선 테스트 작성**
 

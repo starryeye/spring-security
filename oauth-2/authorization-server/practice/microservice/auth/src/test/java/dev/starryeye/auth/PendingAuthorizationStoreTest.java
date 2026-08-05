@@ -45,7 +45,8 @@ class PendingAuthorizationStoreTest {
 				.containsEntry("sub", "user-sub-0001")
 				.containsEntry("codeChallenge", "chal")
 				.containsEntry("state", "xyz789")
-				.containsEntry("nonce", "n-0S6_WzA2Mj");
+				.containsEntry("nonce", "n-0S6_WzA2Mj")
+				.containsEntry("sid", "sid-0001");
 	}
 
 	@Test
@@ -56,7 +57,8 @@ class PendingAuthorizationStoreTest {
 		when(ops.getAndDelete("auth:pending:p1")).thenReturn(
 				"{\"clientId\":\"my-client\",\"redirectUri\":\"http://127.0.0.1:8080/callback\","
 						+ "\"scope\":\"openid profile\",\"sub\":\"user-sub-0001\",\"codeChallenge\":\"chal\","
-						+ "\"state\":\"xyz789\",\"nonce\":\"n-0S6_WzA2Mj\",\"authTime\":1700000000}");
+						+ "\"state\":\"xyz789\",\"nonce\":\"n-0S6_WzA2Mj\",\"authTime\":1700000000,"
+						+ "\"sid\":\"sid-0001\"}");
 
 		PendingAuthorizationStore store = new PendingAuthorizationStore(redis, new ObjectMapper(), 300);
 		Optional<PendingAuthorization> result = store.consume("p1");
@@ -64,6 +66,7 @@ class PendingAuthorizationStoreTest {
 		assertThat(result).isPresent();
 		assertThat(result.get().sub()).isEqualTo("user-sub-0001");
 		assertThat(result.get().nonce()).isEqualTo("n-0S6_WzA2Mj");
+		assertThat(result.get().sid()).isEqualTo("sid-0001");
 		verify(ops).getAndDelete("auth:pending:p1");
 	}
 
