@@ -929,11 +929,13 @@ Expected: `403` 이 **`200` 으로 바뀐다**
 
 되돌린다.
 
+**주의.** 이 시점에 정책 파일은 아직 커밋 전(untracked)이다. `git checkout --` 는 실패하고 `git diff --exit-code` 는 비교 대상이 없어 **조용히 통과**하므로 원복 증거가 되지 못한다. 편집한 줄을 직접 되돌리고 **원본 텍스트와 diff 로 대조**해 증명한다.
+
 ```bash
-git checkout -- k8s/istio/authz-signing.yaml
+# principals 목록에서 임시로 넣은 auth 줄을 지운다
 kubectl apply -f k8s/istio/authz-signing.yaml
 sleep 10
-git diff --exit-code k8s/istio/authz-signing.yaml && echo "원복 확인"
+grep -c 'sa/auth' k8s/istio/authz-signing.yaml    # 기대: 1 (jwks 규칙에만 남는다)
 ```
 
 그리고 403 으로 돌아왔는지 다시 확인한다.
@@ -988,6 +990,23 @@ check() {  # check <설명> <기대> <실제>
 }
 
 code() { kubectl exec -n $NS "$1" -- curl -s -o /dev/null -w '%{http_code}' --max-time 10 "${@:2}"; }
+
+# 주의. AuthorizationPolicy 를 apply 한 직후에는 사이드카로의 xDS 전파가 끝나지 않아
+#      거부돼야 할 호출이 잠깐 200 을 낸다. 그 창에서 검사하면 정책이 멀쩡해도 FAIL 이 난다.
+#      그래서 검사 전에 핵심 거부(caller-auth -> /internal/sign)가 403 이 될 때까지 기다린다.
+#      제한 시간 안에 수렴하지 않으면 기다림을 포기하고 그대로 검사에 들어간다 —
+#      전파 지연과 정책 결함을 구분하되, 결함을 대기로 덮지는 않는다.
+DENY_PROBE=(-X POST -H 'Content-Type: application/json'
+            -d '{"claims":{"sub":"probe"},"typ":"at+jwt"}' http://signing:8083/internal/sign)
+echo "[0] 정책 전파 대기 (최대 60초)"
+for i in $(seq 1 30); do
+  if [ "$(code caller-auth "${DENY_PROBE[@]}")" = "403" ]; then
+    echo "  전파 완료: ${i}회차 (약 $((i*2))초)"
+    break
+  fi
+  [ "$i" = "30" ] && echo "  경고: 60초 안에 403 으로 수렴하지 않았다. 그대로 검사한다."
+  sleep 2
+done
 
 echo "[1] 파드 상태"
 kubectl get pods -n $NS
