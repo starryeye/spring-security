@@ -13,6 +13,17 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
       acks: all
+    # 주의. main 에는 없는, 테스트 전용 admin 타임아웃이다. KafkaTopicConfig 의 NewTopic 빈이 있으면
+    #      Kafka 를 안 띄운 채 돌리는 테스트(Kafka 를 직접 안 쓰는 나머지 대부분)에서도 컨텍스트 기동 시
+    #      KafkaAdmin 이 토픽 생성을 시도한다 — 기본 30초(operationTimeout, KafkaAdmin 자체 상수라 YAML
+    #      로 못 줄인다) 동안 재시도하며 붙잡는다. AdminClient 의 요청·연결 타임아웃만 짧게 줘 그 안에서
+    #      빨리 포기하게 한다. fail-fast=false(기본값)라 실패해도 컨텍스트 기동은 막지 않는다.
+    admin:
+      properties:
+        request.timeout.ms: 2000
+        default.api.timeout.ms: 2000
+        socket.connection.setup.timeout.ms: 1000
+        socket.connection.setup.timeout.max.ms: 1000
 
 my:
   issuer: http://localhost:9000

@@ -75,9 +75,16 @@ public class SessionService {
 		// 등록된 RP 가 하나도 없어도 발행한다. openid 없이 offline_access 만 받은 경로는 oidc_sessions 행이
 		// 없지만 그 sid 로 발급된 refresh token 은 존재할 수 있다 — 행이 있을 때만 발행하면 그 토큰이 살아남는다.
 		//
-		// 주의. sub 는 첫 행에서 가져온다. 한 sid 의 모든 행은 같은 사용자의 것이므로 어느 행을 골라도 같다.
-		//      슬라이스 5에서 문제가 됐던 "첫 행의 sub 를 모든 RP 에 재사용"과는 다른 상황이다 — 그때는 RP 마다
-		//      자기 sub 가 필요했고, 여기서는 세션 소유자 한 명을 적는 것이다.
+		// 주의. sub 는 그 sid 의 첫 행 값이다. session 은 한 sid 아래 여러 sub 가 섞이는 것을 막지 않는다 —
+		//      register 에 그런 검사가 없고, SessionServiceTest.consumeForLogoutPairsEachClientWithItsOwnSub 가
+		//      같은 SID-1 에 user-sub-A(rp1)·user-sub-B(rp2) 를 실제로 함께 등록해 그 경우를 만든다. 실무에서
+		//      한 세션이 한 사용자로 유지되는 이유는 auth 의 SessionIdIssuer.renew() 가 로그인마다 항상 새
+		//      sid 를 발급하기 때문이다(슬라이스 5) — 이건 auth 쪽 규약이지 session 이 구조로 보장하는 게
+		//      아니다. 그래서 이 이벤트의 sub 를 권위 있는 값으로 쓰면 안 된다. 지금 소비자(token-state)는
+		//      폐기 판정에 sid 만 쓰므로 영향이 없지만, sub 를 신뢰하는 소비자(감사 로그 등)가 붙으면 여러
+		//      sub 중 첫 행 하나만 보고 다른 sub 의 로그아웃을 기록하게 된다 — 슬라이스 5에서 문제가 됐던
+		//      "대표값이 없는 필드에서 첫 행을 대표로 삼는" 것과 구조가 같고, 지금 당장 안전한 건 결과의
+		//      심각도가 다를 뿐이다.
 		String sub = sessions.isEmpty() ? null : sessions.get(0).getSub();
 		logoutEventPublisher.publish(sid, sub);
 

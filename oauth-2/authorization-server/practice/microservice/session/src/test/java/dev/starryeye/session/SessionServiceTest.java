@@ -1,11 +1,13 @@
 package dev.starryeye.session;
 
+import dev.starryeye.session.event.LogoutEventPublisher;
 import dev.starryeye.session.jpa.OidcSessionEntityRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 import java.util.List;
@@ -24,8 +26,15 @@ import static org.mockito.Mockito.doReturn;
 @SpringBootTest
 class SessionServiceTest {
 
+	// 주의. LogoutEventPublisher 를 MockitoBean 으로 바꿔 실제 Kafka 발행을 끊는다. 이 클래스는 세션
+	//      레지스트리(register/consumeForLogout 의 조회·삭제) 동작을 보는 순수 단위 테스트였는데, Task 5 에서
+	//      consumeForLogout 이 발행을 블로킹으로 기다리게 되면서 Kafka 브로커가 없으면 producer 의
+	//      max.block.ms(기본 60초) 만큼 멈췄다가 실패하는 외부 인프라 의존이 처음 생겼다. 발행 자체(페이로드
+	//      내용·파티션 키)는 LogoutEventPublishTest 가 EmbeddedKafka 로 이미 검증하므로, 여기서는 스텁으로
+	//      끊어도 잃는 커버리지가 없다.
 	@Autowired SessionService service;
 	@MockitoSpyBean OidcSessionEntityRepository repository;
+	@MockitoBean LogoutEventPublisher logoutEventPublisher;
 
 	@BeforeEach
 	void clean() {

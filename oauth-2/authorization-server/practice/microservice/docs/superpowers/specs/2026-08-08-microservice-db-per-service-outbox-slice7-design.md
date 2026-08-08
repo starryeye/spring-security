@@ -152,6 +152,8 @@ UPDATE refresh_tokens SET status = 'REVOKED', revoked_at = ?
 
 **`sub` 는 nullable 이다.** 위 예시는 채워진 값을 보여줄 뿐, 이 필드가 항상 있다는 뜻이 아니다. 등록된 RP 가 하나도 없는 세션(`openid` 없이 `offline_access` 만 받은 경로)은 `oidc_sessions` 행이 없어 소유자를 알 수 없다. 그런 세션도 그 `sid` 로 발급된 refresh token 은 존재할 수 있으므로 이벤트는 발행돼야 한다. 소비자가 폐기에 쓰는 값은 `sid` 하나뿐이라 `sub` 가 없어도 폐기는 정상 동작한다.
 
+**`sub` 는 권위 있는 값이 아니다.** `session` 은 한 `sid` 아래 여러 `sub` 가 섞이는 것을 막지 않는다(`register` 에 그런 검사가 없다) — 실릴 때는 그 `sid` 의 첫 행 값 하나만 쓴다. 실제로 한 세션이 한 사용자로 유지되는 이유는 `auth` 의 `SessionIdIssuer.renew()` 가 로그인마다 항상 새 `sid` 를 발급하기 때문이다(슬라이스 5) — `session` 이 구조로 보장하는 게 아니라 다른 서비스의 규약에 기대는 것이다. 지금 소비자는 `sid` 만으로 판정하므로 영향이 없지만, 나중에 `sub` 를 신뢰하는 소비자(감사 로그 등)가 붙으면 이 사실을 알고 있어야 한다.
+
 ### 멱등은 소비자 쪽이고, 공짜다
 
 Kafka 는 at-least-once 다. 처리를 끝내고 커밋 직전에 죽으면 같은 이벤트를 다시 받는다.

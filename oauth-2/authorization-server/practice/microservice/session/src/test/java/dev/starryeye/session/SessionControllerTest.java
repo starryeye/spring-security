@@ -1,5 +1,6 @@
 package dev.starryeye.session;
 
+import dev.starryeye.session.event.LogoutEventPublisher;
 import dev.starryeye.session.jpa.OidcSessionEntityRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,10 +24,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class SessionControllerTest {
 
+	// 주의. 이 클래스도 SessionServiceTest 와 같은 이유로 LogoutEventPublisher 를 MockitoBean 으로 끊는다 —
+	//      logoutDispatchesToEveryClientOfThatSession 과 logoutOfUnknownSessionSucceedsWithoutDispatch 가
+	//      /internal/sessions/logout 을 거쳐 실제 SessionService.consumeForLogout 을 타므로, Kafka 브로커가
+	//      없으면 이 클래스도 producer 의 max.block.ms 만큼 멈췄다가 실패한다.
 	@Autowired MockMvc mockMvc;
 	@Autowired OidcSessionEntityRepository repository;
 	@Autowired SessionService sessionService;
 	@MockitoBean LogoutTokenSender logoutTokenSender;
+	@MockitoBean LogoutEventPublisher logoutEventPublisher;
 
 	@BeforeEach
 	void clean() {
