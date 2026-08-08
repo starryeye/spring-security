@@ -125,12 +125,183 @@ Expected: 라벨 목록에 `istio-injection=enabled` 가 보인다.
 - 반드시 `@sha256` 다이제스트까지 함께 지정한다 — kind 릴리즈 노트가 재현성을 위해 태그만이 아니라
   다이제스트 고정을 명시적으로 권장한다.
 
+## 아키텍처 — 누가 어떤 SA 를 갖고 무엇을 부를 수 있는가
+
+```mermaid
+flowchart LR
+    subgraph identities["신원 검증용 caller 파드 (curl, sleep infinity)"]
+        callerToken["caller-token<br/>SA: token"]
+        callerAuth["caller-auth<br/>SA: auth (실체 없음, SA 만 빌림)"]
+        noMesh["no-mesh<br/>사이드카 미주입<br/>(sidecar.istio.io/inject: false)"]
+    end
+
+    subgraph mesh["microservice-as 네임스페이스 (PeerAuthentication STRICT)"]
+        token["token :8082<br/>SA: token"]
+        signing["signing :8083<br/>SA: signing"]
+        clientreg["client-registry :8085<br/>SA: client-registry"]
+        mysql[("mysql :3306<br/>SA 지정 없음(default)")]
+    end
+
+    callerToken -- "GET /oauth2/jwks 200<br/>POST /internal/sign 200" --> signing
+    callerToken -- "GET /internal/clients/* 200" --> clientreg
+    callerAuth -- "GET /oauth2/jwks 200" --> signing
+    callerAuth -. "POST /internal/sign 403<br/>RBAC: access denied" .-> signing
+    callerAuth -- "GET /internal/clients/* 200" --> clientreg
+    noMesh -. "mTLS STRICT 로 연결 자체가 안 됨 (exit 56)" .-> signing
+    token -- "GET /oauth2/jwks 200 (실제 코드 경로: jwks 프록시)" --> signing
+    clientreg --> mysql
+```
+
+**주의.** `caller-auth` 는 실제 `auth` 서비스가 아니다 — `auth` 서비스 자체는 이 트랙에 배포하지
+않는다(Redis·user-directory·consent·session 이 더 필요하다). `ServiceAccount: auth` 만 빌린 curl
+파드로, Istio 신원(SPIFFE `cluster.local/ns/microservice-as/sa/auth`)은 파드가 무엇을 실행하느냐가
+아니라 어떤 SA 로 뜨느냐에서 나온다는 것을 보이기 위한 것이다.
+
+## 인가 표
+
+| 호출자 (SA) | 대상 | 기대 | 근거 |
+|---|---|---|---|
+| `token` | `signing GET /oauth2/jwks` | 200 | `AuthorizationPolicy/signing` 두 번째 rule: `token`·`auth` 모두 허용 |
+| `token` | `signing POST /internal/sign` | 200 | 같은 정책 첫 번째 rule: `token` 만 허용 |
+| `auth` | `signing GET /oauth2/jwks` | 200 | 두 번째 rule에 `auth` 포함 |
+| `auth` | `signing POST /internal/sign` | **403** `RBAC: access denied` | 첫 번째 rule에 `auth` 없음 — 개인키 보유자(signing)에게 브라우저를 마주보는 신원이 무제한 접근권을 갖지 않도록 서명 엔드포인트만 `token` 으로 좁혔다 |
+| `token`, `auth` | `client-registry GET /internal/clients/*` | 200 | `AuthorizationPolicy/client-registry` 가 둘 다 허용 |
+| (사이드카 없음) | `signing` 아무 경로 | **연결 자체 실패** (`000`, curl exit 56) | `PeerAuthentication` STRICT — mTLS 자체가 성립하지 않아 `AuthorizationPolicy` 판정 이전에 막힌다 |
+| `token` (실제 배포 코드) | `signing GET /oauth2/jwks` (`token:8082/oauth2/jwks` 프록시) | 200 | `token` 서비스가 실제로 구현한 jwks 프록시 경로 — caller 파드가 아니라 배포된 `token` 파드 자신이 호출자다 |
+
+## `verify.sh` 사용법
+
+클러스터가 떠 있고 `base/`·`istio/` 매니페스트가 전부 `apply` 된 상태에서 실행한다.
+
+```bash
+cd oauth-2/authorization-server/practice/microservice/k8s
+./verify.sh
+```
+
+`[0]` 은 검사 전에 핵심 거부(`caller-auth` → `signing /internal/sign`)가 403 으로 수렴할 때까지
+최대 60초 기다린다(아래 "xDS 전파 지연" 참고). 9개 기준을 전부 돌린 뒤 `PASS=<n> FAIL=<n>` 을
+마지막 줄에 낸다. 종료 코드는 `FAIL=0` 이면 0, 아니면 1(`[ "$FAIL" -eq 0 ]`).
+
+### 실행 결과 (raw 출력)
+
+```
+[0] 정책 전파 대기 (최대 60초)
+  전파 완료: 1회차 (약 2초)
+[1] 파드 상태
+NAME                               READY   STATUS    RESTARTS   AGE
+caller-auth                        2/2     Running   0          157m
+caller-token                       2/2     Running   0          157m
+client-registry-5847f68867-9tvvr   2/2     Running   0          171m
+mysql-7d858c949d-szmgf             2/2     Running   0          172m
+no-mesh                            1/1     Running   0          157m
+signing-59f5c7b7b8-c9bb9           2/2     Running   0          164m
+token-7bdb849678-skgfm             2/2     Running   0          164m
+caller-auth true
+caller-token true
+client-registry-5847f68867-9tvvr true
+mysql-7d858c949d-szmgf true
+no-mesh true
+signing-59f5c7b7b8-c9bb9 true
+token-7bdb849678-skgfm true
+[2] caller-token -> signing /oauth2/jwks
+  PASS  token 신원은 jwks 를 읽는다  (200)
+[3] caller-token -> signing /internal/sign
+  PASS  token 신원은 서명할 수 있다  (200)
+[4] caller-auth -> signing /oauth2/jwks
+  PASS  auth 신원은 jwks 를 읽는다  (200)
+[5] caller-auth -> signing /internal/sign  <= 핵심
+  PASS  auth 신원은 서명할 수 없다  (403)
+  본문: RBAC: access denied
+  PASS  거부가 Istio 에서 왔다  (RBAC: access denied)
+[6] caller-token -> client-registry
+  PASS  token 신원은 client 를 읽는다  (200)
+[7] caller-auth -> client-registry
+  PASS  auth 신원도 client 를 읽는다  (200)
+[8] no-mesh -> signing (mTLS 강제)
+command terminated with exit code 56
+  PASS  사이드카 없는 파드는 닿지 못한다  (000)
+[9] 실제 코드 경로: token -> signing 프록시
+  PASS  token 의 jwks 프록시가 동작한다  (200)
+
+PASS=9 FAIL=0
+```
+
+`[1]` 의 두 번째 출력(파드 이름 + `true`/`false` 목록)은 `containerStatuses[*].ready` 를 이어붙인
+것이다 — 사이드카를 포함한 **모든** 컨테이너가 ready 여야 그 파드 이름 뒤에 `true` 하나만 남는다
+(예: `2/2` 파드는 `true true` 가 아니라 각 컨테이너 ready 값이 공백으로 이어져 나온다는 뜻이며,
+하나라도 `false` 가 섞이면 그 파드는 아직 준비되지 않은 것이다). `no-mesh` 는 컨테이너가 하나뿐이라
+`true` 하나만 나온다 — `1/1` 이 정상이다.
+
+## native sidecar — Istio 1.30.3
+
+Istio 1.30.3 은 kubernetes native sidecar 를 쓴다. `istio-proxy` 컨테이너가
+`spec.containers` 가 아니라 **`spec.initContainers`** 에 `restartPolicy: Always` 를 달고
+들어간다(k8s 1.28+ 의 native sidecar 기능). 실제 확인:
+
+```bash
+kubectl get pod -n microservice-as <파드> -o jsonpath='{.spec.initContainers[*].name}'
+# istio-init istio-proxy
+kubectl get pod -n microservice-as <파드> -o jsonpath='{.spec.containers[*].name}'
+# signing        (istio-proxy 가 안 보인다 — containers 만 보면 사이드카가 없는 것처럼 보인다)
+```
+
+**주의.** 사이드카 주입 여부를 `kubectl get pod -o jsonpath='{.spec.containers[*].name}'` 로만
+확인하면 안 된다 — `istio-proxy` 는 `initContainers` 에 있다. 다만 `kubectl get pods` 의 `READY`
+집계(`containerStatuses` 전체)에는 `restartPolicy: Always` 인 init 컨테이너도 포함되므로, 정상
+주입 시 애플리케이션 파드는 여전히 `2/2` 로 보인다 — `READY` 열만 보면 사이드카가 어느 스펙 필드에
+있는지는 몰라도 "떠 있다"는 사실은 정확히 알 수 있다.
+
+## xDS 전파 지연
+
+`AuthorizationPolicy`/`PeerAuthentication` 을 `kubectl apply` 한 직후에는 istiod 가 그 변경을
+각 사이드카(Envoy)에 xDS 로 전파하는 데 시간이 걸린다. 이 kind 클러스터에서는 그 창이 실측
+10초를 넘긴 적이 있다. 그 창 안에서 검사하면 정책 자체는 멀쩡한데도 **거부돼야 할 호출이 잠깐
+200 을 내** FAIL 이 난다.
+
+`verify.sh` 의 `[0]` 단계가 이 문제를 다룬다 — 실제 검사를 시작하기 전에 핵심 거부 케이스
+(`caller-auth` → `signing /internal/sign`)가 403 으로 수렴할 때까지 최대 60초(2초 간격 30회)
+기다린다. 제한 시간 안에 수렴하면 그 즉시 검사로 넘어가고, 수렴하지 않으면 경고를 남기고
+그대로 검사에 들어간다 — **전파 지연과 실제 정책 결함을 구분하되, 결함을 대기로 덮어 감추지는
+않는다.** 이 단계를 스크립트에서 빼면 정책을 막 적용한 직후 실행할 때 가짜 FAIL 이 섞여
+"9개 기준이 실제로 성립하는지"를 판별할 수 없게 된다.
+
+## `AuthorizationPolicy` 를 걸지 않은 서비스는 기본 허용이다
+
+`istio/` 아래에는 `authz-signing.yaml`·`authz-client-registry.yaml` 두 `AuthorizationPolicy` 만
+있다. **`token` 과 `mysql` 은 어떤 `AuthorizationPolicy` 의 `selector` 에도 걸리지 않는다.**
+
+Istio 의 규칙: 어떤 워크로드를 선택하는 `AuthorizationPolicy` 가 **하나도 없으면** 그 워크로드는
+(mTLS 인증만 통과하면) 기본적으로 **모든 호출을 허용**한다. `ALLOW` 액션의 정책이 하나라도 그
+워크로드를 선택하는 순간부터는 그 정책들이 명시적으로 허용한 것 외에는 전부 거부로 바뀐다(화이트
+리스트 전환). 즉:
+
+- `signing`·`client-registry` — 정책이 걸려 있으므로 **명시적으로 허용한 (신원, 메서드, 경로)만**
+  통과한다(위 인가 표).
+- `token`·`mysql` — 정책이 없으므로 메시 안의 어떤 신원이든(사이드카만 있으면) 자유롭게 호출할 수
+  있다. `token` 이 이 트랙에서 보호 대상이 아닌 것은 의도가 아니라 이 슬라이스가 signing/
+  client-registry 두 서비스만 골라 인가 표를 증명했기 때문이다 — 확장하려면 같은 패턴
+  (`AuthorizationPolicy` + `selector: {matchLabels: {app: token}}`)을 `token`/`mysql` 에도
+  반복하면 된다.
+
+## 진단표
+
+| 증상 | 원인 | 확인 |
+|---|---|---|
+| 파드가 `READY 1/1` (기대 `2/2`) | 네임스페이스에 `istio-injection=enabled` 라벨이 없어 사이드카가 주입되지 않음 | `kubectl get ns microservice-as --show-labels` |
+| `ErrImageNeverPull` | 로컬 빌드 이미지가 kind 노드에 없음 — `kind load docker-image` 를 안 했거나 다른 클러스터/컨텍스트에 떠 있음 | `kubectl describe pod <파드> -n microservice-as` 의 Events, `docker exec <노드> crictl images` |
+| MySQL 연결 실패 (client-registry 가 기동 중 죽거나 재시작 반복) | MySQL Service 포트 이름이 `tcp-` 로 시작하지 않아 Istio 가 HTTP 로 오인해 프로토콜 협상이 깨짐, 또는 mysql 파드가 아직 `Running` 이 아닌데 client-registry 가 먼저 뜸 | `kubectl logs -n microservice-as <client-registry 파드>`, `kubectl get svc mysql -n microservice-as -o yaml` 에서 포트 이름 확인 |
+| 모든 호출이 403 | `AuthorizationPolicy` 의 `principals` 문자열 오타(`cluster.local/ns/<ns>/sa/<sa>` 형식 불일치) 또는 caller 파드의 `serviceAccountName` 이 기대와 다름 | `kubectl exec <caller> -- curl -v ...` 의 응답 헤더, `kubectl get pod <caller> -o jsonpath='{.spec.serviceAccountName}'` |
+| 정책이 안 먹힘 (거부돼야 할 호출이 계속 200) | (1) 아직 xDS 전파 중(위 "xDS 전파 지연" 참고, 몇 초~수십 초 기다려본다) 또는 (2) `AuthorizationPolicy` 의 `selector.matchLabels` 가 대상 파드 라벨과 안 맞아 정책 자체가 그 워크로드에 걸리지 않음(이 경우 기본 허용으로 빠진다 — 위 "기본 허용" 절 참고) | `kubectl get authorizationpolicy -n microservice-as -o yaml`, 대상 파드의 `labels` 와 정책의 `selector` 비교 |
+
 ## 정리(clean up)
 
 ```bash
 kind delete cluster --name microservice-as
+kubectl config use-context docker-desktop
+kubectl config current-context
 ```
 
 클러스터를 통째로 지운다. `istio-system` 네임스페이스나 `microservice-as` 네임스페이스를 따로
 지울 필요 없이 이 한 줄로 전체가 사라진다. 기존 `docker-desktop` 컨텍스트/클러스터에는 영향이
-없다.
+없다. `kind delete cluster` 는 kubeconfig 의 현재 컨텍스트를 자동으로 되돌려주지 않으므로,
+마지막 줄에서 `docker-desktop` 으로 명시적으로 돌아왔는지 `current-context` 로 확인한다.

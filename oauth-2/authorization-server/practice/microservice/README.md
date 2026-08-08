@@ -826,7 +826,11 @@ admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네
 ## 알려진 한계 / 추후 개선
 
 - **프록시 헤더(ForwardedHeaderFilter) 미적용** — auth 의 로그인 redirect Location 이 게이트웨이 포트(:9000)를 잃고 `http://localhost/...` 로 나온다. curl e2e 는 절대 URL 로 우회해 통과하지만, 실제 브라우저 flow 는 auth 에 ForwardedHeaderFilter 를 추가해 X-Forwarded-Host(포트 포함)를 반영해야 한다. (production-ready-authorization-server 의 방식 참고)
-- **내부 REST 호출 무인증** — /internal/* 은 gateway 라우팅에서만 제외될 뿐 네트워크로 접근 가능하면 무방비다. 서비스 간 인증(API 키/mTLS)이 추후 개선 1순위.
+- **내부 REST 호출 무인증** — /internal/* 은 gateway 라우팅에서만 제외될 뿐 네트워크로 접근 가능하면 무방비다. 서비스 간 인증(API 키/mTLS)이 추후 개선 1순위. k8s 트랙(`k8s/README.md`)에서는 Istio 가 mTLS + `AuthorizationPolicy` 로 이 구멍을 닫는다 — 단 그 트랙에서만이다. 아래 슬라이스 6 항목들이 그 경계를 구체적으로 짚는다.
+- **정책이 클러스터에만 산다 (슬라이스 6)** — Istio `AuthorizationPolicy`/`PeerAuthentication` 은 `k8s/` 매니페스트로만 존재하고 Spring 코드에는 없다. 같은 jar 를 `java -jar` 로 띄우면(위 "기동 방법") 이 절의 인가는 전혀 적용되지 않는다 — 같은 코드인데 배포 방식에 따라 보호 수준이 다르다.
+- **10개 서비스 중 3개만 k8s 에 올랐다 (슬라이스 6)** — `k8s/` 는 mysql · client-registry · signing · token 만 매니페스트로 갖는다(+ 신원 검증용 caller 파드들). 나머지 6개(auth·user-directory·consent·token-state·session·demo-rp, gateway 포함)는 매니페스트가 없다. 확장은 이미 있는 서비스와 같은 패턴(Deployment + Service + ServiceAccount, 필요하면 `AuthorizationPolicy`)의 반복이라 새 설계가 필요하지 않다.
+- **OAuth 흐름 자체가 클러스터에서 돌지 않는다 (슬라이스 6)** — k8s 트랙은 `AuthorizationPolicy` 가 caller 신원별로 올바르게 걸러내는지(mTLS + RBAC)만 `verify.sh` 로 증명한다. authorization code 발급이나 토큰 교환 같은 실제 OAuth/OIDC flow 는 이 트랙에서 실행되지 않는다 — 그 flow 는 여전히 `java -jar` 트랙(`http/`)의 몫이다.
+- **인증서 회전을 검증하지 않는다 (슬라이스 6)** — Istio mesh 는 워크로드 인증서를 자동으로 발급·회전하지만, 이 슬라이스는 회전이 실제로 일어나는지, 회전 중에도 mTLS 연결이 끊기지 않는지를 확인하지 않는다. `verify.sh` 는 특정 시점의 스냅샷만 본다.
 - **jwks 캐시 부재는 성능이 아니라 가용성 한계다** — `AccessTokenVerifier` 가 access token 검증마다 signing 의 `/oauth2/jwks` 를 호출한다(캐시 없음). 부하가 signing 에 집중되는 것도 문제지만, 더 큰 문제는 **signing 이 죽으면 `/userinfo` 가 통째로 500 `server_error` 가 된다**는 점이다. 슬라이스 1 의 graceful degradation("이미 발급된 JWT 는 캐시된 공개키로 계속 검증된다")은 jwks 를 캐시하는 외부 검증자에게만 성립하고 이 서버의 `/userinfo` 에는 성립하지 않는다. jwks 를 kid 기준으로 캐시(TTL)하면 성능과 가용성이 함께 해결된다. 다음 개선.
   - 주의. 이때 500 대신 401 `invalid_token` 을 주면 안 된다. RP 는 그것을 "토큰이 죽었다"로 읽고 멀쩡한 토큰을 폐기한 뒤 재인증을 돌리므로, signing 장애 한 번이 전 RP 의 동시 재인증 폭풍으로 증폭된다. 그래서 `AccessTokenVerifier` 는 "키 확보 실패"와 "토큰 무효"를 다른 예외로 갈라 던진다.
 - **`auth_time` 이 로그인 시각이 아니다** — id token 의 `auth_time` 은 `AuthorizeController` 가 authorize 요청을 처리한 시각(`Instant.now()`)이며, 실제 `POST /login` 이 성공한 시각이 아니다. 세션에 로그인 시각을 저장해두지 않기 때문. 표준의 `auth_time` 은 최종 인증 시각이므로 RP 가 `max_age` 로 재인증을 강제할 때 이 값으로는 판단할 수 없다. SSO 재사용 시나리오(로그인은 예전에 했고 이번엔 세션만 재사용)에서 `auth_time` 이 매 authorize 마다 갱신되는 것으로 보인다.
@@ -869,3 +873,5 @@ admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네
 - 슬라이스 4(client 능력 scope · client_credentials) 구현 계획: [docs/superpowers/plans/2026-07-28-microservice-client-credentials-slice4.md](../../../../docs/superpowers/plans/2026-07-28-microservice-client-credentials-slice4.md)
 - 슬라이스 5(back-channel logout) 설계: [docs/superpowers/specs/2026-08-03-microservice-backchannel-logout-slice5-design.md](../../../../docs/superpowers/specs/2026-08-03-microservice-backchannel-logout-slice5-design.md)
 - 슬라이스 5(back-channel logout) 구현 계획: [docs/superpowers/plans/2026-08-03-microservice-backchannel-logout-slice5.md](../../../../docs/superpowers/plans/2026-08-03-microservice-backchannel-logout-slice5.md)
+- 슬라이스 6(Istio mTLS) 설계: [docs/superpowers/specs/2026-08-07-microservice-istio-mtls-slice6-design.md](../../../../docs/superpowers/specs/2026-08-07-microservice-istio-mtls-slice6-design.md)
+- 슬라이스 6(Istio mTLS) 구현 계획: [docs/superpowers/plans/2026-08-07-microservice-istio-mtls-slice6.md](../../../../docs/superpowers/plans/2026-08-07-microservice-istio-mtls-slice6.md)
