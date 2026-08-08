@@ -1,0 +1,20 @@
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: client-registry
+  namespace: microservice-as
+spec:
+  selector:
+    matchLabels:
+      app: client-registry
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/microservice-as/sa/token"
+              - "cluster.local/ns/microservice-as/sa/auth"
+      to:
+        - operation:
+            methods: ["GET"]
+            paths: ["/internal/clients/*"]

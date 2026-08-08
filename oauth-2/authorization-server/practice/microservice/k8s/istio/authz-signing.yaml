@@ -1,0 +1,32 @@
+# signing 에는 엔드포인트가 둘 있고 허용 집합이 다르다.
+#   POST /internal/sign  — 서명. token 만 부른다.
+#   GET  /oauth2/jwks    — 공개키. token 과 auth 가 읽는다.
+# auth 는 공개키는 읽지만 서명은 하지 않는다. 브라우저를 마주보는 서비스가
+# 개인키 보유자에게 무제한 접근권을 갖지 않게 하는 것이 signing 을 따로 뗀 이유다.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: signing
+  namespace: microservice-as
+spec:
+  selector:
+    matchLabels:
+      app: signing
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals: ["cluster.local/ns/microservice-as/sa/token"]
+      to:
+        - operation:
+            methods: ["POST"]
+            paths: ["/internal/sign"]
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/microservice-as/sa/token"
+              - "cluster.local/ns/microservice-as/sa/auth"
+      to:
+        - operation:
+            methods: ["GET"]
+            paths: ["/oauth2/jwks"]
