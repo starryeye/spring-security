@@ -76,6 +76,21 @@ kind 를 쓰면 `kind load docker-image <img> --name <cluster>` 한 줄로 끝�
 
 **주의.** kind 노드 이미지 버전을 **Istio 지원 매트릭스에서 확인해 고정**한다. 최신 k8s 가 설치할 Istio 의 지원 범위 밖일 수 있다. 버전을 추측해 박아두지 않는다.
 
+### 실제로 고른 버전
+
+| 항목 | 값 |
+|---|---|
+| Homebrew `kind` | 0.32.0 |
+| Homebrew `istioctl` / Istio | 1.30.3 |
+| kind 노드 이미지 | `kindest/node:v1.34.8@sha256:02722c2dedddcfc00febf5d27fbeb9b7b2c14294c82109ff4a85d89ac9ba3256` |
+
+**근거.**
+
+- `istioctl version --remote=false` 로 확인한 Istio 버전은 `1.30.3` 이고, Istio 공식 지원 릴리즈 표(1.30 행)에 따르면 이 버전이 공식 지원하는 k8s 버전은 **1.32, 1.33, 1.34, 1.35, 1.36** 이다(1.27~1.31 은 "tested, but not supported"). Docker Desktop 의 k8s(v1.34.3)를 그대로 쓰지 않고 독립적으로 이 표를 확인한다.
+- kind `v0.32.0` 릴리즈가 사전 빌드해 제공하는 노드 이미지는 `v1.36.1`, `v1.35.5`, `v1.34.8`, `v1.33.12` 네 가지이며, 넷 다 Istio 1.30.3 의 공식 지원 범위(1.32~1.36) 안에 든다.
+- 이 중 `v1.34.8` 을 선택한다. `v1.36.1`(kind 0.32.0 의 기본값)은 kubeadm 설정 포맷이 v1beta3 에서 v1beta4 로 바뀌는 첫 릴리즈(k8s 1.36.0+)라서, 처음 부트스트랩하는 클러스터에서 불필요한 리스크를 지지 않는다. `v1.34.8` 은 기존 v1beta3 포맷을 그대로 쓰는 마지막 라인 중 하나이면서 Istio 1.30.3 지원 범위의 중간에 위치해 안정적이다.
+- 반드시 `@sha256` 다이제스트까지 함께 지정한다 — kind 릴리즈 노트가 재현성을 위해 태그만이 아니라 다이제스트 고정을 명시적으로 권장한다. 다이제스트까지 고정하는 것은 노드 이미지뿐이다 — 워크로드 이미지(`curlimages/curl`, `mysql`)는 이 트랙이 부르는 API 표면이 좁아 버전 변화의 영향이 작으므로 태그만 쓴다(자세한 근거는 `k8s/README.md` 참고).
+
 ---
 
 ## 3. 신원과 정책
@@ -85,6 +100,10 @@ kind 를 쓰면 `kind load docker-image <img> --name <cluster>` 한 줄로 끝�
 ### 핵심 데모 — signing 하나로 다 나온다
 
 signing 에는 엔드포인트가 둘 있다. `/internal/sign`(서명)과 `/oauth2/jwks`(공개키). **auth 는 jwks 는 읽지만 서명은 하지 않는다.**
+
+**실제 소스 코드 기준 호출자 집합은 이 트랙에 배포한 것보다 넓다.** `POST /internal/sign` 은 `token` 뿐 아니라 `session` 도 부른다(`session/src/main/java/dev/starryeye/session/client/SigningClient.java`, `LogoutTokenDelivery.java` — 슬라이스 5 의 back-channel logout 에서 logout token 을 서명하는 실제 경로다, 죽은 코드가 아니다). `GET /internal/clients/*`(client-registry)도 `token`·`auth`·`session` 셋이 부른다. `session` 서비스 자체를 이 트랙에 배포하지 않으므로(위 "무엇을 클러스터에 올리나" 참고) `AuthorizationPolicy` 의 `principals` 에는 `sa/session` 을 넣지 않는다 — 이것은 "session 이 그 엔드포인트를 안 부른다"는 사실 진술이 아니라 이 트랙의 배포 범위를 반영한 것이다.
+
+**주의.** 이 슬라이스를 확장해 `session` 을 클러스터에 올린다면 `authz-signing.yaml` 의 `/internal/sign` rule 과 `authz-client-registry.yaml` 의 rule 양쪽 `principals` 에 `cluster.local/ns/microservice-as/sa/session` 을 반드시 추가해야 한다. 추가하지 않으면 두 정책은 여전히 `token`/`auth` 만 허용하는 화이트리스트이므로, 실제 배포 코드(`session` 의 back-channel logout 경로)가 403 으로 조용히 막힌다.
 
 | | `GET /oauth2/jwks` | `POST /internal/sign` |
 |---|:--:|:--:|
@@ -182,12 +201,16 @@ ENTRYPOINT ["java", "-jar", "/app.jar"]
 
 **health probe 는 지금 문제가 되지 않는다.** 이 서비스들에 actuator 가 없어 probe 를 설정하지 않는다. 나중에 넣는다면 kubelet 은 mesh 밖에서 오므로 Istio 의 probe rewrite 가 필요하다.
 
+**native sidecar — Istio 1.30.3 은 `istio-proxy` 를 `spec.containers` 가 아니라 `spec.initContainers` 에 `restartPolicy: Always` 로 넣는다**(k8s 1.28+ 의 native sidecar 기능). `kubectl get pod -o jsonpath='{.spec.containers[*].name}'` 로만 확인하면 애플리케이션 컨테이너 이름만 보이고 `istio-proxy` 는 안 보인다 — 사이드카가 없는 것으로 오인하기 쉽다. `kubectl get pods` 의 `READY` 열은 `restartPolicy: Always` 인 init 컨테이너도 집계에 포함하므로, 정상 주입된 애플리케이션 파드는 여전히 `2/2` 로 보인다 — `READY` 만 보면 "떠 있다"는 사실은 정확히 알 수 있지만, 사이드카가 어느 스펙 필드에 들었는지는 `initContainers` 를 따로 확인해야 한다.
+
+**xDS 전파 지연 — 정책 apply 직후 단발 검사는 불안정하다.** `AuthorizationPolicy`/`PeerAuthentication` 을 `kubectl apply` 한 직후 istiod 가 그 변경을 각 사이드카(Envoy)에 xDS 로 전파하는 데 시간이 걸린다. 이 kind 클러스터에서는 그 창이 실측 10초를 넘긴 적이 있다 — `sleep 10` 으로 부족한 경우가 있었다는 뜻이다. 그 창 안에서 검사하면 정책 자체는 멀쩡한데도 거부돼야 할 호출이 잠깐 200 을 내 거짓 FAIL 이 난다. `verify.sh` 는 실제 검사를 시작하기 전에 핵심 거부 케이스(`caller-auth` → `signing /internal/sign`)가 403 으로 수렴할 때까지 최대 60초(2초 간격) 대기하는 단계를 따로 둔다 — 고정된 `sleep` 한 번으로는 전파 완료를 보장할 수 없고, 폴링으로 실제 수렴을 확인해야 전파 지연과 정책 결함을 구분할 수 있다.
+
 ### 진단표
 
 | 증상 | 원인 | 확인 |
 |---|---|---|
 | `READY 1/1` | 네임스페이스에 `istio-injection=enabled` 라벨 누락 | `kubectl get ns --show-labels` |
-| `ErrImageNeverPull` | 노드에 이미지 미적재 | `kind load docker-image` + `imagePullPolicy: IfNotPresent` |
+| `ErrImagePull` / `ImagePullBackOff` | 노드에 이미지 미적재 — 모든 Deployment 가 `imagePullPolicy: IfNotPresent` 라 노드에 이미지가 없으면 이 증상이 난다(`ErrImageNeverPull` 은 `imagePullPolicy: Never` 일 때만 나는 별개 증상이다 — 위 §2 의 Docker Desktop 실험이 그 경우다) | `kind load docker-image` 로 노드에 적재됐는지 `docker exec <노드> crictl images` 로 확인 |
 | client-registry `CrashLoopBackOff` | MySQL 미기동 또는 포트 이름 미지정 | 로그 + Service 포트 이름 |
 | 전부 403 | ALLOW 정책이 deny-by-default 를 켰는데 규칙이 좁음 | `istioctl x authz check <pod>` |
 | 정책 미적용 | `selector.matchLabels` 오타 | 같은 명령 |

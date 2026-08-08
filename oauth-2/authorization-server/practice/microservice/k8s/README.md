@@ -49,7 +49,8 @@ istioctl version --remote=false
 설치된 Istio 버전에 대해 [Istio Supported Releases](https://istio.io/latest/docs/releases/supported-releases/)
 에서 공식 지원 k8s 범위를 확인하고, 그 범위 안에서 `kindest/node` 이미지 태그를 고른다. **Docker
 Desktop 의 k8s 버전을 그대로 따라가지 않는다** — 최신이라는 이유만으로는 Istio 의 지원 범위 안에
-있다는 보장이 없다.
+있다는 보장이 없다. 실제로 채택한 값과 그 근거는 아래 "이번에 고른 버전과 근거" 참고 —
+다음 Step 의 `<NODE_IMAGE>` 자리에 그 값을 넣는다.
 
 ### Step 3: kind 클러스터 생성
 
@@ -102,6 +103,97 @@ Expected: 라벨 목록에 `istio-injection=enabled` 가 보인다.
 않는다. 사이드카가 없으면 mTLS 도 `AuthorizationPolicy` 도 전부 무력화된다 — mesh 가 트래픽을 보지
 못하기 때문이다. 파드가 (`2/2` 가 아니라) `READY 1/1` 로 뜨면 이 라벨이 빠졌는지부터 의심한다.
 
+### Step 6: jar 빌드
+
+각 서비스 디렉터리에서 실행한다.
+
+```bash
+cd oauth-2/authorization-server/practice/microservice
+for s in signing client-registry token; do
+  (cd $s && ./gradlew bootJar --no-daemon -x test)
+done
+ls */build/libs/*-SNAPSHOT.jar
+```
+
+Expected: `signing-0.0.1-SNAPSHOT.jar` · `client-registry-0.0.1-SNAPSHOT.jar` ·
+`token-0.0.1-SNAPSHOT.jar` 세 jar 이 보인다.
+
+**주의.** `./gradlew` 가 exit 137(SIGKILL)로 죽으면 메모리 부족이 원인이다. 우회 경로:
+`java -cp gradle/wrapper/gradle-wrapper.jar org.gradle.wrapper.GradleWrapperMain bootJar --no-daemon -x test`.
+
+### Step 7: 이미지 빌드와 kind 노드 적재
+
+빌드 컨텍스트가 microservice 루트여야 `--build-arg JAR=...` 의 상대 경로가 맞는다.
+
+```bash
+cd oauth-2/authorization-server/practice/microservice
+for s in signing client-registry token; do
+  docker build -f k8s/Dockerfile \
+    --build-arg JAR="$s/build/libs/${s}-0.0.1-SNAPSHOT.jar" \
+    -t "${s}:local" .
+done
+docker images | grep -E '^(signing|client-registry|token) '
+
+docker pull curlimages/curl:latest
+for img in signing:local client-registry:local token:local curlimages/curl:latest; do
+  kind load docker-image "$img" --name microservice-as
+done
+docker exec microservice-as-control-plane crictl images | grep -E 'signing|client-registry|token|curl'
+```
+
+Expected: 세 로컬 이미지가 `docker images` 에 보이고, 네 이미지(로컬 셋 + `curlimages/curl`)가
+전부 kind 노드의 containerd 스토어에 있다.
+
+**주의.** zsh 에서 `$변수:접미사` 형태는 `:` 뒤 글자를 파라미터 모디파이어로 해석한다.
+예를 들어 `$s:local` 은 `:l`(소문자 변환) 모디파이어로 읽히고 남은 `ocal` 이 그대로 뒤에
+붙어 엉뚱한 문자열(`$s=signing` 이면 `signingocal`)이 나온다 — 실측된 동작이다. 이미지
+태그처럼 변수 뒤에 `:` 가 오는 문자열을 조립할 때는 `${s}:local` 로 변수를 중괄호로 감싸
+모디파이어 해석 자체를 막아야 한다. `for img in signing:local ...` 처럼 루프 변수 자체가
+이미 완성된 리터럴 문자열(변수 확장이 아님)인 경우는 이 문제가 없다 — 문제는 오직
+`$변수` 바로 뒤에 `:` 가 붙어 **그 자리에서 확장**될 때다.
+
+### Step 8: MySQL · client-registry · signing · token 배포
+
+```bash
+cd oauth-2/authorization-server/practice/microservice
+kubectl apply -f k8s/base/mysql.yaml
+kubectl wait --for=condition=available --timeout=180s deploy/mysql -n microservice-as
+kubectl apply -f k8s/base/client-registry.yaml
+kubectl wait --for=condition=available --timeout=180s deploy/client-registry -n microservice-as
+kubectl apply -f k8s/base/signing.yaml -f k8s/base/token.yaml
+kubectl wait --for=condition=available --timeout=180s deploy/signing deploy/token -n microservice-as
+kubectl get pods -n microservice-as
+```
+
+Expected: `mysql`·`client-registry`·`signing`·`token` 네 파드 전부 `READY 2/2`.
+
+**주의.** client-registry 가 기동 중 죽거나 재시작을 반복하면 MySQL 연결 실패다. 아래
+"진단표" 참고.
+
+### Step 9: 호출자 파드와 mTLS 강제(STRICT)
+
+```bash
+cd oauth-2/authorization-server/practice/microservice
+kubectl apply -f k8s/base/callers.yaml
+kubectl wait --for=condition=ready --timeout=120s pod/caller-token pod/caller-auth pod/no-mesh -n microservice-as
+kubectl apply -f k8s/istio/peer-authentication.yaml
+sleep 10
+```
+
+Expected: `caller-token`·`caller-auth` 는 `READY 2/2`, `no-mesh` 는 `READY 1/1`(사이드카를
+일부러 안 넣은 파드라 컨테이너가 하나뿐이다).
+
+### Step 10: `AuthorizationPolicy` 적용
+
+```bash
+cd oauth-2/authorization-server/practice/microservice
+kubectl apply -f k8s/istio/authz-signing.yaml -f k8s/istio/authz-client-registry.yaml
+sleep 10
+```
+
+여기까지 마치면 클러스터가 `verify.sh` 를 돌릴 수 있는 상태다(아래 "`verify.sh` 사용법"
+참고).
+
 ## 이번에 고른 버전과 근거
 
 | 항목 | 값 |
@@ -124,6 +216,14 @@ Expected: 라벨 목록에 `istio-injection=enabled` 가 보인다.
   하나이면서 Istio 1.30.3 지원 범위의 중간에 위치해 안정적이다.
 - 반드시 `@sha256` 다이제스트까지 함께 지정한다 — kind 릴리즈 노트가 재현성을 위해 태그만이 아니라
   다이제스트 고정을 명시적으로 권장한다.
+
+**주의.** 다이제스트까지 고정하는 것은 **kind 노드 이미지뿐**이다(`base/callers.yaml` 의
+`curlimages/curl:latest`, `base/mysql.yaml` 의 `mysql:8` 은 태그만 쓴다). 노드 이미지는
+클러스터의 k8s API 버전을 그대로 결정하고 그 버전이 Istio 호환 범위 안에 있는지가 이
+트랙의 핵심 전제라, 버전이 조용히 바뀌면(같은 태그가 다른 다이제스트를 가리키게 되는 경우
+포함) Istio 설치 자체가 깨질 수 있다. 반면 `curl`·`mysql` 은 이 학습 트랙에서 호출하는
+API 표면(`curl`, MySQL 프로토콜)이 좁고 안정적이라 버전이 조금 달라져도 검증 시나리오에
+영향을 주지 않는다 — 그래서 이 둘은 다이제스트로 고정하지 않는다.
 
 ## 아키텍처 — 누가 어떤 SA 를 갖고 무엇을 부를 수 있는가
 
@@ -169,6 +269,8 @@ flowchart LR
 | (사이드카 없음) | `signing` 아무 경로 | **연결 자체 실패** (`000`, curl exit 56) | `PeerAuthentication` STRICT — mTLS 자체가 성립하지 않아 `AuthorizationPolicy` 판정 이전에 막힌다 |
 | `token` (실제 배포 코드) | `signing GET /oauth2/jwks` (`token:8082/oauth2/jwks` 프록시) | 200 | `token` 서비스가 실제로 구현한 jwks 프록시 경로 — caller 파드가 아니라 배포된 `token` 파드 자신이 호출자다 |
 
+**주의.** 위 표는 이 트랙에 배포된 `caller-token`/`caller-auth`/`token` 기준이다. **실제 소스 코드의 호출자 집합은 이보다 넓다** — `signing POST /internal/sign` 은 `token` 과 `session` 이 부르고(`session/src/main/java/dev/starryeye/session/client/SigningClient.java`, `LogoutTokenDelivery.java` — 슬라이스 5 의 back-channel logout 경로), `client-registry GET /internal/clients/*` 는 `token`·`auth`·`session` 셋이 부른다. `session` 서비스 자체를 이 트랙에 배포하지 않았으므로(범위 밖) `AuthorizationPolicy/signing`·`AuthorizationPolicy/client-registry` 의 `principals` 에는 `sa/session` 이 없다 — 이것은 "session 이 안 부른다"는 사실 진술이 아니라 "이 트랙에 없다"는 범위 표시다. **이 트랙을 확장해 `session` 을 배포한다면 두 정책의 관련 `principals` 에 `cluster.local/ns/microservice-as/sa/session` 을 반드시 추가해야 한다** — 추가하지 않으면 실제 배포 코드(back-channel logout)가 403 으로 조용히 깨진다.
+
 ## `verify.sh` 사용법
 
 클러스터가 떠 있고 `base/`·`istio/` 매니페스트가 전부 `apply` 된 상태에서 실행한다.
@@ -179,8 +281,9 @@ cd oauth-2/authorization-server/practice/microservice/k8s
 ```
 
 `[0]` 은 검사 전에 핵심 거부(`caller-auth` → `signing /internal/sign`)가 403 으로 수렴할 때까지
-최대 60초 기다린다(아래 "xDS 전파 지연" 참고). 9개 기준을 전부 돌린 뒤 `PASS=<n> FAIL=<n>` 을
-마지막 줄에 낸다. 종료 코드는 `FAIL=0` 이면 0, 아니면 1(`[ "$FAIL" -eq 0 ]`).
+최대 60초 기다린다(아래 "xDS 전파 지연" 참고). 설계 문서(§5 검증)의 10개 기준(1~8, 8b, 9)을
+전부 돌린 뒤 `PASS=<n> FAIL=<n>` 을 마지막 줄에 낸다. 종료 코드는 `FAIL=0` 이면 0, 아니면
+1(`[ "$FAIL" -eq 0 ]`).
 
 ### 실행 결과 (raw 출력)
 
@@ -225,6 +328,12 @@ command terminated with exit code 56
 
 PASS=9 FAIL=0
 ```
+
+**주의.** 위 raw 출력은 이전 버전 `verify.sh`(클러스터가 떠 있던 시점)의 캡처다. 현재
+스크립트 본문(아래)은 `[1]` 이 `check()` 로 PASS/FAIL 을 직접 판정하고, 설계 §5 의 9번
+기준("git diff — Spring 소스 변경 0줄")을 별도 검사로 갖고 있어 위 출력과 형태가 다르다.
+클러스터가 삭제된 상태라 현재 스크립트로 새 raw 출력을 다시 캡처할 수는 없다 — 위 출력을
+"현재 스크립트의 실행 결과"로 읽지 않는다.
 
 `[1]` 의 두 번째 출력(파드 이름 + `true`/`false` 목록)은 `containerStatuses[*].ready` 를 이어붙인
 것이다 — 사이드카를 포함한 **모든** 컨테이너가 ready 여야 그 파드 이름 뒤에 `true` 하나만 남는다
@@ -288,7 +397,7 @@ Istio 의 규칙: 어떤 워크로드를 선택하는 `AuthorizationPolicy` 가 
 | 증상 | 원인 | 확인 |
 |---|---|---|
 | 파드가 `READY 1/1` (기대 `2/2`) | 네임스페이스에 `istio-injection=enabled` 라벨이 없어 사이드카가 주입되지 않음 | `kubectl get ns microservice-as --show-labels` |
-| `ErrImageNeverPull` | 로컬 빌드 이미지가 kind 노드에 없음 — `kind load docker-image` 를 안 했거나 다른 클러스터/컨텍스트에 떠 있음 | `kubectl describe pod <파드> -n microservice-as` 의 Events, `docker exec <노드> crictl images` |
+| `ErrImagePull` / `ImagePullBackOff` | 로컬 빌드 이미지가 kind 노드에 없음 — `kind load docker-image` 를 안 했거나 다른 클러스터/컨텍스트에 떠 있음. 모든 Deployment 가 `imagePullPolicy: IfNotPresent` 라 노드에 이미지가 없으면 이 증상이 난다(`ErrImageNeverPull` 은 `imagePullPolicy: Never` 일 때만 나는 별개 증상이다) | `kubectl describe pod <파드> -n microservice-as` 의 Events, `docker exec <노드> crictl images` |
 | MySQL 연결 실패 (client-registry 가 기동 중 죽거나 재시작 반복) | MySQL Service 포트 이름이 `tcp-` 로 시작하지 않아 Istio 가 HTTP 로 오인해 프로토콜 협상이 깨짐, 또는 mysql 파드가 아직 `Running` 이 아닌데 client-registry 가 먼저 뜸 | `kubectl logs -n microservice-as <client-registry 파드>`, `kubectl get svc mysql -n microservice-as -o yaml` 에서 포트 이름 확인 |
 | 모든 호출이 403 | `AuthorizationPolicy` 의 `principals` 문자열 오타(`cluster.local/ns/<ns>/sa/<sa>` 형식 불일치) 또는 caller 파드의 `serviceAccountName` 이 기대와 다름 | `kubectl exec <caller> -- curl -v ...` 의 응답 헤더, `kubectl get pod <caller> -o jsonpath='{.spec.serviceAccountName}'` |
 | 정책이 안 먹힘 (거부돼야 할 호출이 계속 200) | (1) 아직 xDS 전파 중(위 "xDS 전파 지연" 참고, 몇 초~수십 초 기다려본다) 또는 (2) `AuthorizationPolicy` 의 `selector.matchLabels` 가 대상 파드 라벨과 안 맞아 정책 자체가 그 워크로드에 걸리지 않음(이 경우 기본 허용으로 빠진다 — 위 "기본 허용" 절 참고) | `kubectl get authorizationpolicy -n microservice-as -o yaml`, 대상 파드의 `labels` 와 정책의 `selector` 비교 |

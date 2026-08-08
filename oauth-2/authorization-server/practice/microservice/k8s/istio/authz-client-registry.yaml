@@ -1,3 +1,15 @@
+# client-registry 는 GET /internal/clients/* 하나만 노출한다.
+# 실제 호출자는 token · auth · session 셋이다(각 서비스의
+# client/ClientRegistryClient.java 참고 — token 은 client 인증, auth 는 authorize 단계의
+# client 검증, session 은 back-channel logout 통지 대상 조회에 쓴다).
+#
+# 주의. 아래 rule 의 principals 에는 session 이 없다. session 서비스 자체를 이 트랙에
+#      배포하지 않았기 때문이다(범위 밖 — Redis·user-directory·consent 가 더 필요하다).
+#      뺀 것은 "session 이 안 부른다"는 뜻이 아니라 "이 트랙에 없다"는 뜻이다. session 을
+#      이 트랙에 추가로 배포한다면 이 rule 의 principals 에 반드시
+#      "cluster.local/ns/microservice-as/sa/session" 을 추가해야 한다. 추가하지 않으면
+#      실제 배포 코드(session 의 LogoutTokenDelivery → ClientRegistryClient.getClient)가
+#      403 으로 조용히 막힌다.
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:

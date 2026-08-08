@@ -34,6 +34,19 @@ kubectl get pods -n $NS
 READY=$(kubectl get pods -n $NS -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.containerStatuses[*].ready}{"\n"}{end}')
 echo "$READY"
 
+# 세 서비스(signing·client-registry·token)가 사이드카를 포함해(2/2) 전부 ready 인지 판정한다.
+ALL_READY=true
+for app in signing client-registry token; do
+  STATUSES=$(kubectl get pods -n $NS -l "app=$app" -o jsonpath='{range .items[*]}{.status.containerStatuses[*].ready}{"\n"}{end}')
+  if [ -z "$STATUSES" ]; then
+    ALL_READY=false
+  fi
+  case "$STATUSES" in
+    *false*) ALL_READY=false ;;
+  esac
+done
+check "signing/client-registry/token 세 서비스가 사이드카 포함 전부 ready" true "$ALL_READY"
+
 echo "[2] caller-token -> signing /oauth2/jwks"
 check "token 신원은 jwks 를 읽는다" 200 "$(code caller-token http://signing:8083/oauth2/jwks)"
 
@@ -64,8 +77,22 @@ check "auth 신원도 client 를 읽는다" 200 "$(code caller-auth http://clien
 echo "[8] no-mesh -> signing (mTLS 강제)"
 check "사이드카 없는 파드는 닿지 못한다" 000 "$(code no-mesh http://signing:8083/oauth2/jwks)"
 
-echo "[9] 실제 코드 경로: token -> signing 프록시"
+echo "[8b] 실제 코드 경로: token -> signing 프록시"
 check "token 의 jwks 프록시가 동작한다" 200 "$(code caller-token http://token:8082/oauth2/jwks)"
+
+# 설계 §5 성공 기준 9번 — 이 슬라이스의 주제. Spring 소스를 한 줄도 바꾸지 않고 정책을
+# 걸었다는 주장은 이 검사 없이는 스크립트 안에서 증명되지 않는다.
+echo "[9] git diff -- Spring 소스 변경 0줄 (이 슬라이스의 주제, 비교 기준 edb6f2d)"
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
+if [ -n "$REPO_ROOT" ]; then
+  SRC_DIFF=$(git -C "$REPO_ROOT" diff --stat edb6f2d..HEAD -- \
+    'oauth-2/authorization-server/practice/microservice/*/src')
+  check "Spring 소스(*/src) 변경이 없다" "" "$SRC_DIFF"
+  [ -n "$SRC_DIFF" ] && echo "$SRC_DIFF"
+else
+  echo "  FAIL  git 저장소 루트를 찾지 못했다"
+  FAIL=$((FAIL+1))
+fi
 
 echo
 echo "PASS=$PASS FAIL=$FAIL"
