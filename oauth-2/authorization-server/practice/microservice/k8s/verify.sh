@@ -31,19 +31,24 @@ done
 
 echo "[1] 파드 상태"
 kubectl get pods -n $NS
-READY=$(kubectl get pods -n $NS -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.containerStatuses[*].ready}{"\n"}{end}')
-echo "$READY"
 
 # 세 서비스(signing·client-registry·token)가 사이드카를 포함해(2/2) 전부 ready 인지 판정한다.
+# 두 가지를 따로 봐야 한다.
+#   (a) 파드의 Ready 조건 — k8s 1.28+ 는 restartPolicy: Always 인 init 컨테이너(= native
+#       sidecar)까지 이 조건에 집계한다. containerStatuses 만 보면 istio-proxy 가
+#       initContainers 에 있어 아예 관측되지 않으므로 (a) 를 Ready 조건으로 본다.
+#   (b) istio-proxy 주입 여부 — 사이드카가 주입되지 않은 1/1 파드도 Ready 는 True 라서
+#       (a) 만으로는 "주입 실패"(진단표 첫 행)를 잡지 못한다.
 ALL_READY=true
 for app in signing client-registry token; do
-  STATUSES=$(kubectl get pods -n $NS -l "app=$app" -o jsonpath='{range .items[*]}{.status.containerStatuses[*].ready}{"\n"}{end}')
-  if [ -z "$STATUSES" ]; then
-    ALL_READY=false
-  fi
-  case "$STATUSES" in
-    *false*) ALL_READY=false ;;
-  esac
+  CONDS=$(kubectl get pods -n $NS -l "app=$app" \
+    -o jsonpath='{range .items[*]}{.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}')
+  PROXY=$(kubectl get pods -n $NS -l "app=$app" \
+    -o jsonpath='{range .items[*]}{.spec.initContainers[*].name}{"\n"}{end}')
+  [ -z "$CONDS" ] && ALL_READY=false          # 파드가 아예 없다
+  case "$CONDS" in *False*) ALL_READY=false ;; esac
+  case "$PROXY" in *istio-proxy*) ;; *) ALL_READY=false ;; esac
+  echo "  $app: Ready=$(echo "$CONDS" | tr '\n' ' ')/ initContainers=$(echo "$PROXY" | tr '\n' ' ')"
 done
 check "signing/client-registry/token 세 서비스가 사이드카 포함 전부 ready" true "$ALL_READY"
 
@@ -85,8 +90,12 @@ check "token 의 jwks 프록시가 동작한다" 200 "$(code caller-token http:/
 echo "[9] git diff -- Spring 소스 변경 0줄 (이 슬라이스의 주제, 비교 기준 edb6f2d)"
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
 if [ -n "$REPO_ROOT" ]; then
-  SRC_DIFF=$(git -C "$REPO_ROOT" diff --stat edb6f2d..HEAD -- \
-    'oauth-2/authorization-server/practice/microservice/*/src')
+  # pathspec 주의. git 의 기본 wildmatch 는 패턴이 경로 '전체' 와 맞아야 하므로
+  # '.../*/src' 는 '.../token/src/main/java/...java' 와 매칭되지 않는다(0개 매칭 =
+  # 무엇을 바꿔도 통과하는 위양성). 반드시 '*/src/*' 로 끝까지 열어둬야 한다.
+  # 비교 대상도 커밋(edb6f2d..HEAD)이 아니라 워킹트리로 둔다 — 커밋하지 않은 src 수정까지 잡는다.
+  SRC_DIFF=$(git -C "$REPO_ROOT" diff --stat edb6f2d -- \
+    'oauth-2/authorization-server/practice/microservice/*/src/*')
   check "Spring 소스(*/src) 변경이 없다" "" "$SRC_DIFF"
   [ -n "$SRC_DIFF" ] && echo "$SRC_DIFF"
 else

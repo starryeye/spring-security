@@ -210,7 +210,7 @@ ENTRYPOINT ["java", "-jar", "/app.jar"]
 | 증상 | 원인 | 확인 |
 |---|---|---|
 | `READY 1/1` | 네임스페이스에 `istio-injection=enabled` 라벨 누락 | `kubectl get ns --show-labels` |
-| `ErrImagePull` / `ImagePullBackOff` | 노드에 이미지 미적재 — 모든 Deployment 가 `imagePullPolicy: IfNotPresent` 라 노드에 이미지가 없으면 이 증상이 난다(`ErrImageNeverPull` 은 `imagePullPolicy: Never` 일 때만 나는 별개 증상이다 — 위 §2 의 Docker Desktop 실험이 그 경우다) | `kind load docker-image` 로 노드에 적재됐는지 `docker exec <노드> crictl images` 로 확인 |
+| `ErrImagePull` / `ImagePullBackOff` | 노드에 이미지 미적재 — 로컬 빌드 이미지를 쓰는 세 Deployment 가 전부 `imagePullPolicy: IfNotPresent` 라 노드에 이미지가 없으면 레지스트리로 나갔다가 이 증상이 난다(`ErrImageNeverPull` 은 `imagePullPolicy: Never` 일 때만 나는 별개 증상이다 — 위 §2 의 Docker Desktop 실험이 그 경우다) | `kind load docker-image` 로 노드에 적재됐는지 `docker exec <노드> crictl images` 로 확인 |
 | client-registry `CrashLoopBackOff` | MySQL 미기동 또는 포트 이름 미지정 | 로그 + Service 포트 이름 |
 | 전부 403 | ALLOW 정책이 deny-by-default 를 켰는데 규칙이 좁음 | `istioctl x authz check <pod>` |
 | 정책 미적용 | `selector.matchLabels` 오타 | 같은 명령 |

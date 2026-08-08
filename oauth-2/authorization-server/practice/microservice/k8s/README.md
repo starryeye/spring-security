@@ -335,11 +335,19 @@ PASS=9 FAIL=0
 클러스터가 삭제된 상태라 현재 스크립트로 새 raw 출력을 다시 캡처할 수는 없다 — 위 출력을
 "현재 스크립트의 실행 결과"로 읽지 않는다.
 
-`[1]` 의 두 번째 출력(파드 이름 + `true`/`false` 목록)은 `containerStatuses[*].ready` 를 이어붙인
-것이다 — 사이드카를 포함한 **모든** 컨테이너가 ready 여야 그 파드 이름 뒤에 `true` 하나만 남는다
-(예: `2/2` 파드는 `true true` 가 아니라 각 컨테이너 ready 값이 공백으로 이어져 나온다는 뜻이며,
-하나라도 `false` 가 섞이면 그 파드는 아직 준비되지 않은 것이다). `no-mesh` 는 컨테이너가 하나뿐이라
-`true` 하나만 나온다 — `1/1` 이 정상이다.
+위 raw 출력의 `[1]` 두 번째 블록(파드 이름 + `true`)이 바로 그 옛 버전이 남긴 함정이다.
+`2/2` 인 파드들이 전부 `true` **하나만** 찍었다 — 옛 스크립트가 읽던 `containerStatuses[*].ready`
+에는 `istio-proxy` 가 아예 들어 있지 않기 때문이다(아래 native sidecar 절 참고). 즉 그 출력은
+애플리케이션 컨테이너만 본 것이고, 사이드카가 주입되지 않은 `1/1` 파드도 똑같이 `true` 를 찍는다.
+
+현재 스크립트의 `[1]` 은 그래서 두 가지를 따로 본다.
+
+- **파드 `Ready` 조건** — k8s 1.28+ 는 `restartPolicy: Always` 인 init 컨테이너(= native
+  sidecar)까지 이 조건에 집계하므로, 사이드카가 안 뜬 파드는 여기서 걸린다.
+- **`initContainers` 에 `istio-proxy` 가 있는가** — 주입 자체가 안 된 `1/1` 파드는 `Ready` 가
+  `True` 라 위 조건만으로는 통과해 버린다. 진단표 첫 행("사이드카 미주입")을 잡으려면 이 확인이 필요하다.
+
+`no-mesh` 는 애초에 주입 대상이 아니므로 이 판정 대상(세 서비스)에서 빠져 있다 — `1/1` 이 정상이다.
 
 ## native sidecar — Istio 1.30.3
 
@@ -397,7 +405,7 @@ Istio 의 규칙: 어떤 워크로드를 선택하는 `AuthorizationPolicy` 가 
 | 증상 | 원인 | 확인 |
 |---|---|---|
 | 파드가 `READY 1/1` (기대 `2/2`) | 네임스페이스에 `istio-injection=enabled` 라벨이 없어 사이드카가 주입되지 않음 | `kubectl get ns microservice-as --show-labels` |
-| `ErrImagePull` / `ImagePullBackOff` | 로컬 빌드 이미지가 kind 노드에 없음 — `kind load docker-image` 를 안 했거나 다른 클러스터/컨텍스트에 떠 있음. 모든 Deployment 가 `imagePullPolicy: IfNotPresent` 라 노드에 이미지가 없으면 이 증상이 난다(`ErrImageNeverPull` 은 `imagePullPolicy: Never` 일 때만 나는 별개 증상이다) | `kubectl describe pod <파드> -n microservice-as` 의 Events, `docker exec <노드> crictl images` |
+| `ErrImagePull` / `ImagePullBackOff` | 로컬 빌드 이미지가 kind 노드에 없음 — `kind load docker-image` 를 안 했거나 다른 클러스터/컨텍스트에 떠 있음. 로컬 빌드 이미지를 쓰는 세 Deployment 가 전부 `imagePullPolicy: IfNotPresent` 라 노드에 이미지가 없으면 레지스트리로 나갔다가 이 증상이 난다(`ErrImageNeverPull` 은 `imagePullPolicy: Never` 일 때만 나는 별개 증상이다) | `kubectl describe pod <파드> -n microservice-as` 의 Events, `docker exec <노드> crictl images` |
 | MySQL 연결 실패 (client-registry 가 기동 중 죽거나 재시작 반복) | MySQL Service 포트 이름이 `tcp-` 로 시작하지 않아 Istio 가 HTTP 로 오인해 프로토콜 협상이 깨짐, 또는 mysql 파드가 아직 `Running` 이 아닌데 client-registry 가 먼저 뜸 | `kubectl logs -n microservice-as <client-registry 파드>`, `kubectl get svc mysql -n microservice-as -o yaml` 에서 포트 이름 확인 |
 | 모든 호출이 403 | `AuthorizationPolicy` 의 `principals` 문자열 오타(`cluster.local/ns/<ns>/sa/<sa>` 형식 불일치) 또는 caller 파드의 `serviceAccountName` 이 기대와 다름 | `kubectl exec <caller> -- curl -v ...` 의 응답 헤더, `kubectl get pod <caller> -o jsonpath='{.spec.serviceAccountName}'` |
 | 정책이 안 먹힘 (거부돼야 할 호출이 계속 200) | (1) 아직 xDS 전파 중(위 "xDS 전파 지연" 참고, 몇 초~수십 초 기다려본다) 또는 (2) `AuthorizationPolicy` 의 `selector.matchLabels` 가 대상 파드 라벨과 안 맞아 정책 자체가 그 워크로드에 걸리지 않음(이 경우 기본 허용으로 빠진다 — 위 "기본 허용" 절 참고) | `kubectl get authorizationpolicy -n microservice-as -o yaml`, 대상 파드의 `labels` 와 정책의 `selector` 비교 |
