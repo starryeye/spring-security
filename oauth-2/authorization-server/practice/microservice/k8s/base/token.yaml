@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: token
+  namespace: microservice-as
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: token-config
+  namespace: microservice-as
+data:
+  # 이 트랙이 실제로 부르는 두 곳만 덮는다.
+  # user-directory·token-state·session 은 이 트랙에 배포하지 않으며 그 경로를 부르지 않는다.
+  # Redis 도 배포하지 않는다 — Lettuce 는 지연 연결이라 없어도 부팅된다.
+  application.yml: |
+    my:
+      signing-base-url: http://signing:8083
+      client-registry-base-url: http://client-registry:8085
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: token
+  namespace: microservice-as
+spec:
+  selector:
+    app: token
+  ports:
+    - name: http
+      port: 8082
+      targetPort: 8082
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: token
+  namespace: microservice-as
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: token
+  template:
+    metadata:
+      labels:
+        app: token
+    spec:
+      serviceAccountName: token
+      containers:
+        - name: token
+          image: token:local
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SPRING_CONFIG_ADDITIONAL_LOCATION
+              value: file:/config/
+          ports:
+            - name: http
+              containerPort: 8082
+          volumeMounts:
+            - name: config
+              mountPath: /config
+      volumes:
+        - name: config
+          configMap:
+            name: token-config
