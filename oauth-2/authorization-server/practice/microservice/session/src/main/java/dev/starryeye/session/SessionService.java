@@ -1,5 +1,6 @@
 package dev.starryeye.session;
 
+import dev.starryeye.session.event.LogoutEventPublisher;
 import dev.starryeye.session.jpa.OidcSessionEntity;
 import dev.starryeye.session.jpa.OidcSessionEntityRepository;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ public class SessionService {
 	 */
 
 	private final OidcSessionEntityRepository repository;
+	private final LogoutEventPublisher logoutEventPublisher;
 
 	public void register(String sid, String sub, String clientId) {
 		if (repository.existsBySidAndClientId(sid, clientId)) {
@@ -69,6 +71,16 @@ public class SessionService {
 				.map(session -> new LogoutTargets.Target(session.getClientId(), session.getSub()))
 				.toList();
 		repository.deleteBySid(sid);
+
+		// 등록된 RP 가 하나도 없어도 발행한다. openid 없이 offline_access 만 받은 경로는 oidc_sessions 행이
+		// 없지만 그 sid 로 발급된 refresh token 은 존재할 수 있다 — 행이 있을 때만 발행하면 그 토큰이 살아남는다.
+		//
+		// 주의. sub 는 첫 행에서 가져온다. 한 sid 의 모든 행은 같은 사용자의 것이므로 어느 행을 골라도 같다.
+		//      슬라이스 5에서 문제가 됐던 "첫 행의 sub 를 모든 RP 에 재사용"과는 다른 상황이다 — 그때는 RP 마다
+		//      자기 sub 가 필요했고, 여기서는 세션 소유자 한 명을 적는 것이다.
+		String sub = sessions.isEmpty() ? null : sessions.get(0).getSub();
+		logoutEventPublisher.publish(sid, sub);
+
 		return new LogoutTargets(targets);
 	}
 }
