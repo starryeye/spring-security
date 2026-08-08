@@ -3,9 +3,9 @@ server:
 
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/microservice_as
-    username: root
-    password: 1111
+    url: jdbc:mysql://localhost:3306/ms_session?useSSL=false&allowPublicKeyRetrieval=true
+    username: svc_session
+    password: pw_session
   jpa:
     hibernate:
       ddl-auto: update

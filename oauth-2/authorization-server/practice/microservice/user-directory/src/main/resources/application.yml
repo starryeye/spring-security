@@ -2,9 +2,9 @@ server:
   port: 8084
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/microservice_as
-    username: root
-    password: 1111
+    url: jdbc:mysql://localhost:3306/ms_user_directory?useSSL=false&allowPublicKeyRetrieval=true
+    username: svc_user_directory
+    password: pw_user_directory
   jpa:
     hibernate:
       ddl-auto: update

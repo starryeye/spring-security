@@ -1,5 +1,8 @@
 # docker compose -p microservice-as up -d
 # gateway(nginx 9000) + mysql + redis. 5개 Spring 서비스는 호스트에서 java -jar 로 기동한다.
+#
+# 주의. mysql-init 는 데이터 디렉토리가 비어 있을 때만 실행된다. 스키마·계정을 바꾸면
+#      `docker compose -p microservice-as down -v` 로 볼륨까지 지우고 다시 띄워야 반영된다.
 
 services:
   nginx:
@@ -13,9 +16,10 @@ services:
     image: mysql:8
     environment:
       MYSQL_ROOT_PASSWORD: 1111
-      MYSQL_DATABASE: microservice_as
     ports:
       - "3306:3306"
+    volumes:
+      - ./mysql-init:/docker-entrypoint-initdb.d:ro
 
   redis:
     image: redis:7
