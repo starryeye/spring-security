@@ -1,5 +1,10 @@
 # 마이크로서비스 인가 서버 — 슬라이스 6 설계: Istio mTLS 와 서비스 간 인가
 
+> **이 트랙은 별도 인프라 프로젝트로 이관됐다 (2026-08-08).** 이 설계대로 구현·검증까지 마쳤으나,
+> mTLS·서비스 메시는 플랫폼(k8s/EKS)이 더 깔끔하게 푸는 영역이라 `microservice/` 프로젝트에서
+> `k8s/` 산출물을 걷어냈다. 이 문서는 학습 기록으로 남긴다 — 여기 적힌 함정들이 인프라 프로젝트의
+> 출발점이다. 경위와 백로그: [docs/infra-project-backlog.md](../../infra-project-backlog.md)
+
 내부 호출의 인증·인가를 애플리케이션이 아니라 service mesh 가 하게 한다.
 
 대상: `oauth-2/authorization-server/practice/microservice/`

@@ -1,5 +1,9 @@
 # 마이크로서비스 인가 서버 슬라이스 6 — Istio mTLS Implementation Plan
 
+> **이 계획은 완료됐고, 그 산출물(`k8s/`)은 별도 인프라 프로젝트로 이관됐다 (2026-08-08).**
+> 7개 태스크 전부 실행·리뷰까지 마쳤다. 학습 기록으로 남긴다. 경위와 백로그:
+> [docs/infra-project-backlog.md](../../infra-project-backlog.md)
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 내부 서비스 간 호출의 인증·인가를 애플리케이션이 아니라 Istio 가 하게 하고, Spring 코드를 한 줄도 바꾸지 않고 그것을 증명한다.

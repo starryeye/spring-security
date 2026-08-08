@@ -826,11 +826,7 @@ admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네
 ## 알려진 한계 / 추후 개선
 
 - **프록시 헤더(ForwardedHeaderFilter) 미적용** — auth 의 로그인 redirect Location 이 게이트웨이 포트(:9000)를 잃고 `http://localhost/...` 로 나온다. curl e2e 는 절대 URL 로 우회해 통과하지만, 실제 브라우저 flow 는 auth 에 ForwardedHeaderFilter 를 추가해 X-Forwarded-Host(포트 포함)를 반영해야 한다. (production-ready-authorization-server 의 방식 참고)
-- **내부 REST 호출 무인증** — /internal/* 은 gateway 라우팅에서만 제외될 뿐 네트워크로 접근 가능하면 무방비다. 서비스 간 인증(API 키/mTLS)이 추후 개선 1순위. k8s 트랙(`k8s/README.md`)에서는 Istio 가 mTLS + `AuthorizationPolicy` 로 **signing·client-registry 두 서비스에서** 이 구멍을 닫을 수 있음을 보였다 — 단 그 트랙에서, 그 두 서비스에 한해서다. 이 슬라이스가 애초에 동기로 든 구멍(session:8088 에 도달하면 `sid` 로 남의 세션을 끊을 수 있다, 아래 `session` 관련 알려진 한계 참고)은 `session` 서비스 자체를 이 트랙에 배포하지 않아 **전혀 닫히지 않았다**. 아래 슬라이스 6 항목들이 그 경계를 구체적으로 짚는다.
-- **정책이 클러스터에만 산다 (슬라이스 6)** — Istio `AuthorizationPolicy`/`PeerAuthentication` 은 `k8s/` 매니페스트로만 존재하고 Spring 코드에는 없다. 같은 jar 를 `java -jar` 로 띄우면(위 "기동 방법") 이 절의 인가는 전혀 적용되지 않는다 — 같은 코드인데 배포 방식에 따라 보호 수준이 다르다.
-- **10개 서비스 중 3개만 k8s 에 올랐다 (슬라이스 6)** — `k8s/` 는 mysql · client-registry · signing · token 만 매니페스트로 갖는다(+ 신원 검증용 caller 파드들). 나머지 7개(gateway·auth·user-directory·consent·token-state·session·demo-rp, 10 − 3 = 7)는 매니페스트가 없다. 확장은 이미 있는 서비스와 같은 패턴(Deployment + Service + ServiceAccount, 필요하면 `AuthorizationPolicy`)의 반복이라 새 설계가 필요하지 않다.
-- **OAuth 흐름 자체가 클러스터에서 돌지 않는다 (슬라이스 6)** — k8s 트랙은 `AuthorizationPolicy` 가 caller 신원별로 올바르게 걸러내는지(mTLS + RBAC)만 `verify.sh` 로 증명한다. authorization code 발급이나 토큰 교환 같은 실제 OAuth/OIDC flow 는 이 트랙에서 실행되지 않는다 — 그 flow 는 여전히 `java -jar` 트랙(`http/`)의 몫이다.
-- **인증서 회전을 검증하지 않는다 (슬라이스 6)** — Istio mesh 는 워크로드 인증서를 자동으로 발급·회전하지만, 이 슬라이스는 회전이 실제로 일어나는지, 회전 중에도 mTLS 연결이 끊기지 않는지를 확인하지 않는다. `verify.sh` 는 특정 시점의 스냅샷만 본다.
+- **내부 REST 호출 무인증** — /internal/* 은 gateway 라우팅에서만 제외될 뿐 네트워크로 접근 가능하면 무방비다. 서비스 간 인증이 추후 개선 1순위다. 슬라이스 6에서 Istio mTLS + `AuthorizationPolicy` 로 이 구멍을 닫는 k8s 트랙을 만들었으나, 그 영역은 플랫폼(k8s/EKS)이 더 깔끔하게 푸는 쪽이라 이 프로젝트에서 걷어내고 **별도 인프라 프로젝트로 이관**했다(아래 "추후 별도 인프라 프로젝트로 이관" 절). 그래서 이 구멍은 지금도 열려 있다 — 특히 `session:8088`(아래 항목)은 슬라이스 6 트랙에서도 배포된 적이 없어 애초에 닫힌 적이 없다.
 - **jwks 캐시 부재는 성능이 아니라 가용성 한계다** — `AccessTokenVerifier` 가 access token 검증마다 signing 의 `/oauth2/jwks` 를 호출한다(캐시 없음). 부하가 signing 에 집중되는 것도 문제지만, 더 큰 문제는 **signing 이 죽으면 `/userinfo` 가 통째로 500 `server_error` 가 된다**는 점이다. 슬라이스 1 의 graceful degradation("이미 발급된 JWT 는 캐시된 공개키로 계속 검증된다")은 jwks 를 캐시하는 외부 검증자에게만 성립하고 이 서버의 `/userinfo` 에는 성립하지 않는다. jwks 를 kid 기준으로 캐시(TTL)하면 성능과 가용성이 함께 해결된다. 다음 개선.
   - 주의. 이때 500 대신 401 `invalid_token` 을 주면 안 된다. RP 는 그것을 "토큰이 죽었다"로 읽고 멀쩡한 토큰을 폐기한 뒤 재인증을 돌리므로, signing 장애 한 번이 전 RP 의 동시 재인증 폭풍으로 증폭된다. 그래서 `AccessTokenVerifier` 는 "키 확보 실패"와 "토큰 무효"를 다른 예외로 갈라 던진다.
 - **`auth_time` 이 로그인 시각이 아니다** — id token 의 `auth_time` 은 `AuthorizeController` 가 authorize 요청을 처리한 시각(`Instant.now()`)이며, 실제 `POST /login` 이 성공한 시각이 아니다. 세션에 로그인 시각을 저장해두지 않기 때문. 표준의 `auth_time` 은 최종 인증 시각이므로 RP 가 `max_age` 로 재인증을 강제할 때 이 값으로는 판단할 수 없다. SSO 재사용 시나리오(로그인은 예전에 했고 이번엔 세션만 재사용)에서 `auth_time` 이 매 authorize 마다 갱신되는 것으로 보인다.
@@ -857,21 +853,35 @@ admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네
 - **session(8088) 에 네트워크로 도달하면 `sid` 하나로 남의 세션을 강제 로그아웃시킬 수 있다** — `sid` 의 엔트로피(128비트)는 충분하지만 설계상 비밀은 아니다. id token 에 실려 그 세션의 모든 RP 에게 배포되고 로그에도 남는다. 그리고 `POST /internal/sessions/logout` 은 인증이 없다(gateway 가 라우팅하지 않는다는 사실은 위 서비스 표에 있지만, 그것이 네트워크 도달 자체를 막지는 않는다). 따라서 그 `sid` 를 아는 누구든(같은 세션의 임의의 RP, 로그 접근자) session 서비스에 네트워크로 도달하기만 하면 그 사용자를 다른 모든 RP 에서 강제 로그아웃시킬 수 있다. `POST /internal/sessions` 로 가짜 `(sid, sub, clientId)` 행을 심는 것도 마찬가지로 인증이 없다. 다만 실제 피해는 가용성(원치 않는 강제 로그아웃)에 국한된다 — 개인키는 signing 만 보유하므로 이 경로로 다른 사용자를 사칭하는 access token·id token 서명 위조는 불가능하다.
 - HA(다중 인스턴스), 키 로테이션, purge 등은 production-ready-authorization-server 에서 다룬 주제.
 
+## 추후 별도 인프라 프로젝트로 이관
+
+이 프로젝트는 **인가 서버를 코드로 어떻게 만드는가**에 집중한다. mTLS·서비스 메시·ingress·네트워크
+인가 정책·배포 같은 영역은 플랫폼(k8s/EKS/Istio)이 더 깔끔하게 풀기 때문에 여기서 손으로 재현하지
+않는다. 반대로 MySQL·Redis·Kafka 처럼 **앱이 직접 코드로 통합하는 미들웨어**는 이 프로젝트 안쪽이다 —
+붙이는 방식에 따라 정합성·순서·중복·트랜잭션 경계가 실제로 갈리기 때문이다.
+
+슬라이스 6에서 만들었던 `k8s/` 트랙(kind + Istio mTLS + `AuthorizationPolicy`)은 이 기준의 바깥이라
+걷어냈다. 설계·구현 계획 문서는 `docs/superpowers/` 에 그대로 남아 있고, 이관 경위와 백로그는 여기에
+있다 — **[docs/infra-project-backlog.md](docs/infra-project-backlog.md)**.
+
+그래서 **서비스 간 인증은 이 프로젝트에서 여전히 미해결**이다. 위 "알려진 한계"의 내부 무인증
+항목과 `session:8088` 항목이 그 결손을 구체적으로 짚는다.
+
 ## `custom-oidc-logout` 의 TODO 를 이 AS 로 닫는 법
 
 `oauth-2/client/custom-oidc-logout` 의 `OAuth2ClientConfig.java` 에는 `.oidcLogout().backChannel()` 이 주석 처리된 채 TODO 로 남아 있다 — "provider 에서 로그아웃을 해도 client 로그아웃이 안됨.. provider 에 셋팅을 해줘야 할 것 같음". 그 프로젝트는 Keycloak 을 대상으로 하고 여기서는 수정하지 않는다(Keycloak 예시로 그대로 둔다). 다만 그 TODO 가 짚은 원인은 정확했다 — **client 쪽 설정만으로는 back-channel logout 이 성립하지 않는다. provider(OP) 가 세션을 추적하고 logout token 을 실제로 보내야** 비로소 `.oidcLogout()` 이 받을 것이 생긴다. 이 AS 로 그 TODO 를 닫으려면: (1) client 를 이 AS 에 등록하며 `backchannel_logout_uri` 를 그 client 의 `/logout/connect/back-channel/{registrationId}` 로 채우고 `post_logout_redirect_uris` 도 등록한다(client-registry, 두 컬럼 모두 `redirect_uris` 와 별개다), (2) client 의 `issuer-uri` 를 `http://localhost:9000` 으로 두어 discovery 로 `end_session_endpoint`·`backchannel_logout_supported` 를 끌어오게 한다, (3) 주석을 풀고 `demo-rp/src/main/java/dev/starryeye/demo_rp/SecurityConfig.java` 와 똑같이 `.oidcLogout(oidc -> oidc.backChannel(Customizer.withDefaults()))` 를 필터체인에 추가하며 back-channel 수신 경로(`/logout/connect/back-channel/**`)를 `permitAll()` + CSRF 예외로 열어 둔다(OP 가 사용자 세션 없이 서버 대 서버로 POST 하기 때문). demo-rp 가 정확히 이 세 단계를 거쳐 만든 검증용 RP 다.
 
 ## 설계/계획 문서
 
-- 슬라이스 1 설계: [docs/superpowers/specs/2026-07-18-microservice-authorization-server-slice1-design.md](../../../../docs/superpowers/specs/2026-07-18-microservice-authorization-server-slice1-design.md)
-- 슬라이스 1 구현 계획: [docs/superpowers/plans/2026-07-18-microservice-authorization-server-slice1.md](../../../../docs/superpowers/plans/2026-07-18-microservice-authorization-server-slice1.md)
-- 슬라이스 2(OIDC) 설계: [docs/superpowers/specs/2026-07-25-microservice-oidc-slice2-design.md](../../../../docs/superpowers/specs/2026-07-25-microservice-oidc-slice2-design.md)
-- 슬라이스 2(OIDC) 구현 계획: [docs/superpowers/plans/2026-07-25-microservice-oidc-slice2.md](../../../../docs/superpowers/plans/2026-07-25-microservice-oidc-slice2.md)
-- 슬라이스 3(토큰 수명 관리) 설계: [docs/superpowers/specs/2026-07-25-microservice-token-lifecycle-slice3-design.md](../../../../docs/superpowers/specs/2026-07-25-microservice-token-lifecycle-slice3-design.md)
-- 슬라이스 3(토큰 수명 관리) 구현 계획: [docs/superpowers/plans/2026-07-25-microservice-token-lifecycle-slice3.md](../../../../docs/superpowers/plans/2026-07-25-microservice-token-lifecycle-slice3.md)
-- 슬라이스 4(client 능력 scope · client_credentials) 설계: [docs/superpowers/specs/2026-07-28-microservice-client-credentials-slice4-design.md](../../../../docs/superpowers/specs/2026-07-28-microservice-client-credentials-slice4-design.md)
-- 슬라이스 4(client 능력 scope · client_credentials) 구현 계획: [docs/superpowers/plans/2026-07-28-microservice-client-credentials-slice4.md](../../../../docs/superpowers/plans/2026-07-28-microservice-client-credentials-slice4.md)
-- 슬라이스 5(back-channel logout) 설계: [docs/superpowers/specs/2026-08-03-microservice-backchannel-logout-slice5-design.md](../../../../docs/superpowers/specs/2026-08-03-microservice-backchannel-logout-slice5-design.md)
-- 슬라이스 5(back-channel logout) 구현 계획: [docs/superpowers/plans/2026-08-03-microservice-backchannel-logout-slice5.md](../../../../docs/superpowers/plans/2026-08-03-microservice-backchannel-logout-slice5.md)
-- 슬라이스 6(Istio mTLS) 설계: [docs/superpowers/specs/2026-08-07-microservice-istio-mtls-slice6-design.md](../../../../docs/superpowers/specs/2026-08-07-microservice-istio-mtls-slice6-design.md)
-- 슬라이스 6(Istio mTLS) 구현 계획: [docs/superpowers/plans/2026-08-07-microservice-istio-mtls-slice6.md](../../../../docs/superpowers/plans/2026-08-07-microservice-istio-mtls-slice6.md)
+- 슬라이스 1 설계: [docs/superpowers/specs/2026-07-18-microservice-authorization-server-slice1-design.md](docs/superpowers/specs/2026-07-18-microservice-authorization-server-slice1-design.md)
+- 슬라이스 1 구현 계획: [docs/superpowers/plans/2026-07-18-microservice-authorization-server-slice1.md](docs/superpowers/plans/2026-07-18-microservice-authorization-server-slice1.md)
+- 슬라이스 2(OIDC) 설계: [docs/superpowers/specs/2026-07-25-microservice-oidc-slice2-design.md](docs/superpowers/specs/2026-07-25-microservice-oidc-slice2-design.md)
+- 슬라이스 2(OIDC) 구현 계획: [docs/superpowers/plans/2026-07-25-microservice-oidc-slice2.md](docs/superpowers/plans/2026-07-25-microservice-oidc-slice2.md)
+- 슬라이스 3(토큰 수명 관리) 설계: [docs/superpowers/specs/2026-07-25-microservice-token-lifecycle-slice3-design.md](docs/superpowers/specs/2026-07-25-microservice-token-lifecycle-slice3-design.md)
+- 슬라이스 3(토큰 수명 관리) 구현 계획: [docs/superpowers/plans/2026-07-25-microservice-token-lifecycle-slice3.md](docs/superpowers/plans/2026-07-25-microservice-token-lifecycle-slice3.md)
+- 슬라이스 4(client 능력 scope · client_credentials) 설계: [docs/superpowers/specs/2026-07-28-microservice-client-credentials-slice4-design.md](docs/superpowers/specs/2026-07-28-microservice-client-credentials-slice4-design.md)
+- 슬라이스 4(client 능력 scope · client_credentials) 구현 계획: [docs/superpowers/plans/2026-07-28-microservice-client-credentials-slice4.md](docs/superpowers/plans/2026-07-28-microservice-client-credentials-slice4.md)
+- 슬라이스 5(back-channel logout) 설계: [docs/superpowers/specs/2026-08-03-microservice-backchannel-logout-slice5-design.md](docs/superpowers/specs/2026-08-03-microservice-backchannel-logout-slice5-design.md)
+- 슬라이스 5(back-channel logout) 구현 계획: [docs/superpowers/plans/2026-08-03-microservice-backchannel-logout-slice5.md](docs/superpowers/plans/2026-08-03-microservice-backchannel-logout-slice5.md)
+- 슬라이스 6(Istio mTLS) 설계: [docs/superpowers/specs/2026-08-07-microservice-istio-mtls-slice6-design.md](docs/superpowers/specs/2026-08-07-microservice-istio-mtls-slice6-design.md)
+- 슬라이스 6(Istio mTLS) 구현 계획: [docs/superpowers/plans/2026-08-07-microservice-istio-mtls-slice6.md](docs/superpowers/plans/2026-08-07-microservice-istio-mtls-slice6.md)
