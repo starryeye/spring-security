@@ -1579,7 +1579,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @SpringBootTest
@@ -1628,13 +1627,6 @@ class DirectPublishFailureModeTest {
 		verify(publisher).publish("SID-B", "user-sub-0001");
 	}
 
-	@Test
-	@DisplayName("[현재 동작] outbox 테이블이 없다 — 발행 실패를 나중에 재시도할 방법이 없다")
-	void noOutboxYet() {
-		// Task 7 에서 이 테스트는 삭제되고, outbox 행이 남는지 확인하는 테스트로 대체된다.
-		assertThat(repository.findBySid("SID-NONE")).isEmpty();
-		verify(publisher, never()).publish("SID-NONE", null);
-	}
 }
 ```
 
