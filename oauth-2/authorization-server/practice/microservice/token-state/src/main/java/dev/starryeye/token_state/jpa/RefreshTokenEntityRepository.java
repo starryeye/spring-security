@@ -3,9 +3,11 @@ package dev.starryeye.token_state.jpa;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -41,4 +43,30 @@ public interface RefreshTokenEntityRepository extends JpaRepository<RefreshToken
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("select r from RefreshTokenEntity r where r.familyId = :familyId")
 	List<RefreshTokenEntity> findByFamilyIdForUpdate(@Param("familyId") String familyId);
+
+	/**
+	 * 한 OP 세션에 속한 ACTIVE refresh token 을 한 번에 폐기한다.
+	 *
+	 * 주의. where 절의 status = ACTIVE 가 멱등을 만든다. 두 번째 실행은 바꿀 행이 없어 0을 돌려준다.
+	 *      Kafka 가 at-least-once 라 같은 로그아웃 이벤트를 두 번 받는 일이 실제로 일어나는데,
+	 *      이 조건 덕에 소비자 쪽에 별도 중복 처리 표를 두지 않아도 된다.
+	 *
+	 * 주의. 이 조건은 감사 기록도 지킨다. 벌크 갱신은 엔티티의 revoke(Instant, String) 을 거치지 않아
+	 *      "이미 REVOKED 면 사유를 덮어쓰지 않는다"는 보호가 적용되지 않는데, ACTIVE 만 대상으로 삼으므로
+	 *      REUSE_DETECTED 로 폐기된 행의 사유가 지워지지 않는다.
+	 *
+	 * 주의. sid 가 null 인 행은 이 조건에 걸리지 않는다(SQL 에서 null = null 은 참이 아니다).
+	 *      세션이 걸리지 않은 발급 경로의 행은 세션 단위 폐기 대상이 아니므로 의도한 동작이다.
+	 */
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Query("""
+			update RefreshTokenEntity r
+			   set r.status = :revoked, r.revokedAt = :now, r.revokedReason = :reason
+			 where r.sid = :sid and r.status = :active
+			""")
+	int revokeActiveBySid(@Param("sid") String sid,
+			@Param("revoked") RefreshTokenStatus revoked,
+			@Param("active") RefreshTokenStatus active,
+			@Param("reason") String reason,
+			@Param("now") Instant now);
 }

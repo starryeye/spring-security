@@ -212,6 +212,25 @@ public class RefreshTokenService {
 		return true;
 	}
 
+	/**
+	 * OP 세션이 끝났을 때 그 세션의 refresh token 을 폐기한다. 로그아웃 이벤트 소비자가 호출한다.
+	 *
+	 * 주의. 폐기 범위가 sid 단위다. sub 로 죽이면 같은 사용자가 다른 브라우저에서 만든 세션까지 함께
+	 *      죽고, client_id 까지 묶으면 한 세션에 붙은 다른 RP 가 남는다. oidc_sessions 를 sid 로 지우는
+	 *      범위와 정확히 같아야 두 저장소가 같은 단위로 움직인다.
+	 *
+	 * 주의. 계열(family) 단위로 잠그지 않는다. 회전이 쓰는 PESSIMISTIC_WRITE 경로와 달리 이 연산은
+	 *      조건부 벌크 갱신 한 번이라 읽고 판정하는 창이 없다. 회전과 동시에 실행되면 둘 중 하나가
+	 *      먼저 커밋되는데, 어느 쪽이 이기든 결과는 "그 세션의 토큰이 더는 쓰이지 않는다"로 수렴한다 —
+	 *      회전이 먼저면 새 행이 ACTIVE 로 생겼다가 다음 이벤트 재처리 때 잡히고(at-least-once),
+	 *      폐기가 먼저면 회전이 REVOKED 를 만나 실패한다.
+	 */
+	@Transactional
+	public int revokeBySid(String sid) {
+		return repository.revokeActiveBySid(sid, RefreshTokenStatus.REVOKED, RefreshTokenStatus.ACTIVE,
+				"SESSION_LOGGED_OUT", Instant.now());
+	}
+
 	private void revokeFamily(List<RefreshTokenEntity> family, Instant at, String reason) {
 		for (RefreshTokenEntity member : family) {
 			member.revoke(at, reason);
