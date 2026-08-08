@@ -35,9 +35,15 @@
 |---|---|---|
 | `signing` | 피호출자. 개인키 보유 | 없음 (keystore 가 jar 안 classpath) |
 | `client-registry` | 피호출자 | MySQL |
-| `token` | 호출자. 실제 `SigningClient`·`ClientRegistryClient` 코드가 호출을 만든다 | 없음 (Redis 미배포 — 아래) |
+| `token` | 호출자. 실제 `SigningClient` 코드가 호출을 만든다 | 없음 (Redis 미배포 — 아래) |
+| `caller-token` | ServiceAccount `token` 을 단 curl 파드 | 없음 |
 | `caller-auth` | ServiceAccount `auth` 를 단 curl 파드 | 없음 |
+| `no-mesh` | 사이드카를 넣지 않은 curl 파드. mTLS 강제 확인용 | 없음 |
 | `mysql` | client-registry 전용 | — |
+
+**검증 호출은 전용 curl 파드가 한다.** Istio 가 보는 principal 은 ServiceAccount 에서 나오므로 `caller-token` 과 실제 `token` 파드는 같은 신원(`sa/token`)을 갖는다. 전용 파드를 쓰면 베이스 이미지를 바꿔도 검증이 깨지지 않고 `caller-auth`(실제 auth 를 배포하지 않으므로 어차피 대역이다)와 대칭이 된다.
+
+**실제 코드 경로는 따로 탄다.** `token` 의 `/oauth2/jwks` 는 `SigningClient.jwks()` 로 signing 을 부르는 프록시이고 Redis·MySQL 을 타지 않는다. `curl token:8082/oauth2/jwks` 로 그 경로를 태워 진짜 서비스 간 호출이 mesh 를 통과하는 것을 확인한다.
 
 **`caller-auth` 는 진짜 auth 서비스가 아니다.** Istio 의 신원은 파드가 무엇을 실행하느냐가 아니라 **ServiceAccount 에서 나오므로**, curl 파드에 SA `auth` 를 달면 그 파드는 auth 의 SPIFFE 신원을 그대로 갖는다. auth 의 의존성(Redis·user-directory·consent·session)을 끌어오지 않고도 충실한 시연이 된다.
 
@@ -47,7 +53,7 @@
 
 서비스 3개로는 OAuth 흐름이 돌지 않는다. `token` 이 `/oauth2/token` 을 처리하려면 user-directory·token-state·session 이 더 필요하다.
 
-**이 트랙이 증명하는 것은 정책이다.** token 파드에서 signing 을 직접 부르고, `caller-auth` 에서도 같은 호출을 시도해 거부되는 것을 본다. 기존 `java -jar` e2e 가 프로토콜을 맡고 이 트랙은 "누가 누구를 부를 수 있나"만 맡는다. **기존 e2e 는 건드리지 않는다.**
+**이 트랙이 증명하는 것은 정책이다.** `caller-token` 에서 signing 을 부르고, `caller-auth` 에서도 같은 호출을 시도해 거부되는 것을 본다. 기존 `java -jar` e2e 가 프로토콜을 맡고 이 트랙은 "누가 누구를 부를 수 있나"만 맡는다. **기존 e2e 는 건드리지 않는다.**
 
 ---
 
@@ -115,7 +121,7 @@ microservice/k8s/
   README.md                      이 트랙 사용법. 기존 java -jar 트랙과 별개임을 명시
   Dockerfile                     서비스 3개 공용. ARG 로 jar 경로만 받는다
   base/    namespace.yaml · mysql.yaml · signing.yaml · client-registry.yaml
-           token.yaml · caller-auth.yaml
+           token.yaml · callers.yaml
   istio/   peer-authentication.yaml · authz-signing.yaml · authz-client-registry.yaml
   verify.sh                      성공 기준을 순서대로 실행하고 raw 출력을 남긴다
 ```
@@ -146,13 +152,14 @@ ENTRYPOINT ["java", "-jar", "/app.jar"]
 | # | 확인 | 기대 |
 |---|---|---|
 | 1 | 파드 상태 | 세 서비스 모두 `READY 2/2` (앱 + 사이드카) |
-| 2 | token → signing `/oauth2/jwks` | 200 |
-| 3 | token → signing `/internal/sign` | 200 |
+| 2 | `caller-token` → signing `/oauth2/jwks` | 200 |
+| 3 | `caller-token` → signing `/internal/sign` | 200 |
 | 4 | `caller-auth` → signing `/oauth2/jwks` | 200 |
 | **5** | **`caller-auth` → signing `/internal/sign`** | **403 + 본문 `RBAC: access denied`** |
-| 6 | token → client-registry `/internal/clients/my-client` | 200 |
+| 6 | `caller-token` → client-registry `/internal/clients/my-client` | 200 |
 | 7 | `caller-auth` → client-registry `/internal/clients/my-client` | 200 |
-| 8 | 사이드카 없는 파드 → signing | 연결 거부 |
+| 8 | `no-mesh`(사이드카 없음) → signing | 연결 거부 |
+| 8b | `caller-token` → token `/oauth2/jwks` (실제 프록시 경로) | 200 |
 | 9 | `git diff` | **Spring 소스 변경 0줄** |
 
 **5번이 핵심 기준이고 9번이 주제다.**
