@@ -32,7 +32,7 @@ class RefreshTokenServiceRotateTest {
 
 	@Test
 	void rotateIssuesNewTokenInSameFamilyAndConsumesOld() {
-		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid offline_access", 1700000000L);
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid offline_access", 1700000000L, null);
 
 		RotateResult result = service.rotate(issued.refreshToken(), "my-client", null);
 
@@ -54,7 +54,7 @@ class RefreshTokenServiceRotateTest {
 	// 이 슬라이스의 핵심 보안 동작. 응답 status 만 보지 말고 DB 상태로 계열 전체를 확인한다.
 	@Test
 	void reusingConsumedTokenRevokesEntireFamily() {
-		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L, null);
 		RotateResult first = service.rotate(issued.refreshToken(), "my-client", null);
 
 		RotateResult reuse = service.rotate(issued.refreshToken(), "my-client", null); // 이미 소진된 토큰
@@ -78,7 +78,7 @@ class RefreshTokenServiceRotateTest {
 	// 폐기 판정을 오래된 스냅샷이 아니라 잠근 뒤 다시 읽은 최신 목록으로 하는지를 단일 스레드로 고정한다.
 	@Test
 	void reusingConsumedTokenAfterMultipleRotationsRevokesEveryFamilyMember() {
-		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L, null);
 		RotateResult first = service.rotate(issued.refreshToken(), "my-client", null);
 		RotateResult second = service.rotate(first.refreshToken(), "my-client", null);
 		assertThat(second.status()).isEqualTo(RotateStatus.ROTATED); // 계열은 이제 3행: 최초, first, second
@@ -104,7 +104,7 @@ class RefreshTokenServiceRotateTest {
 	// client 가 다르면 상태를 바꾸지 않는다. 남의 토큰을 제출해 계열을 죽이는 공격을 막는다.
 	@Test
 	void rotateWithMismatchedClientChangesNothing() {
-		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L, null);
 
 		RotateResult result = service.rotate(issued.refreshToken(), "other-client", null);
 
@@ -117,7 +117,7 @@ class RefreshTokenServiceRotateTest {
 	// (테스트 설정: ttl 60초, family 최대 300초)
 	@Test
 	void rotateAfterFamilyAbsoluteExpiryReturnsExpired() {
-		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L, null);
 		RefreshTokenEntity entity = repository.findByTokenHash(tokenGenerator.hash(issued.refreshToken())).orElseThrow();
 		// 계열 상한만 과거로 옮긴다. expires_at 은 그대로 미래다.
 		repository.save(expireFamily(entity));
@@ -132,7 +132,7 @@ class RefreshTokenServiceRotateTest {
 	// 반대 격리다. (테스트 설정: ttl 60초, family 최대 300초)
 	@Test
 	void rotateWithExpiredIndividualTokenButFamilyStillValidReturnsExpired() {
-		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L, null);
 		RefreshTokenEntity entity = repository.findByTokenHash(tokenGenerator.hash(issued.refreshToken())).orElseThrow();
 		// 개별 만료만 과거로 옮긴다. family_expires_at 은 그대로 미래다.
 		repository.save(expireIndividualToken(entity));
@@ -146,7 +146,7 @@ class RefreshTokenServiceRotateTest {
 	// 상태를 바꾼 뒤 거절하면 새 토큰 원문이 버려지고, client 가 이전 토큰으로 재시도하는 순간 계열이 죽는다.
 	@Test
 	void rotateWithScopeBeyondStoredGrantChangesNothing() {
-		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid offline_access", 1700000000L);
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid offline_access", 1700000000L, null);
 
 		RotateResult result = service.rotate(issued.refreshToken(), "my-client", "openid admin");
 
@@ -164,7 +164,7 @@ class RefreshTokenServiceRotateTest {
 	// 재사용 탐지가 scope 검사보다 먼저다. 잘못된 scope 를 함께 보내는 것으로 탐지를 건너뛸 수 없다.
 	@Test
 	void reuseIsDetectedEvenWhenRequestedScopeAlsoExceedsTheGrant() {
-		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L, null);
 		service.rotate(issued.refreshToken(), "my-client", null);
 
 		RotateResult reuse = service.rotate(issued.refreshToken(), "my-client", "openid admin");
@@ -175,7 +175,7 @@ class RefreshTokenServiceRotateTest {
 	// 축소는 이번 요청에만 적용되고 저장 scope 는 불변이다. 아니면 한 번의 축소가 영구화된다.
 	@Test
 	void narrowedScopeRotatesButStoredScopeStaysIntact() {
-		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid profile offline_access", 1700000000L);
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid profile offline_access", 1700000000L, null);
 
 		RotateResult result = service.rotate(issued.refreshToken(), "my-client", "profile");
 
@@ -189,7 +189,7 @@ class RefreshTokenServiceRotateTest {
 	// 그러지 않으면 응답의 expiresAt 이 실제보다 긴 수명을 알린다.
 	@Test
 	void rotatedTokenExpiryNeverExceedsFamilyCeiling() {
-		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L, null);
 		RefreshTokenEntity entity = repository.findByTokenHash(tokenGenerator.hash(issued.refreshToken())).orElseThrow();
 		Instant nearCeiling = Instant.now().plusSeconds(5);
 		repository.save(withFamilyExpiresAt(entity, nearCeiling));
@@ -213,6 +213,7 @@ class RefreshTokenServiceRotateTest {
 				.issuedAt(entity.getIssuedAt())
 				.expiresAt(entity.getExpiresAt())
 				.familyExpiresAt(familyExpiresAt)
+				.sid(entity.getSid())
 				.build();
 		repository.delete(entity);
 		repository.flush();
@@ -230,6 +231,7 @@ class RefreshTokenServiceRotateTest {
 				.issuedAt(entity.getIssuedAt())
 				.expiresAt(entity.getExpiresAt())
 				.familyExpiresAt(entity.getIssuedAt().minusSeconds(1))
+				.sid(entity.getSid())
 				.build();
 		repository.delete(entity);
 		repository.flush();
@@ -247,6 +249,7 @@ class RefreshTokenServiceRotateTest {
 				.issuedAt(entity.getIssuedAt())
 				.expiresAt(entity.getIssuedAt().minusSeconds(1))
 				.familyExpiresAt(entity.getFamilyExpiresAt())
+				.sid(entity.getSid())
 				.build();
 		repository.delete(entity);
 		repository.flush();

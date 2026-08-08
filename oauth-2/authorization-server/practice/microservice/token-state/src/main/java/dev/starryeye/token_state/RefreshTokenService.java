@@ -41,7 +41,7 @@ public class RefreshTokenService {
 	}
 
 	@Transactional
-	public IssueResult issue(String clientId, String sub, String scope, long authTime) {
+	public IssueResult issue(String clientId, String sub, String scope, long authTime, String sid) {
 		Instant now = Instant.now();
 		String familyId = UUID.randomUUID().toString();
 		String token = tokenGenerator.generate();
@@ -56,6 +56,7 @@ public class RefreshTokenService {
 				.issuedAt(now)
 				.expiresAt(now.plusSeconds(ttlSeconds))
 				.familyExpiresAt(now.plusSeconds(familyMaxSeconds))
+				.sid(sid)
 				.build();
 		repository.save(entity);
 
@@ -158,6 +159,7 @@ public class RefreshTokenService {
 				.issuedAt(now)
 				.expiresAt(rotatedExpiresAt)
 				.familyExpiresAt(entity.getFamilyExpiresAt()) // 절대 상한은 복사만, 연장하지 않는다
+				.sid(entity.getSid()) // 계열 전체가 같은 세션에 속한다
 				.build();
 		repository.save(rotated);
 
@@ -167,7 +169,8 @@ public class RefreshTokenService {
 				toSpaceDelimited(entity.getScopes()),
 				entity.getAuthTime(),
 				token,
-				rotated.getExpiresAt().getEpochSecond()
+				rotated.getExpiresAt().getEpochSecond(),
+				entity.getSid()
 		);
 	}
 

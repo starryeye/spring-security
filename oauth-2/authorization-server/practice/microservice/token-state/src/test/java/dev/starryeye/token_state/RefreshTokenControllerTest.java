@@ -42,10 +42,16 @@ class RefreshTokenControllerTest {
 
 	@Test
 	void issueReturnsTokenAndFamily() throws Exception {
+		Map<String, Object> body = new java.util.HashMap<>();
+		body.put("clientId", "my-client");
+		body.put("sub", "user-sub-0001");
+		body.put("scope", "openid offline_access");
+		body.put("authTime", 1700000000L);
+		body.put("sid", null);
+
 		mockMvc.perform(post("/internal/refresh-tokens")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(json(Map.of("clientId", "my-client", "sub", "user-sub-0001",
-								"scope", "openid offline_access", "authTime", 1700000000L))))
+						.content(json(body)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.refreshToken").isNotEmpty())
 				.andExpect(jsonPath("$.familyId").isNotEmpty())
@@ -54,7 +60,7 @@ class RefreshTokenControllerTest {
 
 	@Test
 	void rotateReturnsRotatedStatusAndNewToken() throws Exception {
-		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L, null);
 
 		mockMvc.perform(post("/internal/refresh-tokens/rotate")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -69,7 +75,7 @@ class RefreshTokenControllerTest {
 
 	@Test
 	void rotateWithReusedTokenReturnsReuseDetected() throws Exception {
-		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L, null);
 		service.rotate(issued.refreshToken(), "my-client", null);
 
 		mockMvc.perform(post("/internal/refresh-tokens/rotate")
@@ -83,7 +89,7 @@ class RefreshTokenControllerTest {
 	// 축소 요청은 회전과 같은 호출로 넘어와 같은 트랜잭션 안에서 검증된다
 	@Test
 	void rotateWithScopeBeyondStoredGrantReturnsScopeExceeded() throws Exception {
-		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L, null);
 
 		mockMvc.perform(post("/internal/refresh-tokens/rotate")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -96,7 +102,7 @@ class RefreshTokenControllerTest {
 
 	@Test
 	void revokeReturnsRevokedFlag() throws Exception {
-		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L, null);
 
 		mockMvc.perform(post("/internal/refresh-tokens/revoke")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -107,7 +113,7 @@ class RefreshTokenControllerTest {
 
 	@Test
 	void introspectReturnsActiveClaims() throws Exception {
-		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid offline_access", 1700000000L);
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid offline_access", 1700000000L, null);
 
 		mockMvc.perform(post("/internal/refresh-tokens/introspect")
 						.contentType(MediaType.APPLICATION_JSON)

@@ -78,9 +78,18 @@ public class RefreshTokenEntity {
 	@Column(name = "revoked_reason", length = 30)
 	private String revokedReason;
 
+	/**
+	 * 이 refresh token 이 속한 OP 세션이다. 로그아웃 폐기의 범위를 세션 단위로 잡기 위해 보관한다.
+	 *
+	 * 주의. nullable 이다. client_credentials 는 refresh 를 내지 않지만, openid 없이 offline_access 만
+	 *      받은 경로처럼 세션이 걸리지 않는 발급이 있을 수 있다. 그런 행은 세션 단위 폐기에 걸리지 않는다.
+	 */
+	@Column(name = "sid", length = 64)
+	private String sid;
+
 	@Builder
 	private RefreshTokenEntity(String tokenHash, String familyId, String clientId, String sub, String scopes,
-			long authTime, Instant issuedAt, Instant expiresAt, Instant familyExpiresAt) {
+			long authTime, Instant issuedAt, Instant expiresAt, Instant familyExpiresAt, String sid) {
 		this.tokenHash = tokenHash;
 		this.familyId = familyId;
 		this.clientId = clientId;
@@ -90,6 +99,7 @@ public class RefreshTokenEntity {
 		this.issuedAt = issuedAt;
 		this.expiresAt = expiresAt;
 		this.familyExpiresAt = familyExpiresAt;
+		this.sid = sid;
 		this.status = RefreshTokenStatus.ACTIVE;
 	}
 

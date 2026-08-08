@@ -33,7 +33,7 @@ public class RefreshTokenController {
 
 	@PostMapping("/internal/refresh-tokens")
 	public IssueResult issue(@RequestBody IssueRequest request) {
-		return refreshTokenService.issue(request.clientId(), request.sub(), request.scope(), request.authTime());
+		return refreshTokenService.issue(request.clientId(), request.sub(), request.scope(), request.authTime(), request.sid());
 	}
 
 	@PostMapping("/internal/refresh-tokens/rotate")

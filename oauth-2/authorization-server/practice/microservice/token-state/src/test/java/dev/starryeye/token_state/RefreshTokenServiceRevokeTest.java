@@ -32,7 +32,7 @@ class RefreshTokenServiceRevokeTest {
 	// refresh token 하나는 하나의 grant 를 대표하므로, 폐기는 그 grant 를 끝내는 것이다 (RFC 7009 2.1)
 	@Test
 	void revokeKillsEntireFamily() {
-		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L, null);
 		RotateResult rotated = service.rotate(issued.refreshToken(), "my-client", null);
 
 		boolean revoked = service.revoke(rotated.refreshToken(), "my-client");
@@ -48,7 +48,7 @@ class RefreshTokenServiceRevokeTest {
 
 	@Test
 	void revokeAfterRevokeStillRotatesToRevoked() {
-		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L, null);
 		service.revoke(issued.refreshToken(), "my-client");
 
 		RotateResult result = service.rotate(issued.refreshToken(), "my-client", null);
@@ -64,7 +64,7 @@ class RefreshTokenServiceRevokeTest {
 	// 남의 토큰으로는 아무것도 폐기할 수 없다
 	@Test
 	void revokeWithMismatchedClientChangesNothing() {
-		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L, null);
 
 		boolean revoked = service.revoke(issued.refreshToken(), "other-client");
 
@@ -76,7 +76,7 @@ class RefreshTokenServiceRevokeTest {
 	// 재사용 탐지로 폐기된 계열에 client 폐기가 뒤따라도 최초 사유가 남아야 한다.
 	@Test
 	void revokeDoesNotOverwriteReuseDetectedReason() {
-		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L, null);
 		RotateResult rotated = service.rotate(issued.refreshToken(), "my-client", null);
 		service.rotate(issued.refreshToken(), "my-client", null); // 재사용 -> 계열 REUSE_DETECTED
 

@@ -9,10 +9,11 @@ public record RotateResult(
 		String scope,
 		long authTime,
 		String refreshToken,
-		long expiresAt
+		long expiresAt,
+		String sid
 ) {
 
 	public static RotateResult failed(RotateStatus status) {
-		return new RotateResult(status, null, null, 0L, null, 0L);
+		return new RotateResult(status, null, null, 0L, null, 0L, null);
 	}
 }

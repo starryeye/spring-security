@@ -33,7 +33,7 @@ class RefreshTokenServiceIssueTest {
 
 	@Test
 	void issueStoresHashNotRawToken() {
-		IssueResult result = service.issue("my-client", "user-sub-0001", "openid offline_access", 1700000000L);
+		IssueResult result = service.issue("my-client", "user-sub-0001", "openid offline_access", 1700000000L, null);
 
 		assertThat(result.refreshToken()).isNotBlank();
 		assertThat(repository.findByTokenHash(result.refreshToken())).isEmpty(); // 원문으로는 찾을 수 없다
@@ -45,7 +45,7 @@ class RefreshTokenServiceIssueTest {
 	// API 는 공백 구분, DB 는 comma 구분이다
 	@Test
 	void issueConvertsScopeToCommaForStorage() {
-		IssueResult result = service.issue("my-client", "user-sub-0001", "openid offline_access", 1700000000L);
+		IssueResult result = service.issue("my-client", "user-sub-0001", "openid offline_access", 1700000000L, null);
 
 		RefreshTokenEntity entity = repository.findByTokenHash(tokenGenerator.hash(result.refreshToken())).orElseThrow();
 		assertThat(entity.getScopes()).isEqualTo("openid,offline_access");
@@ -53,15 +53,15 @@ class RefreshTokenServiceIssueTest {
 
 	@Test
 	void issueStartsNewFamilyEachTime() {
-		IssueResult first = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
-		IssueResult second = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		IssueResult first = service.issue("my-client", "user-sub-0001", "openid", 1700000000L, null);
+		IssueResult second = service.issue("my-client", "user-sub-0001", "openid", 1700000000L, null);
 
 		assertThat(first.familyId()).isNotEqualTo(second.familyId());
 	}
 
 	@Test
 	void issueSetsFamilyExpiryFromConfiguredMaximum() {
-		IssueResult result = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		IssueResult result = service.issue("my-client", "user-sub-0001", "openid", 1700000000L, null);
 
 		RefreshTokenEntity entity = repository.findByTokenHash(tokenGenerator.hash(result.refreshToken())).orElseThrow();
 		// 테스트 설정: ttl 60초, family 최대 300초
@@ -75,7 +75,7 @@ class RefreshTokenServiceIssueTest {
 
 	@Test
 	void introspectReturnsActiveWithClaims() {
-		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid offline_access", 1700000000L);
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid offline_access", 1700000000L, null);
 
 		IntrospectResult result = service.introspect(issued.refreshToken());
 
@@ -99,7 +99,7 @@ class RefreshTokenServiceIssueTest {
 	// RefreshTokenServiceRotateTest 의 rotateWithExpiredIndividualTokenButFamilyStillValidReturnsExpired 와 같은 관용구다.
 	@Test
 	void introspectReturnsInactiveWhenIndividualTokenExpiredButFamilyStillValid() {
-		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L, null);
 		RefreshTokenEntity entity = repository.findByTokenHash(tokenGenerator.hash(issued.refreshToken())).orElseThrow();
 		repository.save(expireIndividualToken(entity));
 
@@ -119,6 +119,7 @@ class RefreshTokenServiceIssueTest {
 				.issuedAt(entity.getIssuedAt())
 				.expiresAt(entity.getIssuedAt().minusSeconds(1))
 				.familyExpiresAt(entity.getFamilyExpiresAt())
+				.sid(entity.getSid())
 				.build();
 		repository.delete(entity);
 		repository.flush();

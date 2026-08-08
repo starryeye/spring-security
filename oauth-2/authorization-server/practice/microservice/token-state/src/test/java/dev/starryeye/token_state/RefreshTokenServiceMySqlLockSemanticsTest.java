@@ -96,7 +96,7 @@ class RefreshTokenServiceMySqlLockSemanticsTest {
 	 */
 	@Test
 	void siblingRowInsertedWhileWaitingForFamilyLockIsIncludedInRevocation() throws Exception {
-		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L);
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L, null);
 
 		CountDownLatch bothEnteredRotate = new CountDownLatch(2);
 		AtomicInteger hashCalls = new AtomicInteger();
