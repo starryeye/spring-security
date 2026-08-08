@@ -108,10 +108,11 @@ public class RefreshTokenGrantService {
 			try {
 				// nonce 는 넣지 않는다. 원래 authorization 요청에 묶인 값이라 재발급 토큰에 실으면 리플레이 방어가 깨진다.
 				// auth_time 은 최초 인증 시각을 그대로 유지한다. (OIDC Core 12.2)
-				// 주의. refresh 경로에는 sid 가 없다. refresh token 레코드가 sid 를 보관하지 않기 때문이며,
-				//      그 결과 refresh 로 재발급한 id token 에는 sid 가 빠진다(알려진 한계).
+				// sid 는 회전 응답이 알려준 값을 그대로 싣는다 — refresh token 레코드가 자기가 속한 세션을
+				// 보관하므로, RP 가 나중에 back-channel logout 을 받았을 때 자기 세션과 대조할 수 있다.
+				// 주의. 세션이 걸리지 않은 발급 경로에서는 sid 가 null 이고, 그때는 claim 자체가 빠진다.
 				idToken = idTokenIssuer.issue(rotation.sub(), client.clientId(), effectiveScope,
-						null, rotation.authTime(), accessToken, null);
+						null, rotation.authTime(), accessToken, rotation.sid());
 			} catch (UserDirectoryClient.UserNotFoundException e) {
 				// 회전 후 사용자가 삭제된 경우다. code 교환 경로와 같은 판단을 한다 — 존재하지 않는 주체에 대한
 				// 인증 주장(id token)을 만들 수 없으므로 grant 자체를 무효로 본다. 사용자가 사라졌다는 확정된

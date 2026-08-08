@@ -139,7 +139,7 @@ public class TokenEndpointController {
 		List<String> grantedScopes = Arrays.asList(data.scope().split(" "));
 		if (grantedScopes.contains("offline_access") && client.grantTypes().contains("refresh_token")) {
 			refreshToken = tokenStateClient
-					.issue(client.clientId(), data.sub(), data.scope(), data.authTime())
+					.issue(client.clientId(), data.sub(), data.scope(), data.authTime(), data.sid())
 					.refreshToken();
 		}
 

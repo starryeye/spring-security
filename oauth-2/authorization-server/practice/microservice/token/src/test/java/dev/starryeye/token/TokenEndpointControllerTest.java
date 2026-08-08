@@ -372,7 +372,7 @@ class TokenEndpointControllerTest {
 		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
 		when(signingClient.sign(any(), any())).thenReturn("signed-access-token");
 		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any(), any())).thenReturn("signed-id-token");
-		when(tokenStateClient.issue(eq("my-client"), eq("user-sub-0001"), eq("openid offline_access"), eq(1700000000L)))
+		when(tokenStateClient.issue(eq("my-client"), eq("user-sub-0001"), eq("openid offline_access"), eq(1700000000L), isNull()))
 				.thenReturn(new IssuedRefreshToken("refresh-token-1", 1800000000L, "family-1"));
 
 		mockMvc.perform(post("/oauth2/token")
@@ -406,7 +406,7 @@ class TokenEndpointControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.refresh_token").doesNotExist());
 
-		verify(tokenStateClient, never()).issue(any(), any(), any(), anyLong());
+		verify(tokenStateClient, never()).issue(any(), any(), any(), anyLong(), any());
 		verify(sessionClient, never()).register(any(), any(), any());
 	}
 
@@ -431,7 +431,7 @@ class TokenEndpointControllerTest {
 				.andExpect(jsonPath("$.access_token").exists())
 				.andExpect(jsonPath("$.refresh_token").doesNotExist());
 
-		verify(tokenStateClient, never()).issue(any(), any(), any(), anyLong());
+		verify(tokenStateClient, never()).issue(any(), any(), any(), anyLong(), any());
 	}
 
 	// token-state 발급 호출이 실패하면 access token 만 내려주고 refresh token 을 조용히 빠뜨릴 수 없다 -- client 는
@@ -445,7 +445,7 @@ class TokenEndpointControllerTest {
 		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
 		when(signingClient.sign(any(), any())).thenReturn("signed-access-token");
 		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any(), any())).thenReturn("signed-id-token");
-		when(tokenStateClient.issue(any(), any(), any(), anyLong()))
+		when(tokenStateClient.issue(any(), any(), any(), anyLong(), any()))
 				.thenThrow(new IllegalStateException("token-state is down"));
 
 		mockMvc.perform(post("/oauth2/token")

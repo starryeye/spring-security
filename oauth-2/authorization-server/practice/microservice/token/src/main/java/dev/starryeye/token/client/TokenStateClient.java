@@ -25,11 +25,18 @@ public class TokenStateClient {
 		this.restClient = builder.baseUrl(baseUrl).build();
 	}
 
-	public IssuedRefreshToken issue(String clientId, String sub, String scope, long authTime) {
+	public IssuedRefreshToken issue(String clientId, String sub, String scope, long authTime, String sid) {
+		Map<String, Object> body = new LinkedHashMap<>();
+		body.put("clientId", clientId);
+		body.put("sub", sub);
+		body.put("scope", scope);
+		body.put("authTime", authTime);
+		body.put("sid", sid); // Map.of 는 null 값을 담지 못한다 — sid 는 nullable 이다
+
 		return restClient.post()
 				.uri("/internal/refresh-tokens")
 				.contentType(MediaType.APPLICATION_JSON)
-				.body(Map.of("clientId", clientId, "sub", sub, "scope", scope, "authTime", authTime))
+				.body(body)
 				.retrieve()
 				.body(IssuedRefreshToken.class);
 	}

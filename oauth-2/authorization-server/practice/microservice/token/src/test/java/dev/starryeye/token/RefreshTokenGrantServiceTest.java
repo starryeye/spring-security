@@ -36,7 +36,7 @@ class RefreshTokenGrantServiceTest {
 	}
 
 	private RotateResult rotated(String scope) {
-		return new RotateResult("ROTATED", "user-sub-0001", scope, 1700000000L, "new-refresh", 1800000000L);
+		return new RotateResult("ROTATED", "user-sub-0001", scope, 1700000000L, "new-refresh", 1800000000L, null);
 	}
 
 	@Test
@@ -71,7 +71,7 @@ class RefreshTokenGrantServiceTest {
 	@Test
 	void reuseDetectedBecomesInvalidGrant() {
 		when(tokenStateClient.rotate("old-refresh", "my-client", null))
-				.thenReturn(new RotateResult("REUSE_DETECTED", null, null, 0L, null, 0L));
+				.thenReturn(new RotateResult("REUSE_DETECTED", null, null, 0L, null, 0L, null));
 
 		GrantResult result = service.grant(client(), "old-refresh", null);
 
@@ -83,7 +83,7 @@ class RefreshTokenGrantServiceTest {
 	@Test
 	void notFoundBecomesInvalidGrant() {
 		when(tokenStateClient.rotate("old-refresh", "my-client", null))
-				.thenReturn(new RotateResult("NOT_FOUND", null, null, 0L, null, 0L));
+				.thenReturn(new RotateResult("NOT_FOUND", null, null, 0L, null, 0L, null));
 
 		assertThat(service.grant(client(), "old-refresh", null).error()).isEqualTo("invalid_grant");
 	}
@@ -91,7 +91,7 @@ class RefreshTokenGrantServiceTest {
 	@Test
 	void expiredBecomesInvalidGrant() {
 		when(tokenStateClient.rotate("old-refresh", "my-client", null))
-				.thenReturn(new RotateResult("EXPIRED", null, null, 0L, null, 0L));
+				.thenReturn(new RotateResult("EXPIRED", null, null, 0L, null, 0L, null));
 
 		assertThat(service.grant(client(), "old-refresh", null).error()).isEqualTo("invalid_grant");
 	}
@@ -99,7 +99,7 @@ class RefreshTokenGrantServiceTest {
 	@Test
 	void revokedBecomesInvalidGrant() {
 		when(tokenStateClient.rotate("old-refresh", "my-client", null))
-				.thenReturn(new RotateResult("REVOKED", null, null, 0L, null, 0L));
+				.thenReturn(new RotateResult("REVOKED", null, null, 0L, null, 0L, null));
 
 		GrantResult result = service.grant(client(), "old-refresh", null);
 
@@ -111,7 +111,7 @@ class RefreshTokenGrantServiceTest {
 	@Test
 	void clientMismatchBecomesInvalidGrant() {
 		when(tokenStateClient.rotate("old-refresh", "my-client", null))
-				.thenReturn(new RotateResult("CLIENT_MISMATCH", null, null, 0L, null, 0L));
+				.thenReturn(new RotateResult("CLIENT_MISMATCH", null, null, 0L, null, 0L, null));
 
 		GrantResult result = service.grant(client(), "old-refresh", null);
 
@@ -166,7 +166,7 @@ class RefreshTokenGrantServiceTest {
 	@Test
 	void scopeExceededBecomesInvalidScope() {
 		when(tokenStateClient.rotate("old-refresh", "my-client", "openid admin"))
-				.thenReturn(new RotateResult("SCOPE_EXCEEDED", null, null, 0L, null, 0L));
+				.thenReturn(new RotateResult("SCOPE_EXCEEDED", null, null, 0L, null, 0L, null));
 
 		GrantResult result = service.grant(client(), "old-refresh", "openid admin");
 
