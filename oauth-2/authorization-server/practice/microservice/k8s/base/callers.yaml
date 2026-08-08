@@ -1,0 +1,55 @@
+# 주의. Istio 의 신원은 파드가 무엇을 실행하느냐가 아니라 ServiceAccount 에서 나온다.
+#      그래서 SA 만 빌린 curl 파드가 그 서비스의 SPIFFE 신원을 그대로 갖는다.
+#      auth 서비스 자체는 이 트랙에 배포하지 않는다(Redis·user-directory·consent·session 이 필요하다).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: auth
+  namespace: microservice-as
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: caller-token
+  namespace: microservice-as
+  labels:
+    app: caller-token
+spec:
+  serviceAccountName: token
+  containers:
+    - name: curl
+      image: curlimages/curl:latest
+      imagePullPolicy: IfNotPresent
+      command: ["sleep", "infinity"]
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: caller-auth
+  namespace: microservice-as
+  labels:
+    app: caller-auth
+spec:
+  serviceAccountName: auth
+  containers:
+    - name: curl
+      image: curlimages/curl:latest
+      imagePullPolicy: IfNotPresent
+      command: ["sleep", "infinity"]
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: no-mesh
+  namespace: microservice-as
+  labels:
+    app: no-mesh
+  annotations:
+    # 사이드카를 일부러 넣지 않는다. PeerAuthentication STRICT 가 실제로 강제되는지 확인하는 파드다.
+    sidecar.istio.io/inject: "false"
+spec:
+  containers:
+    - name: curl
+      image: curlimages/curl:latest
+      imagePullPolicy: IfNotPresent
+      command: ["sleep", "infinity"]
