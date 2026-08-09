@@ -168,7 +168,7 @@ flowchart TB
    ```
    - seed: user / 1111 (user-directory, profile 포함: name `Star Rye`, email `starryeye@example.com` 등), client `my-client` / `secret` (client-registry, redirectUri `http://127.0.0.1:8080/callback`, scope `openid profile email offline_access`, grantTypes `authorization_code refresh_token`, clientScopes `""` — client_credentials 미등록이라 이 grant 는 `unauthorized_client` 로 거절된다), client `article-api` / `secret`(client-registry, resource server 역할 — scopes/redirectUris 가 비어 있어 인가 흐름(authorization_code)에는 참여할 수 없고, grantTypes `client_credentials` · clientScopes `introspect` 로 **자기 자신 앞으로 `introspect` scope 의 access token 만 받을 수 있다**. 그 토큰을 Bearer 로 실어야 `/oauth2/introspect` 를 호출할 수 있다)
    - 모든 요청은 gateway(http://localhost:9000) 로 보낸다.
-   - **주의. `session` 을 `token-state` 보다 먼저 올려야 한다 — e2e 검증 중 실제로 관측된 순서 문제다.** `session` 은 기동 시 `oidc.session.logged-out.v1` 토픽을 파티션 3으로 명시 생성하는데(`KafkaTopicConfig`), `token-state` 의 Kafka consumer 가 그보다 먼저 그 토픽을 구독하면 브로커가 그 순간 기본 파티션 수(1개)로 토픽을 자동 생성해버릴 수 있다. 이 태스크의 최초 콜드 스타트(브리프 예시 순서대로 `token-state` 를 `session` 보다 먼저 올림)에서 정확히 이 현상이 재현됐다 — `token-state` 로그에 `partitions assigned: [oidc.session.logged-out.v1-0]` 이후 재조정 로그가 전혀 없었고, `kafka-topics --describe` 로는 파티션이 이미 3개로 보이는데도(`session` 이 나중에 파티션을 늘렸다) 그 consumer group 은 파티션 0번 하나에 계속 고정돼 있었다. 그 사이 `partition_key`(=`sid`)가 파티션 1·2로 해시되는 로그아웃 이벤트는 소비되지 않고 조용히 멈췄다 — outbox 에는 `published_at` 이 채워진 채(발행은 됐다) 남아 있었지만, 로그아웃 후 같은 refresh token 으로 회전이 여전히 `200` 으로 성공했다. `token-state` 를 재기동해 consumer 를 새로 join 시키자 그제서야 밀렸던 이벤트를 즉시 소비해 정리됐다(Spring Kafka 컨슈머의 메타데이터 갱신 주기는 기본 5분이라, 재기동 없이는 그만큼 늦게야 스스로 회복됐을 것이다). 위 순서(`session` 을 `token-state` 보다 먼저)로 올리면 이 창 자체가 열리지 않는다.
+   - 주의. 이 태스크의 최초 콜드 스타트(브리프 예시 순서대로 `token-state` 를 `session` 보다 먼저 올림)에서, 로그아웃해도 refresh 가 조용히 폐기되지 않는 현상을 실제로 관측한 적이 있다 — `token-state` 의 Kafka consumer 가 `session` 이 `oidc.session.logged-out.v1` 토픽을 파티션 3으로 명시 생성하기 전에 먼저 그 토픽을 구독해, 브로커 기본값(파티션 1개)으로 자동 생성된 토픽의 파티션 0번에만 고정 배정됐다(`token-state` 로그: `partitions assigned: [oidc.session.logged-out.v1-0]`, 이후 재조정 없음). `partition_key`(=`sid`)가 파티션 1·2로 해시되는 로그아웃 이벤트는 그 사이 소비되지 않았다(자세한 경위는 아래 "검증된 성공 기준 > 슬라이스 7" 참고). **이제는 `token-state` 도 같은 토픽을 `NewTopic` 빈으로 선언한다**(`KafkaConsumerConfig`, 파티션 3·replicas 1 — `session` 의 `KafkaTopicConfig` 선언과 동일한 값). `KafkaAdmin` 은 `SmartInitializingSingleton` 이라 두 서비스 모두 자기 리스너를 시작하기 전에 먼저 실행되고, 같은 이름의 토픽을 중복 선언해도 멱등(이미 충분하면 아무 일도 안 하고, 모자라면 늘리기만 한다)이므로 **어느 서비스가 먼저 떠도 파티션 3개가 보장된다** — 실제로 `token-state` 를 `session` 없이 완전히 혼자 띄워 `kafka-topics --describe` 로 파티션 3개가 즉시 만들어지는 것을 확인했다(아래 "검증된 성공 기준" 참고). 그래서 이 순서(`session` 을 `token-state` 보다 먼저)는 이제 정확성의 전제조건이 아니다 — 위 목록의 순서는 다른 이유(REST 호출 준비, 이전 항목들 참고)로 그대로 유지한다.
    - 주의. `ddl-auto: update` 라 컨테이너/DB 를 재사용하면 seed 는 "이미 행이 있으면 스킵"으로 동작해 **이전 seed 스키마의 값이 남을 수 있다**(예: client 의 `email` scope, user 의 profile 컬럼이 나중에 추가된 경우). seed 코드와 실제 DB 값이 다르면 `UPDATE` 로 맞추거나 볼륨을 새로 만든다.
    - 주의. 슬라이스 1·2 때부터 존재하던 `my-client` 행이 그 예다. 슬라이스 3 seed 는 `scopes` 에 `offline_access`, `grant_types` 에 `refresh_token` 을 기대하지만, 기존 행은 `ddl-auto: update` 때문에 갱신되지 않는다. `scopes='openid,profile,email,offline_access'`, `grant_types='authorization_code,refresh_token'` 로 `UPDATE` 하고(seed 코드가 신규 client 에 실제로 심는 값과 동일하다 — 임의 값이 아니다) client-registry 를 재기동해 Caffeine 캐시(30s)를 비워야 한다.
    - 주의. `ddl-auto: update` 로 **기존 행이 있는 테이블에 not null 컬럼을 추가**하면(Hibernate 가 `alter table clients add column client_scopes varchar(500) not null` 을 낸다) MySQL 은 명시적 `DEFAULT` 절이 없어도 실패하지 않고 컬럼 타입의 암묵적 기본값(문자열이면 빈 문자열)으로 기존 행을 채운 뒤 성공시킨다. 슬라이스 4 의 `client_scopes` 추가가 그 예다 — 이미 있던 `my-client`·`article-api` 행 모두 `client_scopes=''` 로 채워졌다(`my-client` 는 seed 가 원래 `""` 를 의도하므로 문제 없지만, `article-api` 는 `introspect` 를 기대하므로 값이 어긋난다). 게다가 `article-api` 행은 이번 슬라이스 이전부터 `grant_types` 도 빈 문자열이었다(이전 슬라이스에서는 client 인증만 되면 됐으므로) — 이번 slice 의 seed 는 `client_credentials` 를 기대하므로 이 값도 함께 어긋난다. client-registry 로그에서 컬럼 추가 자체가 실패했는지(구버전 MySQL 등에서는 not null 추가가 에러로 끝날 수 있다) 먼저 확인하고, 성공했다면 `UPDATE` 로 seed 가 의도하는 값(`article-api`: `client_scopes='introspect', grant_types='client_credentials'`)으로 보정한 뒤 client-registry 를 재기동해 Caffeine 캐시(30s)를 비워야 한다.
@@ -833,7 +833,41 @@ Location: http://localhost/login   # 같은 쿠키인데도 다시 로그인을 
 
 `docker compose ... down -v` 로 볼륨을 지운 뒤 콜드 스타트해(4개 인프라 컨테이너 + 9개 Spring 서비스) 검증했다. 매 측정 전 `docker ps` 로 실제 컨테이너 상태를 확인했다.
 
-**판정 전에 발견한 것 — 기동 순서 경쟁.** 이 브리프가 준 최초 기동 순서(`token-state` 를 `session` 보다 먼저 올림)로 콜드 스타트했을 때, `token-state` 의 Kafka consumer 가 `oidc.session.logged-out.v1` 토픽이 파티션 3개로 존재하기 전에 구독을 시작해 파티션 0번에만 고정 배정되는 것을 실제로 관측했다(`token-state` 로그: `partitions assigned: [oidc.session.logged-out.v1-0]`, 이후 재조정 로그 없음 — `kafka-topics --describe` 로는 이미 파티션 3개로 보이는데도). 그 상태에서는 `partition_key`(=`sid`)가 파티션 1·2로 해시되는 로그아웃 이벤트가 소비되지 않아, 아래 3번의 첫 시도가 로그아웃하고 1초를 기다린 뒤에도 `200`(회전 성공)으로 나왔다 — outbox 에는 이벤트가 정상 발행돼 있었다(`published_at` 채워짐, `kafka-console-consumer --partition 1` 로 그 이벤트가 실제로 파티션 1에 있음을 직접 확인했다). `token-state` 를 재기동해 consumer 를 다시 join 시키자 밀린 이벤트를 즉시 소비해 `REVOKED` 로 정리됐다. 이후 새 세션으로 아래 항목을 전부 재검증했고, 위 "기동 방법"에 `session` 을 `token-state` 보다 먼저 올리라는 주의를 남겼다. **이 발견 자체가 outbox 설계의 결함은 아니다** — outbox 는 이벤트를 정확히 발행했고 브로커에도 정확히 도착했다. 문제는 소비자 쪽 컨슈머 그룹이 파티션 배정을 오래된 상태로 고정하고 있었다는, 순수하게 기동 순서에서 온 것이었다.
+**판정 전에 발견한 것 — 기동 순서 경쟁, 코드로 닫았다.** 이 브리프가 준 최초 기동 순서(`token-state` 를 `session` 보다 먼저 올림)로 콜드 스타트했을 때, `token-state` 의 Kafka consumer 가 `oidc.session.logged-out.v1` 토픽이 파티션 3개로 존재하기 전에 구독을 시작해 파티션 0번에만 고정 배정되는 것을 실제로 관측했다(`token-state` 로그: `partitions assigned: [oidc.session.logged-out.v1-0]`, 이후 재조정 로그 없음 — `kafka-topics --describe` 로는 이미 파티션 3개로 보이는데도). 그 상태에서는 `partition_key`(=`sid`)가 파티션 1·2로 해시되는 로그아웃 이벤트가 소비되지 않아, 아래 3번의 첫 시도가 로그아웃하고 1초를 기다린 뒤에도 `200`(회전 성공)으로 나왔다 — outbox 에는 이벤트가 정상 발행돼 있었다(`published_at` 채워짐, `kafka-console-consumer --partition 1` 로 그 이벤트가 실제로 파티션 1에 있음을 직접 확인했다). `token-state` 를 재기동해 consumer 를 다시 join 시키자 밀린 이벤트를 즉시 소비해 `REVOKED` 로 정리됐다. **이 발견 자체가 outbox 설계의 결함은 아니다** — outbox 는 이벤트를 정확히 발행했고 브로커에도 정확히 도착했다. 문제는 소비자 쪽 컨슈머 그룹이 파티션 배정을 오래된 상태로 고정하고 있었다는, 순수하게 기동 순서에서 온 것이었다. 다만 "기동 순서를 지켜라"는 문서 규율로는 부족하다고 판단해(실패가 조용하다 — 로그아웃이 `200`을 주고 outbox 의 `published_at`도 채워지는데 refresh 만 안 죽는다), `token-state` 의 `KafkaConsumerConfig` 에도 같은 토픽을 `NewTopic` 빈으로 선언해(파티션 3·replicas 1, `session` 의 선언과 동일) **어느 서비스가 먼저 떠도 파티션 3개가 보장되도록 코드로 닫았다.** 고친 뒤 컨테이너·토픽을 전부 지운 상태에서 `token-state` 를 `session` 없이 완전히 혼자 띄워 재검증했다:
+```
+$ docker ps --filter "name=microservice-as"
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+(출력 없음 — 컨테이너 없음)
+
+$ docker compose -p microservice-as -f docker-compose/docker-compose.yml down -v
+$ docker compose -p microservice-as -f docker-compose/docker-compose.yml up -d
+ Network microservice-as_default Created
+ Container microservice-as-mysql-1 Started
+ Container microservice-as-kafka-1 Started
+ Container microservice-as-redis-1 Started
+ Container microservice-as-nginx-1 Started
+
+$ sleep 20 && docker ps --filter "name=microservice-as" --format "table {{.Names}}\t{{.Status}}"
+NAMES                     STATUS
+microservice-as-mysql-1   Up 20 seconds
+microservice-as-nginx-1   Up 20 seconds
+microservice-as-kafka-1   Up 20 seconds
+microservice-as-redis-1   Up 20 seconds
+
+$ docker exec -i microservice-as-kafka-1 /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+(빈 출력 — 토픽 없음. session 은 아직 한 번도 기동한 적이 없다)
+
+$ (cd token-state && java -jar build/libs/token-state-0.0.1-SNAPSHOT.jar > /tmp/token-state.log 2>&1 &)   # session 은 여전히 기동하지 않은 채
+$ sleep 10 && grep -n "partitions assigned" /tmp/token-state.log
+258:2026-08-09T23:54:58.078+09:00  INFO 63117 --- [ntainer#0-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : token-state: partitions assigned: [oidc.session.logged-out.v1-0, oidc.session.logged-out.v1-1, oidc.session.logged-out.v1-2]
+
+$ docker exec -i microservice-as-kafka-1 /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic oidc.session.logged-out.v1
+Topic: oidc.session.logged-out.v1	TopicId: 9FAsiZrYQRuWEK1tikqR2w	PartitionCount: 3	ReplicationFactor: 1	Configs:
+	Topic: oidc.session.logged-out.v1	Partition: 0	Leader: 1	Replicas: 1	Isr: 1
+	Topic: oidc.session.logged-out.v1	Partition: 1	Leader: 1	Replicas: 1	Isr: 1
+	Topic: oidc.session.logged-out.v1	Partition: 2	Leader: 1	Replicas: 1	Isr: 1
+```
+`session` 을 한 번도 띄우지 않은 상태에서도 `token-state` 혼자 파티션 3개를 즉시 배정받았다 — 이제 이 창은 순서와 무관하게 열리지 않는다.
 
 1. **분리 — 권한 오류(설계 문서 성공 기준 1)**
    ```
@@ -889,19 +923,30 @@ Location: http://localhost/login   # 같은 쿠키인데도 다시 로그인을 
    $ docker exec -i microservice-as-mysql-1 mysql -usvc_token_state -ppw_token_state -e \
        "SELECT sid, status, revoked_reason FROM ms_token_state.refresh_tokens ORDER BY id"
    sid                       status    revoked_reason
+   u7NByxBEGBsu9xHXoU_o_A    CONSUMED  NULL                 (이전 실험 잔여 — "기동 순서 경쟁" 진단용 최초 세션)
+   u7NByxBEGBsu9xHXoU_o_A    CONSUMED  NULL
+   u7NByxBEGBsu9xHXoU_o_A    REVOKED   SESSION_LOGGED_OUT
+   Mgsy2CLoyJlzLHuZqG9HMA    CONSUMED  NULL                 (Step 3 재검증 세션)
+   Mgsy2CLoyJlzLHuZqG9HMA    REVOKED   SESSION_LOGGED_OUT
    2mVAWD2iktMZyyPwKXOgOQ    REVOKED   SESSION_LOGGED_OUT   (A)
    JEEtK-zHQVAOula6TZRhVA    CONSUMED  NULL
    JEEtK-zHQVAOula6TZRhVA    ACTIVE    NULL                 (B, 최신 행)
    ```
    A 의 `sid` 행만 `REVOKED`/`SESSION_LOGGED_OUT`, B 의 최신 행은 `ACTIVE` — 브리프가 기대한 그대로.
 
-5. **refresh 재발급 id token 에 `sid`(기준 5)** — 위 4번에서 받은 B 의 회전 응답 id_token payload:
+5. **refresh 재발급 id token 에 `sid`(기준 5)** — 위 4번에서 받은 B 의 회전 응답 id_token payload 전체(`python3 -m json.tool` 출력 그대로, 발췌 아님):
    ```json
    {
+     "at_hash": "qJ6YrY6WdZG7yXIaweWfqA",
      "sub": "user-sub-0001",
+     "email_verified": true,
+     "iss": "http://localhost:9000",
+     "preferred_username": "starryeye",
      "sid": "JEEtK-zHQVAOula6TZRhVA",
      "aud": "my-client",
      "auth_time": 1786285600,
+     "name": "Star Rye",
+     "nickname": "starry",
      "exp": 1786285916,
      "iat": 1786285616,
      "email": "starryeye@example.com"
@@ -911,10 +956,20 @@ Location: http://localhost/login   # 같은 쿠키인데도 다시 로그인을 
 
 6. **Kafka 를 내려도 로그아웃이 커밋된다(기준 8·9)**
    ```
-   $ docker ps --filter "name=microservice-as-kafka" --format "table {{.Names}}\t{{.Status}}"
-   (stop 전) microservice-as-kafka-1   Up 9 minutes
+   $ docker ps --filter "name=microservice-as" --format "table {{.Names}}\t{{.Status}}"    # stop 전
+   NAMES                     STATUS
+   microservice-as-mysql-1   Up 9 minutes
+   microservice-as-redis-1   Up 9 minutes
+   microservice-as-nginx-1   Up 9 minutes
+   microservice-as-kafka-1   Up 9 minutes
+
    $ docker compose -p microservice-as -f docker-compose/docker-compose.yml stop kafka
-   (stop 후) microservice-as-kafka-1   Exited (143) Less than a second ago
+    Container microservice-as-kafka-1 Stopping
+    Container microservice-as-kafka-1 Stopped
+
+   $ docker ps -a --filter "name=microservice-as-kafka" --format "table {{.Names}}\t{{.Status}}"    # stop 후
+   NAMES                     STATUS
+   microservice-as-kafka-1   Exited (143) Less than a second ago
 
    kafka 정지 상태에서 새 세션으로 로그인 → refresh 획득 → 로그아웃:
    $ curl -i -b $JAR http://localhost:9000/oauth2/logout
@@ -990,6 +1045,7 @@ admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네
 - **보안 창** — 폐기는 즉시가 아니라 `session` 폴러 주기(운영 기본 500ms)만큼 늦다. 위 "검증된 성공 기준"에서 3회 실측한 값은 대략 0.2~0.4초. 즉시성이 필요하면 동기 호출을 병행하고 이벤트는 보증으로만 쓰는 조합이 있다.
 - **`session` 을 다중 인스턴스로 늘리면 발행자끼리 경쟁한다** — 여러 폴러가 같은 outbox 행을 동시에 집어 중복 발행이 늘어난다. 소비자(`token-state`)가 멱등(`WHERE sid = ? AND status = 'ACTIVE'`)이라 피해는 없지만, 정석 해법은 `FOR UPDATE SKIP LOCKED`이고 다른 길은 outbox API 계약을 만들어 전용 relay 를 붙이는 것이다. 지금은 인스턴스가 하나뿐이라 이 문제 자체에 도달하지 않는다.
 - **`sid` 가 `null` 인 옛 `refresh_tokens` 행은 이 폐기에 걸리지 않는다** — `down -v` 로 스키마를 다시 만든 지금은 실제로 도달할 수 없지만, 컬럼이 nullable 인 이상 코드상 가능성은 남아 있다.
+- **이벤트 페이로드의 `sub` 가 `null` 일 수 있다** — 등록된 RP 가 없는 세션(`openid` 없이 `offline_access` 만 받은 경로)은 `oidc_sessions` 행이 없어 소유자를 모른 채 이벤트가 나간다. 소비자(`token-state`)는 폐기 판정에 `sid` 만 쓰므로 동작에는 영향이 없지만, 나중에 `sub` 를 쓰는 소비자가 붙으면 이 nullable 을 반드시 처리해야 한다.
 - **`outbox` 에 정리 수단이 없다** — 발행된 행이 무한히 쌓인다. `oidc_sessions` 에 purge 가 없는 것과 같은 성격의 결손이다.
 - **`session` 이 죽어 있으면 통지도 폐기도 일어나지 않는다(fail-open)** — 슬라이스 5의 결정을 그대로 물려받는다. 로그아웃 자체를 실패시키지 않는 대가다.
 - **`root` 계정이 초기화용으로 컨테이너 안에 남는다** — 애플리케이션 설정에서는 빠졌지만 존재 자체가 없어진 것은 아니다.

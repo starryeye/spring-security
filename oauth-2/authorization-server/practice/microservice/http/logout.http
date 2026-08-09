@@ -31,19 +31,21 @@ Content-Type: application/json
 {"sid": "x"}
 
 ### --- 아래는 SQL. curl 로 보내는 요청이 아니라 mysql 클라이언트(또는 docker exec)로 실행한다 ---
+### 주의. 슬라이스 7부터 서비스마다 전용 스키마·계정을 쓴다(README "서비스별 책임과 소유 데이터" 참고).
+###      예전 단일 스키마(microservice_as, root 공유) 는 더 이상 없다.
 ###
 ### oidc_sessions 전체 조회 — (sid, sub, client_id) 가 로그인 시 RP 마다 한 행씩 쌓인다
-### docker exec -i microservice-as-mysql-1 mysql -uroot -p1111 microservice_as \
+### docker exec -i microservice-as-mysql-1 mysql -usvc_session -ppw_session ms_session \
 ###   -e "select sid, sub, client_id, created_at from oidc_sessions order by created_at desc;"
 ###
 ### 특정 sid 로 걸린 RP 목록만 — 로그아웃 시 이 목록 전부에 logout token 이 나간다
-### docker exec -i microservice-as-mysql-1 mysql -uroot -p1111 microservice_as \
+### docker exec -i microservice-as-mysql-1 mysql -usvc_session -ppw_session ms_session \
 ###   -e "select client_id from oidc_sessions where sid='{sid}';"
 ###
 ### 로그아웃 후 행이 사라졌는지(성공 기준 6번) — 통지 성공 여부와 무관하게 통지 시점에 즉시 삭제된다
-### docker exec -i microservice-as-mysql-1 mysql -uroot -p1111 microservice_as \
+### docker exec -i microservice-as-mysql-1 mysql -usvc_session -ppw_session ms_session \
 ###   -e "select count(*) from oidc_sessions;"
 ###
 ### client 의 backchannel_logout_uri/post_logout_redirect_uris 확인(client-registry 소유 컬럼)
-### docker exec -i microservice-as-mysql-1 mysql -uroot -p1111 microservice_as \
+### docker exec -i microservice-as-mysql-1 mysql -usvc_client_registry -ppw_client_registry ms_client_registry \
 ###   -e "select client_id, backchannel_logout_uri, post_logout_redirect_uris from clients;"

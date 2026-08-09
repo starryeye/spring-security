@@ -36,6 +36,33 @@ public class KafkaConsumerConfig {
 	 */
 	public static final String LOGGED_OUT_DLT = SessionLoggedOutConsumer.LOGGED_OUT_TOPIC + ".dlt";
 
+	/**
+	 * 본 토픽(oidc.session.logged-out.v1)을 session 뿐 아니라 token-state 도 선언한다.
+	 *
+	 * 주의. 이 선언이 없던 상태에서 콜드 스타트 순서가 token-state → session 이면 실제 장애가 재현됐다
+	 *      (task-9-report.md 참고). apache/kafka 이미지의 broker 기본값 num.partitions=1 과 kafka-clients
+	 *      의 allow.auto.create.topics=true 조합 때문에, token-state 의 consumer 가 session 보다 먼저
+	 *      이 토픽을 구독하면 브로커가 그 순간 파티션 1개로 자동 생성해버린다. session 이 나중에
+	 *      KafkaAdmin 으로 파티션을 3개로 늘려도(NewTopic 은 이미 있는 토픽을 만나면 파티션이 모자랄 때만
+	 *      늘리는 방향으로만 동작한다), token-state 의 consumer group 은 그 순간의 배정(파티션 0 하나)에
+	 *      머물러 있다가 다음 메타데이터 갱신(kafka-clients 기본 metadata.max.age.ms=300000, 최대 5분)
+	 *      에야 새 파티션을 알아챈다. 그 사이 partition_key(=sid)가 파티션 1·2로 해시되는 로그아웃
+	 *      이벤트는 소비되지 않는다 — 로그아웃은 200 을 주고 세션도 지워지고 outbox 의 published_at 도
+	 *      채워지는데, refresh 만 폐기되지 않는 조용한 실패다.
+	 *
+	 * 주의. Spring 의 KafkaAdmin 은 SmartInitializingSingleton 이라 두 서비스 모두 자기 리스너 컨테이너가
+	 *      start() 하기 전에 이 빈을 먼저 실행한다. 같은 이름의 토픽을 두 서비스가 각자 선언해도 충돌하지
+	 *      않는다 — KafkaAdmin 은 대상 토픽이 이미 있으면 파티션 수를 비교해 부족한 쪽만 늘리고, 이미
+	 *      충분하면 아무 일도 하지 않는다(멱등). 그래서 어느 서비스가 먼저 떠도, session 이 아직 하나도
+	 *      뜨지 않은 순간에 token-state 만 먼저 떠도 파티션 3개가 보장된다 — "session 을 먼저 올려라"라는
+	 *      기동 순서 규율이 아니라 코드가 이 창을 닫는다. 파티션 수·replicas 는 session 의
+	 *      KafkaTopicConfig 선언과 반드시 같게 유지해야 한다(어긋나면 늘어나는 쪽으로만 수렴해 혼란스러워진다).
+	 */
+	@Bean
+	NewTopic sessionLoggedOutTopic() {
+		return TopicBuilder.name(SessionLoggedOutConsumer.LOGGED_OUT_TOPIC).partitions(3).replicas(1).build();
+	}
+
 	@Bean
 	NewTopic sessionLoggedOutDlt() {
 		return TopicBuilder.name(LOGGED_OUT_DLT).partitions(3).replicas(1).build();
