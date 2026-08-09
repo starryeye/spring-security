@@ -1,4 +1,4 @@
-# microservice authorization server (슬라이스 1 + 슬라이스 2: OIDC + 슬라이스 3: 토큰 수명 관리 + 슬라이스 4: client 능력 scope 와 client_credentials + 슬라이스 5: back-channel logout · typ 헤더)
+# microservice authorization server (슬라이스 1 + 슬라이스 2: OIDC + 슬라이스 3: 토큰 수명 관리 + 슬라이스 4: client 능력 scope 와 client_credentials + 슬라이스 5: back-channel logout · typ 헤더 + 슬라이스 7: 서비스별 DB 분리와 outbox)
 
 - Spring Authorization Server starter **없이** OAuth/OIDC 로직을 직접 구현하고, 하나의 인가 서버를 **10개 독립 마이크로서비스**로 쪼갠 학습 프로젝트다.
 - 슬라이스 1 의 목표: **authorization code + PKCE(S256) flow 하나**를 6개 서비스로 관통시키는 것. (완료)
@@ -6,6 +6,7 @@
 - 슬라이스 3 의 목표: **토큰 수명 관리(refresh token 회전 · 재사용 탐지 · introspection · revocation)**. refresh token 계열(family)과 폐기 상태를 소유하는 8번째 서비스 token-state 를 신설하고, token 이 `grant_type=refresh_token` / `POST /oauth2/introspect` / `POST /oauth2/revoke` 를 제공한다. (완료, 내부 서비스 간 인증/back-channel logout/admin 등록 API/Kafka 는 여전히 이후 과제)
 - 슬라이스 4 의 목표: **client 자체 능력을 scope 로 표현**하는 것. `clients` 에 관리자가 부여하는 `client_scopes` 컬럼을 신설해 사용자 위임 scope(`scopes`)와 분리하고, 사용자 없이 client 가 자기 자신으로서 토큰을 받는 `client_credentials` grant(RFC 6749 4.4)를 추가한다. 그 grant 로 받은 토큰의 `introspect` scope 를 요구하도록 `/oauth2/introspect` 를 client 인증(Basic) 기반에서 **Bearer + scope 기반 protected resource** 로 전환한다. (완료)
 - 슬라이스 5 의 목표: **RP-Initiated Logout 1.0** 과 **Back-Channel Logout 1.0**. 슬라이스 1~4는 토큰을 내주는 쪽만 다뤘고 세션이 끝나는 사건은 어디에도 없었다 — 이번 슬라이스가 그 반대쪽, OP 가 세션을 가진 각 RP 에게 logout token 을 보내 로그아웃을 전파하는 쪽을 채운다. `(sid, sub, client_id)` 레지스트리와 발송을 전담하는 9번째 서비스 session 을 신설하고, 검증자가 우리 코드가 아니라 실제 Spring Security 구현이도록 진짜 RP(demo-rp)를 10번째 서비스로 추가한다. 같은 키로 서명되던 access token · id token · logout token 세 타입을 `typ` 헤더로 구분해 강제하며, 그 결과 슬라이스 4까지 남아 있던 한계 "access token 과 id token 을 구분할 수 있는 표식이 없다"를 닫는다. (완료)
+- 슬라이스 7 의 목표: **서비스별 DB 분리와 outbox**. 슬라이스 5까지는 5개 DB 서비스가 하나의 MySQL 인스턴스를 `root` 계정으로 공유해, 논리적 소유권(자기 테이블만 건드린다)이 코드 규율에만 기대고 있었다 — 강제하는 장치가 없었다. 이번 슬라이스는 서비스마다 전용 스키마·계정을 둬 다른 서비스의 테이블에 손대면 권한 오류가 나도록 만든다. 그 구조 위에서 그동안 있던 결손도 닫는다 — 로그아웃해도 그 사용자의 refresh token 으로 계속 새 access token 을 받을 수 있던 것을, `refresh_tokens` 에 `sid` 를 추가해 **로그아웃한 세션의 refresh 만** 폐기하도록 좁힌다. 그 폐기 신호는 `session` 이 로그아웃 직접 호출하는 대신, `oidc_sessions` 삭제와 같은 트랜잭션에서 자기 스키마의 `outbox` 테이블에 적어두고 `@Scheduled` 폴러가 Kafka(`oidc.session.logged-out.v1`)로 옮기는 방식을 쓴다 — 스키마 분리로 "그냥 남의 테이블을 지운다"는 선택지 자체가 막히면서, 트랜잭션 경계를 넘는 전파를 이벤트로 풀 수밖에 없어진 구조다. (완료)
 - "빅테크는 인가 서버를 내부적으로 여러 서비스로 분해한다"(토큰 발급/로그인 UX/디렉토리/키 관리/동의 기록/토큰 상태/세션 분리, KMS 키 격리)를 축소판으로 재현한다.
 
 ## 구도
@@ -102,18 +103,20 @@ flowchart TB
 
 ## 서비스별 책임과 소유 데이터
 
-| 서비스 | 포트 | 책임 | 소유 데이터 |
-|---|---|---|---|
-| gateway | 9000 | nginx 경로 라우팅 (front/back-channel 분리, /internal/* 격리) | 없음 |
-| auth | 8081 | front-channel: 로그인, `/oauth2/authorize`(동의 화면 렌더 포함), `/oauth2/consent`(제출), code 발급 | (Redis code, pending, 세션) |
-| token | 8082 | back-channel: `/oauth2/token`(authorization_code + refresh_token + client_credentials grant, id token 포함), `/userinfo`, `/oauth2/introspect`(Bearer + `introspect` scope), `/oauth2/revoke`, jwks 프록시, discovery | (Redis code 소비) |
-| signing | 8083 | JWT 서명 전담 + jwks 공개. **개인키 독점** | keystore(PKCS12) |
-| user-directory | 8084 | 사용자 조회 + credential 검증(bcrypt 를 이 안에 가둠) + profile claim | users (MySQL) |
-| client-registry | 8085 | client 조회 API + Caffeine 캐시(30s) | clients (MySQL) |
-| consent | 8086 | 동의 기록 조회/저장 API (내부 전용, 화면은 auth 가 렌더) | consents (MySQL) |
-| token-state | 8087 | refresh token 계열(family) 발급 · 회전 · 재사용 탐지 · 폐기 · introspection 조회 API (내부 전용, 외부 비노출) | refresh_tokens (MySQL) |
-| session | 8088 | OP 세션 레지스트리 소유(`sid` ↔ RP) · 등록(token 이 호출) · 로그아웃 통지 시 각 RP 에 logout token 발송(auth 가 호출) — 내부 전용, gateway 라우팅 대상 아님 | oidc_sessions (MySQL) |
-| demo-rp | 8095 | 검증용 실제 RP. `spring-boot-starter-oauth2-client` 로 이 AS 에 `oauth2Login` + RP-Initiated logout(`logout()`) + back-channel logout 수신(`oidcLogout().backChannel()`)을 실제로 구현한다 — 우리가 만든 스텁이 아니라 Spring Security 구현체가 검증자다. gateway 라우팅 대상 아님(브라우저가 8095 로 직접 접근) | 없음(자체 HTTP 세션) |
+| 서비스 | 포트 | 책임 | 스키마 | 계정 | 소유 데이터 |
+|---|---|---|---|---|---|
+| gateway | 9000 | nginx 경로 라우팅 (front/back-channel 분리, /internal/* 격리) | — | — | 없음 |
+| auth | 8081 | front-channel: 로그인, `/oauth2/authorize`(동의 화면 렌더 포함), `/oauth2/consent`(제출), code 발급 | — | — | (Redis code, pending, 세션) |
+| token | 8082 | back-channel: `/oauth2/token`(authorization_code + refresh_token + client_credentials grant, id token 포함), `/userinfo`, `/oauth2/introspect`(Bearer + `introspect` scope), `/oauth2/revoke`, jwks 프록시, discovery | — | — | (Redis code 소비) |
+| signing | 8083 | JWT 서명 전담 + jwks 공개. **개인키 독점** | — | — | keystore(PKCS12) |
+| user-directory | 8084 | 사용자 조회 + credential 검증(bcrypt 를 이 안에 가둠) + profile claim | `ms_user_directory` | `svc_user_directory` | users (MySQL) |
+| client-registry | 8085 | client 조회 API + Caffeine 캐시(30s) | `ms_client_registry` | `svc_client_registry` | clients (MySQL) |
+| consent | 8086 | 동의 기록 조회/저장 API (내부 전용, 화면은 auth 가 렌더) | `ms_consent` | `svc_consent` | consents (MySQL) |
+| token-state | 8087 | refresh token 계열(family) 발급 · 회전 · 재사용 탐지 · 폐기 · introspection 조회 API (내부 전용, 외부 비노출) · Kafka 로 로그아웃 이벤트를 소비해 해당 `sid` 의 refresh 를 조건부 폐기(멱등) | `ms_token_state` | `svc_token_state` | refresh_tokens (MySQL) |
+| session | 8088 | OP 세션 레지스트리 소유(`sid` ↔ RP) · 등록(token 이 호출) · 로그아웃 통지 시 각 RP 에 logout token 발송(auth 가 호출) · `oidc_sessions` 삭제와 같은 트랜잭션에서 `outbox` 에 이벤트 기록, `@Scheduled` 폴러(운영 기본 500ms)가 Kafka(`oidc.session.logged-out.v1`)로 발행 — 내부 전용, gateway 라우팅 대상 아님 | `ms_session` | `svc_session` | oidc_sessions, outbox (MySQL) |
+| demo-rp | 8095 | 검증용 실제 RP. `spring-boot-starter-oauth2-client` 로 이 AS 에 `oauth2Login` + RP-Initiated logout(`logout()`) + back-channel logout 수신(`oidcLogout().backChannel()`)을 실제로 구현한다 — 우리가 만든 스텁이 아니라 Spring Security 구현체가 검증자다. gateway 라우팅 대상 아님(브라우저가 8095 로 직접 접근) | — | — | 없음(자체 HTTP 세션) |
+
+각 계정은 **자기 스키마에만** `GRANT` 를 받는다(MySQL 은 스키마가 곧 데이터베이스다). `root` 는 `mysql-init` 초기화·관리용으로만 남고 5개 서비스의 애플리케이션 설정에서는 사라졌다(각자 자기 계정만 쓴다) — 실제로 남의 스키마를 조회하면 권한 오류가 나는 것을 아래 "검증된 성공 기준"에서 확인한다.
 
 핵심 설계 원칙:
 - **데이터 소유권 분리** — auth 는 사용자/client/동의 DB 를 직접 안 보고 user-directory/client-registry/consent 를 REST 로 호출한다. 마찬가지로 token 은 refresh token 의 상태를 직접 보지 않고 token-state 를 호출한다.
@@ -139,26 +142,33 @@ flowchart TB
 
 ## 기동 방법
 
-1. 인프라(gateway nginx + mysql + redis)
+1. 인프라(gateway nginx + mysql + redis + **kafka**, 슬라이스 7부터 4개)
    ```bash
-   cd docker-compose && docker compose -p microservice-as up -d
+   cd docker-compose
+   docker compose -p microservice-as -f docker-compose.yml down -v   # 슬라이스 7부터 필수
+   docker compose -p microservice-as -f docker-compose.yml up -d
    ```
-2. 7개 서비스 빌드 (java 21)
+   - **주의. `down -v` 를 빠뜨리면 안 된다.** `mysql-init/01-schemas-and-accounts.sql` 은 MySQL 공식 이미지의 `docker-entrypoint-initdb.d` 규칙대로 **데이터 디렉토리가 비어 있을 때만** 실행된다. 슬라이스 5까지 쓰던 볼륨이 남아 있는 채로 컨테이너만 새로 올리면 스키마 5개·계정 5개가 생기지 않고 예전의 단일 스키마(`microservice_as`, 전 서비스 `root` 공유)로 그대로 뜬다 — 아래 "서비스별 책임과 소유 데이터" 표의 계정 분리가 실제로는 반영되지 않은 채 겉으로만 정상 기동한 것처럼 보인다.
+   - kafka 는 `apache/kafka:3.9.2` 를 KRaft 모드(Zookeeper 없음)로 띄운다. 토픽 `oidc.session.logged-out.v1`(파티션 3)은 `session` 서비스가 기동 시 `NewTopic` 빈으로 직접 만들므로 수동 생성이 필요 없다.
+2. 9개 서비스 빌드 (java 21)
    ```bash
-   for s in signing user-directory client-registry consent token-state token auth; do (cd $s && ./gradlew bootJar --no-daemon -q); done
+   for s in signing user-directory client-registry consent session token-state token auth demo-rp; do (cd $s && ./gradlew bootJar --no-daemon -q); done
    ```
-3. **의존성 순서로** 기동 (signing → user-directory → client-registry → consent → token-state → token → auth)
+3. **의존성 순서로** 기동 (signing → user-directory → client-registry → consent → session → token-state → token → auth → demo-rp)
    ```bash
-   java -jar signing/build/libs/*.jar          # 8083
+   java -jar signing/build/libs/*.jar           # 8083
    java -jar user-directory/build/libs/*.jar    # 8084
    java -jar client-registry/build/libs/*.jar   # 8085
    java -jar consent/build/libs/*.jar           # 8086
+   java -jar session/build/libs/*.jar           # 8088
    java -jar token-state/build/libs/*.jar       # 8087
    java -jar token/build/libs/*.jar             # 8082
    java -jar auth/build/libs/*.jar              # 8081
+   java -jar demo-rp/build/libs/*.jar           # 8095 (gateway 라우팅 대상 아님, 브라우저가 직접 접근)
    ```
    - seed: user / 1111 (user-directory, profile 포함: name `Star Rye`, email `starryeye@example.com` 등), client `my-client` / `secret` (client-registry, redirectUri `http://127.0.0.1:8080/callback`, scope `openid profile email offline_access`, grantTypes `authorization_code refresh_token`, clientScopes `""` — client_credentials 미등록이라 이 grant 는 `unauthorized_client` 로 거절된다), client `article-api` / `secret`(client-registry, resource server 역할 — scopes/redirectUris 가 비어 있어 인가 흐름(authorization_code)에는 참여할 수 없고, grantTypes `client_credentials` · clientScopes `introspect` 로 **자기 자신 앞으로 `introspect` scope 의 access token 만 받을 수 있다**. 그 토큰을 Bearer 로 실어야 `/oauth2/introspect` 를 호출할 수 있다)
    - 모든 요청은 gateway(http://localhost:9000) 로 보낸다.
+   - **주의. `session` 을 `token-state` 보다 먼저 올려야 한다 — e2e 검증 중 실제로 관측된 순서 문제다.** `session` 은 기동 시 `oidc.session.logged-out.v1` 토픽을 파티션 3으로 명시 생성하는데(`KafkaTopicConfig`), `token-state` 의 Kafka consumer 가 그보다 먼저 그 토픽을 구독하면 브로커가 그 순간 기본 파티션 수(1개)로 토픽을 자동 생성해버릴 수 있다. 이 태스크의 최초 콜드 스타트(브리프 예시 순서대로 `token-state` 를 `session` 보다 먼저 올림)에서 정확히 이 현상이 재현됐다 — `token-state` 로그에 `partitions assigned: [oidc.session.logged-out.v1-0]` 이후 재조정 로그가 전혀 없었고, `kafka-topics --describe` 로는 파티션이 이미 3개로 보이는데도(`session` 이 나중에 파티션을 늘렸다) 그 consumer group 은 파티션 0번 하나에 계속 고정돼 있었다. 그 사이 `partition_key`(=`sid`)가 파티션 1·2로 해시되는 로그아웃 이벤트는 소비되지 않고 조용히 멈췄다 — outbox 에는 `published_at` 이 채워진 채(발행은 됐다) 남아 있었지만, 로그아웃 후 같은 refresh token 으로 회전이 여전히 `200` 으로 성공했다. `token-state` 를 재기동해 consumer 를 새로 join 시키자 그제서야 밀렸던 이벤트를 즉시 소비해 정리됐다(Spring Kafka 컨슈머의 메타데이터 갱신 주기는 기본 5분이라, 재기동 없이는 그만큼 늦게야 스스로 회복됐을 것이다). 위 순서(`session` 을 `token-state` 보다 먼저)로 올리면 이 창 자체가 열리지 않는다.
    - 주의. `ddl-auto: update` 라 컨테이너/DB 를 재사용하면 seed 는 "이미 행이 있으면 스킵"으로 동작해 **이전 seed 스키마의 값이 남을 수 있다**(예: client 의 `email` scope, user 의 profile 컬럼이 나중에 추가된 경우). seed 코드와 실제 DB 값이 다르면 `UPDATE` 로 맞추거나 볼륨을 새로 만든다.
    - 주의. 슬라이스 1·2 때부터 존재하던 `my-client` 행이 그 예다. 슬라이스 3 seed 는 `scopes` 에 `offline_access`, `grant_types` 에 `refresh_token` 을 기대하지만, 기존 행은 `ddl-auto: update` 때문에 갱신되지 않는다. `scopes='openid,profile,email,offline_access'`, `grant_types='authorization_code,refresh_token'` 로 `UPDATE` 하고(seed 코드가 신규 client 에 실제로 심는 값과 동일하다 — 임의 값이 아니다) client-registry 를 재기동해 Caffeine 캐시(30s)를 비워야 한다.
    - 주의. `ddl-auto: update` 로 **기존 행이 있는 테이블에 not null 컬럼을 추가**하면(Hibernate 가 `alter table clients add column client_scopes varchar(500) not null` 을 낸다) MySQL 은 명시적 `DEFAULT` 절이 없어도 실패하지 않고 컬럼 타입의 암묵적 기본값(문자열이면 빈 문자열)으로 기존 행을 채운 뒤 성공시킨다. 슬라이스 4 의 `client_scopes` 추가가 그 예다 — 이미 있던 `my-client`·`article-api` 행 모두 `client_scopes=''` 로 채워졌다(`my-client` 는 seed 가 원래 `""` 를 의도하므로 문제 없지만, `article-api` 는 `introspect` 를 기대하므로 값이 어긋난다). 게다가 `article-api` 행은 이번 슬라이스 이전부터 `grant_types` 도 빈 문자열이었다(이전 슬라이스에서는 client 인증만 되면 됐으므로) — 이번 slice 의 seed 는 `client_credentials` 를 기대하므로 이 값도 함께 어긋난다. client-registry 로그에서 컬럼 추가 자체가 실패했는지(구버전 MySQL 등에서는 not null 추가가 에러로 끝날 수 있다) 먼저 확인하고, 성공했다면 `UPDATE` 로 seed 가 의도하는 값(`article-api`: `client_scopes='introspect', grant_types='client_credentials'`)으로 보정한 뒤 client-registry 를 재기동해 Caffeine 캐시(30s)를 비워야 한다.
@@ -399,12 +409,12 @@ sequenceDiagram
     T->>TS: POST /internal/refresh-tokens/rotate {refreshToken, clientId, requestedScope}
     Note over TS: 판정과 전이를 한 트랜잭션 · 한 번의 호출로 끝낸다(왕복을 쪼개면 경쟁 창이 생긴다).<br/>계열 전체를 먼저 잠그고(findByFamilyIdForUpdate) 그 안에서 대상 행을 찾아 판정한다.<br/>requestedScope 가 저장 scope 를 벗어나는지도 다른 거절 사유 뒤, 전이 직전에 같은 트랜잭션 안에서 확인한다(RFC 6749 6).<br/>ACTIVE 고 scope 도 범위 안이면 CONSUMED 로 전이하고 같은 family_id 로 새 행을 발급한다.
     alt 회전 성공 (ROTATED)
-        TS-->>T: 200 {status=ROTATED, sub, scope, authTime, refreshToken(새 값), expiresAt}
+        TS-->>T: 200 {status=ROTATED, sub, scope, authTime, refreshToken(새 값), expiresAt, sid}
         Note over T: 요청 scope 는 이번 access token 에만 좁혀지고 저장된 refresh 의 scope 는 그대로 유지된다.
         T->>S: POST /internal/sign {claims} (access token)
         S-->>T: {jwt}
         opt scope 에 openid 포함
-            Note over T: nonce 는 싣지 않는다(재발급 토큰에 실으면 리플레이 방어가 깨진다).<br/>auth_time 은 최초 인증 시각을 그대로 유지한다(OIDC Core 12.2).
+            Note over T: nonce 는 싣지 않는다(재발급 토큰에 실으면 리플레이 방어가 깨진다).<br/>auth_time 은 최초 인증 시각을 그대로 유지한다(OIDC Core 12.2).<br/>sid 는 rotation 응답의 값을 그대로 싣는다(슬라이스 7 — refresh_tokens 행이 회전 내내 sid 를 승계해 보관한다).<br/>세션이 걸리지 않은 발급 경로(client_credentials 등)에서 온 레코드는 sid 가 null 이고, 그때는 claim 자체를 뺀다.
             opt profile 또는 email scope 포함
                 T->>U: GET /internal/users/{sub}
                 alt 조회 성공
@@ -819,6 +829,128 @@ HTTP/1.1 302
 Location: http://localhost/login   # 같은 쿠키인데도 다시 로그인을 요구한다 — 세션이 진짜로 죽었다
 ```
 
+### 슬라이스 7 (서비스별 DB 분리와 outbox)
+
+`docker compose ... down -v` 로 볼륨을 지운 뒤 콜드 스타트해(4개 인프라 컨테이너 + 9개 Spring 서비스) 검증했다. 매 측정 전 `docker ps` 로 실제 컨테이너 상태를 확인했다.
+
+**판정 전에 발견한 것 — 기동 순서 경쟁.** 이 브리프가 준 최초 기동 순서(`token-state` 를 `session` 보다 먼저 올림)로 콜드 스타트했을 때, `token-state` 의 Kafka consumer 가 `oidc.session.logged-out.v1` 토픽이 파티션 3개로 존재하기 전에 구독을 시작해 파티션 0번에만 고정 배정되는 것을 실제로 관측했다(`token-state` 로그: `partitions assigned: [oidc.session.logged-out.v1-0]`, 이후 재조정 로그 없음 — `kafka-topics --describe` 로는 이미 파티션 3개로 보이는데도). 그 상태에서는 `partition_key`(=`sid`)가 파티션 1·2로 해시되는 로그아웃 이벤트가 소비되지 않아, 아래 3번의 첫 시도가 로그아웃하고 1초를 기다린 뒤에도 `200`(회전 성공)으로 나왔다 — outbox 에는 이벤트가 정상 발행돼 있었다(`published_at` 채워짐, `kafka-console-consumer --partition 1` 로 그 이벤트가 실제로 파티션 1에 있음을 직접 확인했다). `token-state` 를 재기동해 consumer 를 다시 join 시키자 밀린 이벤트를 즉시 소비해 `REVOKED` 로 정리됐다. 이후 새 세션으로 아래 항목을 전부 재검증했고, 위 "기동 방법"에 `session` 을 `token-state` 보다 먼저 올리라는 주의를 남겼다. **이 발견 자체가 outbox 설계의 결함은 아니다** — outbox 는 이벤트를 정확히 발행했고 브로커에도 정확히 도착했다. 문제는 소비자 쪽 컨슈머 그룹이 파티션 배정을 오래된 상태로 고정하고 있었다는, 순수하게 기동 순서에서 온 것이었다.
+
+1. **분리 — 권한 오류(설계 문서 성공 기준 1)**
+   ```
+   $ docker exec -i microservice-as-mysql-1 mysql -usvc_user_directory -ppw_user_directory \
+       -e "SELECT 1 FROM ms_client_registry.clients LIMIT 1"
+   ERROR 1142 (42000) at line 1: SELECT command denied to user 'svc_user_directory'@'localhost' for table 'clients'
+   ```
+
+2. **분리 — 스키마별 테이블(기준 2)**
+   ```
+   $ docker exec -i microservice-as-mysql-1 mysql -uroot -p1111 -e \
+       "SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema LIKE 'ms\_%' ORDER BY 1,2"
+   TABLE_SCHEMA         TABLE_NAME
+   ms_client_registry   clients
+   ms_consent           consents
+   ms_session           oidc_sessions
+   ms_session           outbox
+   ms_token_state       refresh_tokens
+   ms_user_directory    users
+   ```
+
+3. **로그아웃 전후로 refresh 가 갈린다(기준 3)** — 이 서버의 refresh grant 는 검증 전용 호출이 없고 매번 회전하므로, "로그아웃 후 같은 refresh_token" 은 로그아웃 시점에 살아 있던 최신 값(직전 회전 응답으로 받은 값)을 가리키는 것으로 판정했다(이미 소진된 값을 다시 쓰면 재사용 탐지와 뒤섞여 로그아웃발 폐기인지 구분이 안 된다).
+   ```
+   로그아웃 전 — 회전 성공:
+   $ curl -i -u my-client:secret --data-urlencode grant_type=refresh_token \
+       --data-urlencode refresh_token=KcTnDynoqF7qQoJvN5Dgu_qZx3jMwuSUu2Rt_5Pc6bs http://localhost:9000/oauth2/token
+   HTTP/1.1 200
+   {"access_token":"...", "refresh_token":"MghjkquU4ALI22OfFS9-OdwwrhSOzw0IAUWoj7J58mA", "scope":"openid profile email offline_access", ...}
+
+   로그아웃:
+   $ curl -i -b $JAR http://localhost:9000/oauth2/logout
+   HTTP/1.1 200
+
+   1.5초 대기 후, 방금 받은 refresh_token 으로 재시도:
+   $ curl -i -u my-client:secret --data-urlencode grant_type=refresh_token \
+       --data-urlencode refresh_token=MghjkquU4ALI22OfFS9-OdwwrhSOzw0IAUWoj7J58mA http://localhost:9000/oauth2/token
+   HTTP/1.1 400
+   {"error":"invalid_grant","error_description":"refresh token is not valid"}
+
+   DB: sid=Mgsy2CLoyJlzLHuZqG9HMA, status=REVOKED, revoked_reason=SESSION_LOGGED_OUT, revoked_at=2026-08-09 14:26:08.567962
+   ```
+
+4. **다른 세션은 산다(기준 4)** — 쿠키 항아리 두 개(`/tmp/jar-a`, `/tmp/jar-b`)로 같은 사용자를 두 번 로그인해 서로 다른 `sid` 를 확인(A=`2mVAWD2iktMZyyPwKXOgOQ`, B=`JEEtK-zHQVAOula6TZRhVA`)한 뒤 A 만 로그아웃했다.
+   ```
+   A 의 refresh 로 회전 시도:
+   HTTP/1.1 400
+   {"error":"invalid_grant","error_description":"refresh token is not valid"}
+
+   B 의 refresh 로 회전 시도:
+   HTTP/1.1 200
+   {"access_token":"...", "refresh_token":"_jTFR6y3jzP2UyBEBQ1VcHGCzViqBxLS-v04QvSbpbw", ...}
+
+   $ docker exec -i microservice-as-mysql-1 mysql -usvc_token_state -ppw_token_state -e \
+       "SELECT sid, status, revoked_reason FROM ms_token_state.refresh_tokens ORDER BY id"
+   sid                       status    revoked_reason
+   2mVAWD2iktMZyyPwKXOgOQ    REVOKED   SESSION_LOGGED_OUT   (A)
+   JEEtK-zHQVAOula6TZRhVA    CONSUMED  NULL
+   JEEtK-zHQVAOula6TZRhVA    ACTIVE    NULL                 (B, 최신 행)
+   ```
+   A 의 `sid` 행만 `REVOKED`/`SESSION_LOGGED_OUT`, B 의 최신 행은 `ACTIVE` — 브리프가 기대한 그대로.
+
+5. **refresh 재발급 id token 에 `sid`(기준 5)** — 위 4번에서 받은 B 의 회전 응답 id_token payload:
+   ```json
+   {
+     "sub": "user-sub-0001",
+     "sid": "JEEtK-zHQVAOula6TZRhVA",
+     "aud": "my-client",
+     "auth_time": 1786285600,
+     "exp": 1786285916,
+     "iat": 1786285616,
+     "email": "starryeye@example.com"
+   }
+   ```
+   `nonce` 는 없다(회전 경로는 nonce 를 싣지 않는다 — 관통 flow 9번 참고). `sid` 가 B 의 것과 정확히 일치.
+
+6. **Kafka 를 내려도 로그아웃이 커밋된다(기준 8·9)**
+   ```
+   $ docker ps --filter "name=microservice-as-kafka" --format "table {{.Names}}\t{{.Status}}"
+   (stop 전) microservice-as-kafka-1   Up 9 minutes
+   $ docker compose -p microservice-as -f docker-compose/docker-compose.yml stop kafka
+   (stop 후) microservice-as-kafka-1   Exited (143) Less than a second ago
+
+   kafka 정지 상태에서 새 세션으로 로그인 → refresh 획득 → 로그아웃:
+   $ curl -i -b $JAR http://localhost:9000/oauth2/logout
+   HTTP/1.1 200
+
+   $ docker exec -i microservice-as-mysql-1 mysql -usvc_session -ppw_session -e \
+       "SELECT id, partition_key, created_at, published_at FROM ms_session.outbox ORDER BY id"
+   id  partition_key            created_at                   published_at
+   4   kF7OOxl3VgKrkemYC-jU7Q   2026-08-09 14:27:41.219392   NULL
+
+   같은 sid 로 oidc_sessions 를 조회하면 0행(세션은 지워졌다 — 트랜잭션 커밋),
+   refresh_tokens 는 status=ACTIVE(아직 폐기되지 않았다) — outbox 에 행은 남았지만 아직 못 나간 상태.
+
+   $ docker compose -p microservice-as -f docker-compose/docker-compose.yml start kafka
+   $ docker ps --filter "name=microservice-as-kafka" --format "table {{.Names}}\t{{.Status}}"
+   microservice-as-kafka-1   Up Less than a second
+   15초 대기 후:
+   $ docker exec -i microservice-as-mysql-1 mysql -usvc_token_state -ppw_token_state -e \
+       "SELECT sid, status, revoked_reason FROM ms_token_state.refresh_tokens WHERE sid = 'kF7OOxl3VgKrkemYC-jU7Q'"
+   sid                      status    revoked_reason
+   kF7OOxl3VgKrkemYC-jU7Q   REVOKED   SESSION_LOGGED_OUT
+
+   outbox 의 그 행도 published_at 이 채워졌다(2026-08-09 14:28:01.322430) — 로그아웃 트랜잭션은 Kafka 상태와
+   무관하게 항상 커밋되고(직접 발행 방식이었다면 롤백됐을 자리), Kafka 가 돌아오면 폴러가 밀린 행을 마저 내보낸다.
+   ```
+
+7. **보안 창 실측(기준 12)** — 로그아웃 요청 직전 시각(`date +%s.%N`)과 `refresh_tokens.revoked_at`(`UNIX_TIMESTAMP`, `datetime(6)`)의 차이를 3회 반복 측정했다. 매회 새 로그인·새 세션으로 재현했다.
+   ```
+   1회차: T0=1786285761.435374, revoked_at=1786285761.793138, 창=0.358s
+   2회차: T0=1786285767.233984, revoked_at=1786285767.412862, 창=0.179s
+   3회차: T0=1786285771.632605, revoked_at=1786285772.016802, 창=0.384s
+   ```
+   3회 평균 약 0.307초. 폴러 주기(운영 기본 500ms) 이하로 관측됐지만 표본이 3개뿐이라 이 값을 분포로
+   일반화하지는 않는다 — "이 슬라이스가 outbox 를 택한 대가"가 대략 폴링 주기 안쪽의 수백 ms 라는 것만
+   실측으로 확인했다.
+
 ## 슬라이스 5에서도 제외 (이후 sub-project)
 
 admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네트워크 가정), jwks 캐시, access token deny-list, Kafka 인증 이벤트 스트림, 관측성/서킷브레이커, resource indicator(RFC 8707, client_credentials 의 `aud` 를 자원별로 좁히는 것).
@@ -853,6 +985,15 @@ admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네
 - **session(8088) 에 네트워크로 도달하면 `sid` 하나로 남의 세션을 강제 로그아웃시킬 수 있다** — `sid` 의 엔트로피(128비트)는 충분하지만 설계상 비밀은 아니다. id token 에 실려 그 세션의 모든 RP 에게 배포되고 로그에도 남는다. 그리고 `POST /internal/sessions/logout` 은 인증이 없다(gateway 가 라우팅하지 않는다는 사실은 위 서비스 표에 있지만, 그것이 네트워크 도달 자체를 막지는 않는다). 따라서 그 `sid` 를 아는 누구든(같은 세션의 임의의 RP, 로그 접근자) session 서비스에 네트워크로 도달하기만 하면 그 사용자를 다른 모든 RP 에서 강제 로그아웃시킬 수 있다. `POST /internal/sessions` 로 가짜 `(sid, sub, clientId)` 행을 심는 것도 마찬가지로 인증이 없다. 다만 실제 피해는 가용성(원치 않는 강제 로그아웃)에 국한된다 — 개인키는 signing 만 보유하므로 이 경로로 다른 사용자를 사칭하는 access token·id token 서명 위조는 불가능하다.
 - HA(다중 인스턴스), 키 로테이션, purge 등은 production-ready-authorization-server 에서 다룬 주제.
 
+### 슬라이스 7 (서비스별 DB 분리와 outbox) 이 남기는 것
+
+- **보안 창** — 폐기는 즉시가 아니라 `session` 폴러 주기(운영 기본 500ms)만큼 늦다. 위 "검증된 성공 기준"에서 3회 실측한 값은 대략 0.2~0.4초. 즉시성이 필요하면 동기 호출을 병행하고 이벤트는 보증으로만 쓰는 조합이 있다.
+- **`session` 을 다중 인스턴스로 늘리면 발행자끼리 경쟁한다** — 여러 폴러가 같은 outbox 행을 동시에 집어 중복 발행이 늘어난다. 소비자(`token-state`)가 멱등(`WHERE sid = ? AND status = 'ACTIVE'`)이라 피해는 없지만, 정석 해법은 `FOR UPDATE SKIP LOCKED`이고 다른 길은 outbox API 계약을 만들어 전용 relay 를 붙이는 것이다. 지금은 인스턴스가 하나뿐이라 이 문제 자체에 도달하지 않는다.
+- **`sid` 가 `null` 인 옛 `refresh_tokens` 행은 이 폐기에 걸리지 않는다** — `down -v` 로 스키마를 다시 만든 지금은 실제로 도달할 수 없지만, 컬럼이 nullable 인 이상 코드상 가능성은 남아 있다.
+- **`outbox` 에 정리 수단이 없다** — 발행된 행이 무한히 쌓인다. `oidc_sessions` 에 purge 가 없는 것과 같은 성격의 결손이다.
+- **`session` 이 죽어 있으면 통지도 폐기도 일어나지 않는다(fail-open)** — 슬라이스 5의 결정을 그대로 물려받는다. 로그아웃 자체를 실패시키지 않는 대가다.
+- **`root` 계정이 초기화용으로 컨테이너 안에 남는다** — 애플리케이션 설정에서는 빠졌지만 존재 자체가 없어진 것은 아니다.
+
 ## 추후 별도 인프라 프로젝트로 이관
 
 이 프로젝트는 **인가 서버를 코드로 어떻게 만드는가**에 집중한다. mTLS·서비스 메시·ingress·네트워크
@@ -885,3 +1026,5 @@ admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네
 - 슬라이스 5(back-channel logout) 구현 계획: [docs/superpowers/plans/2026-08-03-microservice-backchannel-logout-slice5.md](docs/superpowers/plans/2026-08-03-microservice-backchannel-logout-slice5.md)
 - 슬라이스 6(Istio mTLS) 설계: [docs/superpowers/specs/2026-08-07-microservice-istio-mtls-slice6-design.md](docs/superpowers/specs/2026-08-07-microservice-istio-mtls-slice6-design.md)
 - 슬라이스 6(Istio mTLS) 구현 계획: [docs/superpowers/plans/2026-08-07-microservice-istio-mtls-slice6.md](docs/superpowers/plans/2026-08-07-microservice-istio-mtls-slice6.md)
+- 슬라이스 7(서비스별 DB 분리와 outbox) 설계: [docs/superpowers/specs/2026-08-08-microservice-db-per-service-outbox-slice7-design.md](docs/superpowers/specs/2026-08-08-microservice-db-per-service-outbox-slice7-design.md)
+- 슬라이스 7(서비스별 DB 분리와 outbox) 구현 계획: [docs/superpowers/plans/2026-08-08-microservice-db-per-service-outbox-slice7.md](docs/superpowers/plans/2026-08-08-microservice-db-per-service-outbox-slice7.md)
