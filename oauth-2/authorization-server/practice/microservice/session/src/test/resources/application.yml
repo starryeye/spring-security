@@ -16,16 +16,46 @@ spring:
     # 주의. main 에는 없는, 테스트 전용 admin 타임아웃이다. KafkaTopicConfig 의 NewTopic 빈이 있으면
     #      Kafka 를 안 띄운 채 돌리는 테스트(Kafka 를 직접 안 쓰는 나머지 대부분)에서도 컨텍스트 기동 시
     #      KafkaAdmin 이 토픽 생성을 시도한다 — 기본 30초(KafkaAdmin.operationTimeout, describeCluster
-    #      등 AdminClient 호출을 감싸는 .get(timeout, SECONDS) 의 바깥 상한) 동안 붙잡는다. operation-timeout
-    #      은 spring.kafka.admin.operation-timeout 으로 YAML 에서 직접 줄일 수 있다(KafkaAutoConfiguration
-    #      .kafkaAdmin() 이 이 값을 KafkaAdmin.setOperationTimeout() 에 그대로 넣는다) — 그래서 아래에서
-    #      AdminClient 자체의 요청·연결 타임아웃 네 줄 대신 이 한 줄로 단순화했다. fail-fast=false(기본값)
-    #      라 실패해도 컨텍스트 기동은 막지 않는다.
+    #      등 AdminClient 호출을 감싸는 .get(timeout, SECONDS) 의 바깥 상한) 동안 붙잡는다.
+    #
+    # 주의. operationTimeout 은 KafkaAdmin 자체 상수가 아니라 spring.kafka.admin.operation-timeout 으로
+    #      YAML 에서 직접 줄일 수 있다(KafkaAutoConfiguration.kafkaAdmin() 이 이 값을
+    #      KafkaAdmin.setOperationTimeout() 에 그대로 넣는다) — 이전 리뷰가 "KafkaAdmin 자체 상수라 YAML
+    #      로 못 줄인다"고 적어 둔 것은 사실이 아니었다. 그래서 아래 네 줄을 이 한 줄(operation-timeout: 2s)
+    #      로 단순화해 실제로 돌려 봤는데, **브로커가 떠 있을 때는** admin client 수명이 0.25초로 짧았지만
+    #      **브로커를 내려서 재현한 broker-less 시나리오에서는 오히려 약 12초**가 걸렸다(updateClusterId·
+    #      describeTopics 등 KafkaAdmin.initialize() 안에서 operationTimeout 로 개별로 묶인 AdminClient
+    #      호출이 여럿이라, 하나당 2초씩 순차로 쌓인 것으로 보인다). 반대로 AdminClient 자체의 요청·연결
+    #      타임아웃(아래 네 줄)은 broker-less 상태에서 약 4초로 더 짧았다 — 이쪽은 커넥션 자체를 빨리
+    #      포기시켜 KafkaAdmin.initialize() 의 여러 호출이 각자 빨리 실패하기 때문으로 보인다. 그래서
+    #      단순화는 되돌렸다 — "가능하면 한 줄로" 는 통하지 않았다. fail-fast=false(기본값)라 어느 쪽이든
+    #      실패해도 컨텍스트 기동 자체는 막지 않는다.
     admin:
-      operation-timeout: 2s
+      properties:
+        request.timeout.ms: 2000
+        default.api.timeout.ms: 2000
+        socket.connection.setup.timeout.ms: 1000
+        socket.connection.setup.timeout.max.ms: 1000
 
 my:
   issuer: http://localhost:9000
   signing-base-url: http://localhost:8083
   client-registry-base-url: http://localhost:8085
-  outbox-poll-interval-ms: 500
+  # 주의. 500(main 과 같은 값)이 아니라 크게 잡는다. 이 모듈의 h2(jdbc:h2:mem:session)는 이름 있는
+  #      인메모리 DB 라 여러 @SpringBootTest 컨텍스트가(프로퍼티가 달라 캐시가 갈려도) 같은 프로세스
+  #      안에서는 같은 테이블을 공유한다. SessionServiceTest·SessionControllerTest 처럼 이 키를 따로
+  #      오버라이드하지 않는 컨텍스트도 @EnableScheduling 때문에 자기 OutboxPublisher 를 실제로 돌리는데,
+  #      기본값이 500 이면 그 폴러가 "자기 테스트가 만들지도 않은" — 다른 컨텍스트가 같은 테이블에 만든
+  #      outbox 행까지 집어 자기 KafkaTemplate(기본값 localhost:9092, 실제 브로커가 없으면)으로 보내려다
+  #      KafkaProducer.send() 자체가(우리 .get(5, SECONDS) 가 아니라 max.block.ms 기본 60초짜리 내부
+  #      메타데이터 대기에 걸려) 최대 1분씩 그 자리에서 멈춘다 — 실제로 브로커를 내려두고 돌려서 재현했다
+  #      (전체 스위트가 16초대에서 1분 넘게 늘어났다). outbox 를 실제로 쓰는 테스트는 전부 이 값을
+  #      3600000 으로 개별 오버라이드해 두므로, 기본값 자체를 크게 잡아도 잃는 커버리지는 없다.
+  #
+  # 주의. 이 값만으로는 "행이 다른 컨텍스트에 잘못 잡히는" 문제 자체를 막지 못한다 — 미발행 행이 같은
+  #      테이블에 계속 남아 있는 것 자체는 outbox 의 정상 동작(at-least-once)이라, 폴러를 꺼도 데이터는
+  #      그대로 공유된다. OutboxFailureModeTest.logoutCommitsEvenWhenKafkaIsDown 이 일부러 남겨 두는
+  #      미발행 행이 다른 클래스의 findTop100ByPublishedAtIsNullOrderByIdAsc() 단언에 섞여 잡히는 문제
+  #      (실행 순서에 따라 간헐적으로 "size 1 대신 2")는 별도로 LogoutEventPublishTest·OutboxPublisherTest
+  #      쪽에서 각자 전용 spring.datasource.url 을 줘 물리적으로 분리해 막았다.
+  outbox-poll-interval-ms: 3600000

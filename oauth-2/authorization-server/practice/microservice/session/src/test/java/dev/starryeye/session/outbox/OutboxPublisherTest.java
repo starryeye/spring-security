@@ -22,7 +22,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(properties = {
 		"spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}",
-		"my.outbox-poll-interval-ms=3600000" // 자동 실행을 사실상 끄고 직접 호출해 검증한다
+		"my.outbox-poll-interval-ms=3600000", // 자동 실행을 사실상 끄고 직접 호출해 검증한다
+		// 주의. 이 h2 는 이름 있는(named) 인메모리 DB(jdbc:h2:mem:<name>)라, 이름이 같으면 프로퍼티가
+		//      달라 컨텍스트 캐시가 갈린 다른 @SpringBootTest 도 프로세스 안에서는 같은 테이블을 공유한다.
+		//      OutboxFailureModeTest.logoutCommitsEvenWhenKafkaIsDown 은 outbox 행을 일부러 미발행으로
+		//      남겨 두는데(그게 그 테스트의 요점이다), 그 행이 기본 이름(session)을 그대로 쓰는 다른
+		//      컨텍스트의 findTop100ByPublishedAtIsNullOrderByIdAsc() 에도 섞여 잡힐 수 있다 — 실행 순서에
+		//      따라 간헐적으로만 드러나는 형태로 실제 재현됐다("size 1 대신 2"). 이 클래스만의 이름을 줘
+		//      물리적으로 분리한다.
+		"spring.datasource.url=jdbc:h2:mem:session-outbox-publisher;DB_CLOSE_DELAY=-1"
 })
 @EmbeddedKafka(partitions = 3, topics = KafkaTopicConfig.LOGGED_OUT_TOPIC)
 class OutboxPublisherTest {
