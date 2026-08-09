@@ -1,45 +1,50 @@
 package dev.starryeye.session.event;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.starryeye.session.jpa.OutboxEntity;
+import dev.starryeye.session.jpa.OutboxEntityRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 @Component
 @RequiredArgsConstructor
 public class LogoutEventPublisher {
 
 	/**
-	 * 로그아웃 사실을 Kafka 로 발행한다.
+	 * 로그아웃 사실을 outbox 에 기록한다. Kafka 를 직접 부르지 않는다.
 	 *
-	 * 주의. 파티션 키는 sid 다. 같은 세션의 이벤트가 같은 파티션에 들어가 순서가 보장된다. sub 로 잡으면
-	 *      한 사용자의 모든 세션이 한 파티션에 몰리는데, 세션 간에는 순서 제약이 없으므로 병렬성만 잃는다.
+	 * 주의. 호출자(SessionService.consumeForLogout)의 트랜잭션에 참여한다. oidc_sessions 삭제와 이 INSERT 가
+	 *      함께 커밋되거나 함께 롤백되므로, 상태 변경과 이벤트 기록 사이의 틈이 사라진다. Kafka 로 옮기는 일은
+	 *      OutboxPublisher 가 별도 주기로 하고, 실패해도 행이 DB 에 남아 다음 주기에 다시 시도된다.
 	 *
-	 * 주의. send 의 결과를 기다린다(블로킹). 기다리지 않으면 발행 실패가 조용히 사라져 "로그아웃했는데
-	 *      refresh 는 살아 있다"가 아무 흔적 없이 일어난다. 다만 이 선택은 SessionService 의 트랜잭션
-	 *      안에서 호출되므로 Kafka 장애가 로그아웃 트랜잭션 전체를 롤백시킨다 — 슬라이스 7 Task 7 이
-	 *      outbox 로 닫는 문제가 바로 이것이다.
+	 * 주의. 파티션 키는 sid 다. 같은 세션의 이벤트가 같은 파티션에 들어가야 순서가 보장된다.
 	 */
 
-	private final KafkaTemplate<String, String> kafkaTemplate;
+	private final OutboxEntityRepository outboxRepository;
 	private final ObjectMapper objectMapper;
 
-	public void publish(String sid, String sub) {
+	public void record(String sid, String sub) {
 		SessionLoggedOutEvent event = new SessionLoggedOutEvent(
 				UUID.randomUUID().toString(), sid, sub, Instant.now());
+		String payload;
 		try {
-			String payload = objectMapper.writeValueAsString(event);
-			kafkaTemplate.send(KafkaTopicConfig.LOGGED_OUT_TOPIC, sid, payload)
-					.get(5, TimeUnit.SECONDS);
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-			throw new IllegalStateException("logout event publish interrupted for sid=" + sid, e);
-		} catch (Exception e) {
-			throw new IllegalStateException("logout event publish failed for sid=" + sid, e);
+			payload = objectMapper.writeValueAsString(event);
+		} catch (JsonProcessingException e) {
+			// 직렬화 실패는 재시도로 낫지 않는다. 트랜잭션을 죽여 로그아웃 자체를 실패시킨다 —
+			// 기록하지 못한 이벤트를 성공한 것처럼 커밋하면 그 사실이 영원히 사라진다.
+			throw new IllegalStateException("failed to serialize logout event for sid=" + sid, e);
 		}
+
+		outboxRepository.save(OutboxEntity.builder()
+				.eventId(event.eventId())
+				.topic(KafkaTopicConfig.LOGGED_OUT_TOPIC)
+				.partitionKey(sid)
+				.payload(payload)
+				.createdAt(event.occurredAt())
+				.build());
 	}
 }

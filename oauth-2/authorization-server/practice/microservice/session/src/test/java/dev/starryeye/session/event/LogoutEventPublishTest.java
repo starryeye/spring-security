@@ -2,6 +2,7 @@ package dev.starryeye.session.event;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.starryeye.session.SessionService;
+import dev.starryeye.session.outbox.OutboxPublisher;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.AfterEach;
@@ -18,17 +19,26 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest(properties = "spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}")
+@SpringBootTest(properties = {
+		"spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}",
+		"my.outbox-poll-interval-ms=3600000" // 자동 실행을 사실상 끄고 직접 호출해 검증한다
+})
 @EmbeddedKafka(partitions = 3, topics = KafkaTopicConfig.LOGGED_OUT_TOPIC)
 class LogoutEventPublishTest {
 
 	/**
 	 * 로그아웃하면 그 사실이 토픽에 실린다. 파티션 키는 sid 여야 한다 — 같은 세션의 이벤트가 같은
 	 *      파티션에 들어가야 순서가 보장되기 때문이다.
+	 *
+	 * 주의. Task 7 부터 consumeForLogout 은 outbox 에 기록만 하고 Kafka 를 직접 부르지 않는다. 실제
+	 *      발행은 OutboxPublisher 가 하므로, 토픽에서 읽으려면 여기서 publishPending() 을 직접 불러야 한다.
 	 */
 
 	@Autowired
 	private SessionService sessionService;
+
+	@Autowired
+	private OutboxPublisher outboxPublisher;
 
 	@Autowired
 	private EmbeddedKafkaBroker broker;
@@ -61,6 +71,7 @@ class LogoutEventPublishTest {
 		sessionService.register("SID-A", "user-sub-0001", "my-client");
 
 		sessionService.consumeForLogout("SID-A");
+		outboxPublisher.publishPending();
 
 		ConsumerRecord<String, String> record =
 				KafkaTestUtils.getSingleRecord(consumer, KafkaTopicConfig.LOGGED_OUT_TOPIC);
@@ -77,6 +88,7 @@ class LogoutEventPublishTest {
 	@DisplayName("등록된 RP 가 없는 세션도 발행한다 — 그 sid 의 refresh token 이 있을 수 있다")
 	void publishesEvenWithoutRegisteredRps() throws Exception {
 		sessionService.consumeForLogout("SID-NO-RP");
+		outboxPublisher.publishPending();
 
 		ConsumerRecord<String, String> record =
 				KafkaTestUtils.getSingleRecord(consumer, KafkaTopicConfig.LOGGED_OUT_TOPIC);

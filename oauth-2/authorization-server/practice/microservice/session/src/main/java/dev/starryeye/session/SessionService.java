@@ -72,8 +72,10 @@ public class SessionService {
 				.toList();
 		repository.deleteBySid(sid);
 
-		// 등록된 RP 가 하나도 없어도 발행한다. openid 없이 offline_access 만 받은 경로는 oidc_sessions 행이
-		// 없지만 그 sid 로 발급된 refresh token 은 존재할 수 있다 — 행이 있을 때만 발행하면 그 토큰이 살아남는다.
+		// 등록된 RP 가 하나도 없어도 outbox 에 기록한다. openid 없이 offline_access 만 받은 경로는
+		// oidc_sessions 행이 없지만 그 sid 로 발급된 refresh token 은 존재할 수 있다 — 행이 있을 때만
+		// 기록하면 그 토큰이 살아남는다. Kafka 로 실제 발행되는 시점은 이 메서드가 커밋된 뒤 OutboxPublisher
+		// 가 다음 주기에 outbox 를 훑을 때다.
 		//
 		// 주의. sub 는 그 sid 의 첫 행 값이다. session 은 한 sid 아래 여러 sub 가 섞이는 것을 막지 않는다 —
 		//      register 에 그런 검사가 없고, SessionServiceTest.consumeForLogoutPairsEachClientWithItsOwnSub 가
@@ -86,7 +88,7 @@ public class SessionService {
 		//      "대표값이 없는 필드에서 첫 행을 대표로 삼는" 것과 구조가 같고, 지금 당장 안전한 건 결과의
 		//      심각도가 다를 뿐이다.
 		String sub = sessions.isEmpty() ? null : sessions.get(0).getSub();
-		logoutEventPublisher.publish(sid, sub);
+		logoutEventPublisher.record(sid, sub);
 
 		return new LogoutTargets(targets);
 	}
