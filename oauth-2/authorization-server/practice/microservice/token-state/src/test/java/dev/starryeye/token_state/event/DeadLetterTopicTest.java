@@ -38,6 +38,12 @@ class DeadLetterTopicTest {
 	 *      다른 사용자들 폐기까지 멈추기 때문이다(head-of-line blocking).
 	 *
 	 * 주의. 파티션을 1로 잡는다. 두 편지가 반드시 같은 줄에 서야 "뒤가 막히지 않는다"를 확인할 수 있다.
+	 *
+	 * 주의. "뒤가 막히지 않는다" 단언이 통과하는 것을 KafkaConsumerConfig.kafkaErrorHandler 빈의 성과로
+	 *      읽지 마라 — 그 빈을 주석 처리하고 아래 DLT 단언만 뺀 채 돌려도 이 단언은 여전히 통과한다
+	 *      (Spring Boot 기본 에러 핸들러도 유한 재시도 뒤 로그만 남기고 다음 레코드로 넘어가기 때문,
+	 *      KafkaConsumerConfig 주석 참고). 이 클래스가 kafkaErrorHandler 빈에 대해 실제로 검증하는
+	 *      것은 "DLT 로 간다"는 부분이다 — DLT 토픽은 그 빈 없이는 아무것도 받지 않는다.
 	 */
 
 	@Autowired
