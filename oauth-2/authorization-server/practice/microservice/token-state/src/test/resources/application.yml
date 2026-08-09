@@ -25,3 +25,5 @@ spring:
 my:
   refresh-token-ttl-seconds: 60
   refresh-family-max-seconds: 300
+  consumer-retry-attempts: 2
+  consumer-retry-interval-ms: 200

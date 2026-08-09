@@ -27,6 +27,8 @@ spring:
 my:
   refresh-token-ttl-seconds: 1209600      # 14일. 회전마다 갱신된다
   refresh-family-max-seconds: 2592000     # 30일. 회전으로 연장되지 않는 절대 상한
+  consumer-retry-attempts: 2
+  consumer-retry-interval-ms: 200
 
 logging:
   level:
