@@ -57,6 +57,18 @@ public class KafkaConsumerConfig {
 	 *      뜨지 않은 순간에 token-state 만 먼저 떠도 파티션 3개가 보장된다 — "session 을 먼저 올려라"라는
 	 *      기동 순서 규율이 아니라 코드가 이 창을 닫는다. 파티션 수·replicas 는 session 의
 	 *      KafkaTopicConfig 선언과 반드시 같게 유지해야 한다(어긋나면 늘어나는 쪽으로만 수렴해 혼란스러워진다).
+	 *
+	 * 주의. 위 "보장된다"는 **그 서비스가 기동하는 시점에 브로커가 이미 응답 가능하다는 전제 위에서만**
+	 *      성립한다. spring-kafka KafkaAdmin.initialize() 는 fatalIfBrokerNotAvailable 기본값이 false 라,
+	 *      브로커가 미가용이면 에러 로그만 남기고 그 자리에서 조용히 포기한다 — initialize() 를 나중에
+	 *      다시 불러 주는 재시도 메커니즘이 없다. 즉 `docker compose up -d` 직후처럼 브로커가 아직 뜨기
+	 *      전에 두 서비스가 함께 기동하면, 양쪽 KafkaAdmin 이 모두 이 토픽 생성에 실패한 채로 넘어가고
+	 *      그 뒤로는 재기동 전까지 스스로 복구되지 않는다. 그 상태에서 브로커가 뒤늦게 살아나면, 토픽이
+	 *      아직 없으므로 처음 구독을 시작하는 consumer 가 브로커의 자동 생성 경로를 탄다(docker-compose.yml
+	 *      의 KAFKA_AUTO_CREATE_TOPICS_ENABLE=false 로 그 경로 자체는 막아 뒀지만, 그 설정이 없거나 다른
+	 *      환경으로 옮기면 1파티션으로 만들어져 이 문단이 다시 문제가 된다). 이 파일의 "파티션 3개가
+	 *      보장된다"는 문장은 그래서 "코드가 기동 순서 규율을 대신한다"까지만 참이고, "브로커 미가용까지
+	 *      대신 처리한다"는 뜻은 아니다.
 	 */
 	@Bean
 	NewTopic sessionLoggedOutTopic() {

@@ -1,5 +1,6 @@
 # docker compose -p microservice-as up -d
-# gateway(nginx 9000) + mysql + redis. 5개 Spring 서비스는 호스트에서 java -jar 로 기동한다.
+# gateway(nginx 9000) + mysql + redis + kafka. 9개 Spring 서비스(auth·client-registry·consent·
+# demo-rp·session·signing·token·token-state·user-directory)는 호스트에서 java -jar 로 기동한다.
 #
 # 주의. mysql-init 는 데이터 디렉토리가 비어 있을 때만 실행된다. 스키마·계정을 바꾸면
 #      `docker compose -p microservice-as down -v` 로 볼륨까지 지우고 다시 띄워야 반영된다.
@@ -46,3 +47,11 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # 주의. 자동 생성을 끈다. 켜져 있으면(기본값) 두 서비스의 KafkaAdmin 이 모두 브로커 미가용으로
+      #      실패한 뒤(아래 "어느 서비스가 먼저 떠도 파티션 3개가 보장된다" 주석의 전제가 깨진 경우) 뒤늦게
+      #      뜬 consumer 가 allow.auto.create.topics=true 로 이 토픽을 1파티션으로 자동 생성해 버릴 수
+      #      있다 — 그러면 KafkaConsumerConfig/KafkaTopicConfig 의 NewTopic(partitions=3) 선언이 나중에
+      #      실행돼도 조용히 무력화된다(그 경위는 KafkaConsumerConfig 주석 참고). 꺼두면 토픽이 없을 때
+      #      consumer 가 자동으로 만드는 경로 자체가 사라져, 없으면 눈에 보이게 대기·에러를 내지 조용히
+      #      좁은 토픽을 만들어내지 않는다.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
