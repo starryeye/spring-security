@@ -13,7 +13,7 @@ spring:
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
-      group-id: token-state
+      group-id: ${my.consumer-group-id}
       auto-offset-reset: earliest
       enable-auto-commit: false
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -29,6 +29,8 @@ my:
   refresh-family-max-seconds: 2592000     # 30일. 회전으로 연장되지 않는 절대 상한
   consumer-retry-attempts: 2
   consumer-retry-interval-ms: 200
+  consumer-group-id: token-state          # 테스트는 token-state-test 로 분리(같은 그룹으로 스택에 조인하면
+                                           # 운영 이벤트 일부를 테스트가 가로채 오프셋만 커밋해 버린다)
 
 logging:
   level:

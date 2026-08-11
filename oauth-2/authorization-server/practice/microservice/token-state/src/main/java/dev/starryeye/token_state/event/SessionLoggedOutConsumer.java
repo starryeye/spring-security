@@ -26,6 +26,12 @@ public class SessionLoggedOutConsumer {
 	 *      행을 만들면 이 호출이 그 행을 놓칠 수 있다. 반환값 0은 실패가 아니다(폐기할 것이 없었거나
 	 *      이미 폐기됨 = 멱등). 그 "놓친 행" 문제는 이 컨슈머가 풀지 않는다 — 재검증·정합성 스윕은
 	 *      이 태스크의 범위 밖이고, outbox(다음 태스크)는 발행 원자성을 다룰 뿐 이 폐기 경쟁을 다루지 않는다.
+	 *
+	 * 주의. groupId 를 하드코딩하지 않고 my.consumer-group-id 프로퍼티로 뺀다. 운영값(application.yml)은
+	 *      "token-state" 그대로지만, 테스트(application.yml, test)는 "token-state-test" 로 갈라 둔다.
+	 *      같은 그룹 id 를 쓰면 스택을 띄워 둔 채(localhost:9092 가 살아 있는 채) 테스트를 돌릴 때 테스트
+	 *      JVM 이 운영 컨슈머 그룹에 실제로 조인해 파티션 일부를 가져가 버린다 — 실제 로그아웃 이벤트가
+	 *      테스트용 h2 로 소비되고 오프셋만 커밋돼, 운영 쪽 refresh token 은 폐기되지 않는 사고로 이어진다.
 	 */
 
 	public static final String LOGGED_OUT_TOPIC = "oidc.session.logged-out.v1";
@@ -33,7 +39,7 @@ public class SessionLoggedOutConsumer {
 	private final RefreshTokenService refreshTokenService;
 	private final ObjectMapper objectMapper;
 
-	@KafkaListener(topics = LOGGED_OUT_TOPIC, groupId = "token-state")
+	@KafkaListener(topics = LOGGED_OUT_TOPIC, groupId = "${my.consumer-group-id}")
 	public void onSessionLoggedOut(String payload) throws Exception {
 		SessionLoggedOutEvent event = objectMapper.readValue(payload, SessionLoggedOutEvent.class);
 		int revoked = refreshTokenService.revokeBySid(event.sid());

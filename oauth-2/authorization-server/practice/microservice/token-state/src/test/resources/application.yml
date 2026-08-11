@@ -11,7 +11,7 @@ spring:
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
-      group-id: token-state
+      group-id: ${my.consumer-group-id}
       auto-offset-reset: earliest
       enable-auto-commit: false
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -21,9 +21,27 @@ spring:
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
     listener:
       ack-mode: record
+    # 주의. session 의 테스트 yml(session/src/test/resources/application.yml)에서 그대로 옮겨온 설정이다.
+    #      이 모듈도 KafkaConsumerConfig 에 NewTopic 빈(sessionLoggedOutTopic, sessionLoggedOutDlt)이 있어,
+    #      Kafka 를 안 띄운 채 돌리는 대부분의 @SpringBootTest 컨텍스트(Kafka 를 직접 안 쓰는 나머지)도
+    #      기동 시 KafkaAdmin 이 토픽 생성을 시도한다 — 이 네 줄이 없으면 기본 30초
+    #      (KafkaAdmin.operationTimeout) 동안 컨텍스트마다 그 자리에서 멈춘다.
+    #
+    # 주의. spring.kafka.admin.operation-timeout 한 줄로 단순화하는 시도는 session 쪽에서 이미 해보고
+    #      되돌렸다 — 브로커가 없을 때는 오히려 더 느려졌다(KafkaAdmin.initialize() 안의 여러 AdminClient
+    #      호출이 operationTimeout 하나로 순차로 묶여 그 값만큼씩 쌓인다). 이 네 줄(AdminClient 자체의
+    #      연결·요청 타임아웃)이 broker-less 상태에서 더 빨리 실패한다. 실측 수치는 session 쪽 주석 참고.
+    admin:
+      properties:
+        request.timeout.ms: 2000
+        default.api.timeout.ms: 2000
+        socket.connection.setup.timeout.ms: 1000
+        socket.connection.setup.timeout.max.ms: 1000
 
 my:
   refresh-token-ttl-seconds: 60
   refresh-family-max-seconds: 300
   consumer-retry-attempts: 2
   consumer-retry-interval-ms: 200
+  consumer-group-id: token-state-test     # 운영 그룹("token-state")과 분리 — 같이 안 갈라두면 스택을
+                                           # 띄워 둔 채 테스트를 돌릴 때 운영 컨슈머 그룹에 조인해 버린다
