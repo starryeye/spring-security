@@ -385,6 +385,38 @@ class TokenEndpointControllerTest {
 				.andExpect(jsonPath("$.refresh_token").value("refresh-token-1"));
 	}
 
+	// code 에 실린 sid 가 tokenStateClient.issue 의 다섯 번째 인자로 그대로 전달되는지 값 자체를 잡아 확인한다.
+	// 위 offlineAccessScopeIssuesRefreshToken 을 포함한 기존 offline_access 테스트 3개는 전부 sid=null 인
+	// AuthorizationCodeData 를 쓰고 스텁도 isNull() 이라, TokenEndpointController 에서 data.sid() 를 통째로
+	// null 로 바꿔도(예: 인자를 떨어뜨리는 실수) 초록으로 남는다 — 그 첫 고리(code 교환 → issue 호출)가
+	// 테스트로 안 물려 있었다. sid 가 null 로 저장되면 로그아웃 폐기(RefreshTokenService.revokeBySid)가
+	// 전부 무력화되므로 이 값의 전달은 회귀가 나면 반드시 잡혀야 한다.
+	@Test
+	void offlineAccessScopeWithSidPropagatesSidToTokenStateIssue() throws Exception {
+		when(codeStore.consume("code-1")).thenReturn(Optional.of(new AuthorizationCodeData(
+				"my-client", "http://127.0.0.1:8080/callback", "openid offline_access", "user-sub-0001",
+				"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", "nonce-1", 1700000000L, "SID-0001")));
+		when(clientRegistryClient.getClient("my-client")).thenReturn(clientInfo());
+		when(signingClient.sign(any(), any())).thenReturn("signed-access-token");
+		when(idTokenIssuer.issue(any(), any(), any(), any(), anyLong(), any(), any())).thenReturn("signed-id-token");
+		when(tokenStateClient.issue(any(), any(), any(), anyLong(), any()))
+				.thenReturn(new IssuedRefreshToken("refresh-token-1", 1800000000L, "family-1"));
+
+		mockMvc.perform(post("/oauth2/token")
+						.header("Authorization", BASIC)
+						.param("grant_type", "authorization_code")
+						.param("code", "code-1")
+						.param("redirect_uri", "http://127.0.0.1:8080/callback")
+						.param("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.refresh_token").value("refresh-token-1"));
+
+		ArgumentCaptor<String> sidCaptor = ArgumentCaptor.forClass(String.class);
+		verify(tokenStateClient).issue(eq("my-client"), eq("user-sub-0001"), eq("openid offline_access"),
+				eq(1700000000L), sidCaptor.capture());
+		assertThat(sidCaptor.getValue()).isEqualTo("SID-0001");
+	}
+
 	// 동의하지 않았으면 발급하지 않는다. token-state 를 부르지도 않는다.
 	// 이 code 레코드는 openid scope 는 있는데 sid 는 null 이다(구버전 code 레코드와 같은 모양) — 그 조합에서
 	// StringUtils.hasText(data.sid()) 게이트가 실제로 sessionClient.register 호출을 막는지도 함께 고정한다.
