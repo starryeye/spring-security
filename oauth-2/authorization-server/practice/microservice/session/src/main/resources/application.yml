@@ -16,6 +16,10 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
       acks: all
+      # 주의. max.block.ms 를 설정하지 않아 기본값 60초를 그대로 쓴다. OutboxPublisher.publishPending()
+      #      의 kafkaTemplate.send(...).get(5, TimeUnit.SECONDS) 는 이것 때문에 실제 상한이 5초가 아니다
+      #      — 브로커 메타데이터를 못 받으면 send() 호출 자체가 그 안에서(.get() 이 걸리기도 전에) 최대
+      #      60초까지 막힐 수 있다. OutboxPublisher javadoc 참고.
 
 my:
   issuer: http://localhost:9000
