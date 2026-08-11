@@ -36,8 +36,8 @@ import static org.mockito.Mockito.doAnswer;
  *
  * 주의. h2 는 InnoDB 의 next-key/gap lock 의미론을 재현하지 않으므로 이 성질은 h2 로 고정할 수 없다
  *      (RefreshTokenServiceConcurrentRotateTest 의 관찰 참고). 그래서 이 클래스만 별도 프로필
- *      (application-mysql-verify.yml)로 MySQL 에 접속해 확인한다 — 운영 스키마(microservice_as)가 아니라
- *      격리된 token_state_test 스키마를 쓴다.
+ *      (application-mysql-verify.yml)로 MySQL 에 접속해 확인한다 — 운영 스키마(ms_token_state, 슬라이스
+ *      7부터의 이름)가 아니라 격리된 token_state_test 스키마를 쓴다.
  *
  * 주의. MySQL 이 없는 환경(로컬 개발 · CI)에서는 이 클래스 전체를 건너뛴다. {@link #requireMySql()} 의
  *      assumeTrue 는 JUnit 5 lifecycle 상 Spring 의 TestInstancePostProcessor(컨텍스트 로딩)보다 먼저
