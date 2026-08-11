@@ -81,8 +81,11 @@ public class RefreshTokenEntity {
 	/**
 	 * 이 refresh token 이 속한 OP 세션이다. 로그아웃 폐기의 범위를 세션 단위로 잡기 위해 보관한다.
 	 *
-	 * 주의. nullable 이다. client_credentials 는 refresh 를 내지 않지만, openid 없이 offline_access 만
-	 *      받은 경로처럼 세션이 걸리지 않는 발급이 있을 수 있다. 그런 행은 세션 단위 폐기에 걸리지 않는다.
+	 * 주의. nullable 인 이유는 client_credentials 하나뿐이다 — 그 grant 는 애초에 refresh token 을
+	 *      내지 않으므로 이 컬럼을 채울 행 자체가 생기지 않는다(설계 문서 §4 표 참고). openid 없이
+	 *      offline_access 만 받은 경로도 `sid` 를 갖는다 — auth 의 AuthorizeController 가 openid 유무와
+	 *      무관하게 항상 code 에 `sid` 를 싣고, token 의 TokenEndpointController 가 그 값을 그대로
+	 *      token-state 의 issue 요청에 넘긴다. 그래서 그 경로도 세션 단위 폐기에 정상적으로 걸린다.
 	 */
 	@Column(name = "sid", length = 64)
 	private String sid;
