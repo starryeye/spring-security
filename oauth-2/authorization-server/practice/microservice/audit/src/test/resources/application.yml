@@ -22,9 +22,11 @@ spring:
     listener:
       ack-mode: record
     # 주의. token-state 의 테스트 yml 에서 옮겨온 설정이다. NewTopic 빈이 있으면 Kafka 를 안 띄운 채 도는
-    #      컨텍스트도 기동 시 KafkaAdmin 이 토픽 생성을 시도해, 이 네 줄이 없으면 컨텍스트마다 수십 초씩
-    #      멈춘다(token-state 에서 실측: 브로커 없이 컨텍스트당 약 40초). spring.kafka.admin.operation-timeout
-    #      한 줄로 줄이는 방법은 session 쪽에서 해보고 되돌렸다 — 브로커가 없을 때 오히려 느려졌다.
+    #      컨텍스트도 기동 시 KafkaAdmin 이 토픽 생성을 시도하므로, 이 네 줄이 없으면 컨텍스트마다
+    #      KafkaAdmin.operationTimeout(기본 30초) 단위로 멈춘다. 이 네 줄은 AdminClient 자체의 연결·요청
+    #      타임아웃이라 브로커가 없을 때 더 빨리 포기한다.
+    # 주의. spring.kafka.admin.operation-timeout 한 줄로 바꾸면 브로커가 없을 때 오히려 느려질 수 있다 —
+    #      근거와 수치는 token-state·session 의 src/test/resources/application.yml 주석에 있다.
     admin:
       properties:
         request.timeout.ms: 2000

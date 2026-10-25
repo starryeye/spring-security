@@ -30,15 +30,14 @@ class AuditRecorderTest {
 	 *      변환한 것이다(스택트레이스에 JDBC 프레임이 없다). 현재 매핑에서 DB 레벨 제약(유니크·not null) 위반 경로는
 	 *      이 클래스의 어떤 테스트도 행사하지 않는다.
 	 *
-	 * 주의. datasource url 을 이 클래스 전용으로 준다. 이 저장소의 테스트는 이름 있는 h2 인메모리 DB 를
-	 *      여러 @SpringBootTest 컨텍스트가 공유하는 함정을 슬라이스 7에서 겪었다(프로퍼티가 달라 컨텍스트
-	 *      캐시가 갈려도 같은 이름이면 같은 테이블이다).
+	 * 주의. datasource url 을 이 클래스 전용으로 준다. 이름 있는 h2 인메모리 DB 는 여러 @SpringBootTest
+	 *      컨텍스트가 공유한다 — 프로퍼티가 달라 컨텍스트 캐시가 갈려도 같은 이름이면 같은 테이블이다.
 	 *
 	 * 주의. spring.kafka.listener.auto-startup=false 는 리스너 컨테이너만 띄우지 않게 한다. 이 테스트는 Kafka 로
 	 *      이벤트를 받을 일이 없는데, 로컬에 실제 브로커가 떠 있으면 리스너가 localhost:9092 로 붙어 실제 로그아웃
-	 *      이벤트를 이 테스트의 h2 에 기록할 수 있고, 그러면 경합에 따라 행 수 단언이 깨질 수 있다(리스너를 켠 채
-	 *      돌려 보니 단언은 통과했지만 리스너는 실제 브로커의 그룹에 조인해 이벤트를 소비했다). 이 속성은 토픽
-	 *      선언(NewTopic)에는 영향이 없다 — 브로커가 있으면 이 컨텍스트의 기동 중에도 KafkaAdmin 이 토픽을 적용한다.
+	 *      이벤트를 이 테스트의 h2 에 기록할 수 있고, 그러면 경합에 따라 행 수 단언이 깨질 수 있다. 리스너를 켜 두면
+	 *      실제 브로커의 컨슈머 그룹에 조인해 이벤트를 소비한다. 이 속성은 토픽 선언(NewTopic)에는 영향이 없다 —
+	 *      브로커가 있으면 이 컨텍스트의 기동 중에도 KafkaAdmin 이 토픽을 적용한다.
 	 */
 
 	private static final String TOPIC = "oidc.session.logged-out.v1";
@@ -76,22 +75,21 @@ class AuditRecorderTest {
 	}
 
 	/**
-	 * 100,000바이트는 text(64KB)의 한도를 넘기려고 고른 크기다.
+	 * 100,000바이트가 넘는 크기는 text(64KB)의 한도를 넘기려고 고른 것이다.
 	 *
-	 * 주의. 이 테스트가 h2 에서 물 수 있는 회귀와 못 무는 회귀를 나눠 적는다. AuditEventEntity.payload 를 바꿔 가며
-	 *      확인한 결과다.
-	 *        - @Lob 과 length 를 둘 다 빼면 실패한다. h2 가 payload 를 VARCHAR(255) 로 만들어 100,000바이트를
-	 *          거부하기 때문이다(DataIntegrityViolationException, "Value too long").
+	 * 주의. AuditEventEntity.payload 매핑이 바뀔 때 이 테스트가 h2 에서 무는 회귀와 못 무는 회귀는 다음과 같다.
+	 *        - @Lob 과 length 를 둘 다 빼면 실패한다. h2 가 payload 를 VARCHAR(255) 로 만들어 100,000바이트가 넘는
+	 *          값을 거부하기 때문이다(DataIntegrityViolationException, "Value too long").
 	 *        - @Lob 만 빼고 length 를 두면 통과한다.
-	 *        - @Lob 은 두고 length 만 기본값으로 되돌리면 통과한다. 이것이 실제로 일어났던 회귀다 — 같은 매핑이
-	 *          MySQL 에서는 tinytext(255바이트)가 된다. h2 는 이 경우에도 payload 를 CHARACTER LARGE OBJECT
-	 *          (최대 길이 Long.MAX_VALUE)로 만들어 길이를 강제하지 않으므로 이 테스트는 그 회귀를 못 문다.
+	 *        - @Lob 은 두고 length 만 기본값으로 되돌리면 통과한다. 같은 매핑이 MySQL 에서는 tinytext(255바이트)가
+	 *          되지만, h2 는 이 경우에도 payload 를 CHARACTER LARGE OBJECT(최대 길이 Long.MAX_VALUE)로 만들어 길이를
+	 *          강제하지 않으므로 이 테스트는 그 회귀를 못 문다.
 	 *      그래서 이 테스트는 기록기와 엔티티를 거쳐 큰 값이 잘리지 않고 오가는 경로까지만 지킨다. 컬럼이 실제로
 	 *      충분히 큰지는 실제 MySQL 에서만 보이고(SHOW CREATE TABLE 의 mediumtext, 롤백되는 트랜잭션 안에서 SQL 로
 	 *      직접 INSERT), 이 테스트는 그 확인을 대신하지 않는다.
 	 */
 	@Test
-	@DisplayName("100,000바이트 payload 를 기록기·엔티티 경로가 잘라내지 않는다")
+	@DisplayName("100,000바이트가 넘는 payload 를 기록기·엔티티 경로가 잘라내지 않는다")
 	void recordsPayloadLargerThan64KbIntact() {
 		String payload = "{\"eventId\":\"E-5\",\"padding\":\"" + "x".repeat(100_000) + "\"}";
 

@@ -57,8 +57,9 @@ public interface RefreshTokenEntityRepository extends JpaRepository<RefreshToken
 	 *
 	 * 주의. sid 가 null 인 행은 이 조건에 걸리지 않는다 — 실제로 실행되는 비교는 NULL(컬럼) = 'SID-A'
 	 *      (파라미터) 형태이고(NULL = NULL 이 아니다), SQL 삼치 논리에서 NULL 을 포함한 비교는 어느 쪽이든
-	 *      참이 될 수 없어(UNKNOWN 으로 평가된다) WHERE 절이 그 행을 걸러낸다. 세션이 걸리지 않은 발급
-	 *      경로의 행은 세션 단위 폐기 대상이 아니므로 의도한 동작이다.
+	 *      참이 될 수 없어(UNKNOWN 으로 평가된다) WHERE 절이 그 행을 걸러낸다. sid 가 null 인 행은 sid 가
+	 *      없는 code 레코드를 롤링 배포 중에 교환할 때만 생기는데(RefreshTokenEntity.sid 주석), 이 UPDATE 는
+	 *      그 행을 폐기하지 못한다. 의도한 동작이 아니라 빈틈이다.
 	 */
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Query("""

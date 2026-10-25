@@ -40,15 +40,15 @@ class AuditEventConsumerTest {
 	 * 로그아웃 이벤트가 감사 레코드로 받아 적히는지, 중복 전달이 한 줄로 흡수되는지, 기형 편지가 감사 DLT 로
 	 *      가는지를 실제 브로커(임베디드)로 확인한다.
 	 *
-	 * 주의. @EmbeddedKafka 의 파티션 수(3)를 KafkaConsumerConfig 의 NewTopic 선언과 같게 둔다. 슬라이스 7에서
-	 *      둘이 어긋나 KafkaAdmin 이 토픽을 늘리는 바람에 테스트 전제가 조용히 깨진 일이 있었다.
+	 * 주의. @EmbeddedKafka 의 파티션 수(3)를 KafkaConsumerConfig 의 NewTopic 선언과 같게 둔다. 둘이 어긋나면
+	 *      KafkaAdmin 이 토픽을 늘려 테스트 전제가 조용히 깨진다.
 	 *
 	 * 주의. 순서가 필요한 단언은 모든 편지를 같은 키로 보낸다. 같은 키는 같은 파티션에 떨어지고, 한 파티션
 	 *      안에서는 순서대로 처리되므로 "나중에 보낸 표지 편지가 기록됐다"가 "앞의 편지들도 처리가 끝났다"를
 	 *      뜻하게 된다. 기다림을 시간에 맡기지 않고 표지로 확정하는 방법이다.
 	 *
 	 * 주의. DLT 소비자는 consumeFromAnEmbeddedTopic 의 3인자(seekToEnd=true) 오버로드로 구독한다. 2인자는
-	 *      항상 맨 앞으로 가서 같은 클래스의 앞 테스트가 남긴 레코드를 다시 읽는다(슬라이스 7에서 겪었다).
+	 *      항상 맨 앞으로 가서 같은 클래스의 앞 테스트가 남긴 레코드를 다시 읽는다.
 	 */
 
 	private static final String TOPIC = AuditEventConsumer.LOGGED_OUT_TOPIC;

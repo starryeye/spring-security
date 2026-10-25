@@ -54,7 +54,7 @@
 
 **읽는 수단은 만들지 않는다.** 검증은 SQL 로 한다. 슬라이스 7의 e2e 가 그렇게 했고, 이 슬라이스의 목적은 감사 제품이 아니라 계약 검증이다. 조회 API 는 이벤트가 늘어난 뒤(②③)에 필요해진다.
 
-**`auto-offset-reset: earliest`** 이므로 새 그룹은 토픽 처음부터 읽는다. 감사 입장에서는 맞는 성질이다 — 서비스를 나중에 띄워도 그동안의 이벤트를 소급해 채운다.
+**`auto-offset-reset: earliest`** 이므로 새 그룹은 토픽 처음부터 읽는다. 감사 입장에서는 맞는 성질이다 — 서비스를 나중에 띄워도 토픽에 아직 남아 있는 이벤트는 소급해 채운다. 토픽 보존 기간(브로커 기본 7일, `docker-compose.yml` 에 재정의 없음)이 지나 지워진 이벤트는 읽을 수 없다(9절).
 
 ---
 
@@ -167,7 +167,7 @@ catch 위반      → existsByEventId 로 재확인
 
 | 상황 | 결과 |
 |---|---|
-| `audit` 이 죽어 있다 | 폐기는 그대로 된다. 이벤트는 토픽에 남아 있다가 재기동 후 따라잡는다 |
+| `audit` 이 죽어 있다 | 폐기는 그대로 된다. 이벤트는 토픽 보존 기간(브로커 기본 7일) 동안 남아 있다가 재기동 후 따라잡는다. 더 오래 죽어 있으면 지워진 이벤트는 기록되지 않는다(9절) |
 | `token-state` 가 죽어 있다 | 감사는 그대로 기록한다 |
 | `audit` 이 어떤 이벤트를 계속 처리 못 한다 | 제한 재시도 후 감사 DLT. 폐기에는 영향 없다 |
 
@@ -181,7 +181,7 @@ catch 위반      → existsByEventId 로 재확인
 
 `token-state` 의 DLT 는 `oidc.session.logged-out.v1.dlt` 다. **소비자가 하나일 때는 이 이름이 모호하지 않았지만 둘이 되면 모호해진다.** 감사가 같은 DLT 를 쓰면 "이 편지는 누가 처리 못 한 것인가"를 알 수 없고, 재처리할 때 폐기를 다시 돌려야 할지 감사를 다시 돌려야 할지 모른다 — 한쪽은 멀쩡히 처리했는데.
 
-**DLT 는 컨슈머 그룹 단위여야 한다.**
+**DLT 는 소비자 단위여야 한다.** 이름은 `<토픽>.<소비자>.dlt` 이고, 소비자 이름은 리터럴이다(운영 컨슈머 그룹 id 와 같은 문자열). `my.consumer-group-id` 에서 만들지 않으므로 테스트 그룹(`audit-test`, `token-state-test`)도 같은 DLT 로 간다 — 그룹 id 는 오프셋만 가른다.
 
 | 소비자 | DLT |
 |---|---|
@@ -204,7 +204,7 @@ catch 위반      → existsByEventId 로 재확인
 |---|---|
 | 테스트가 운영 컨슈머 그룹에 조인하면 실제 이벤트를 가져가 오프셋을 커밋한다 | 컨슈머 그룹을 `${my.consumer-group-id}` 로 설정화, 테스트는 `audit-test` |
 | 이름 있는 h2 인메모리 DB 를 여러 `@SpringBootTest` 컨텍스트가 공유한다 | 필요한 테스트 클래스에 격리 `datasource.url` |
-| 테스트 yml 에 admin 타임아웃이 없으면 브로커 없이 컨텍스트당 약 40초 걸린다 | `spring.kafka.admin.properties` 4줄을 처음부터 |
+| 테스트 yml 에 admin 타임아웃이 없으면 브로커 없이 컨텍스트마다 `KafkaAdmin.operationTimeout`(기본 30초) 단위로 멈춘다(수치와 근거는 `token-state`·`session` 의 테스트 yml 주석) | `spring.kafka.admin.properties` 4줄을 처음부터 |
 | `consumeFromAnEmbeddedTopic` 2인자 오버로드는 항상 `seekToBeginning` 한다 | 3인자(`seekToEnd=true`) |
 | `@EmbeddedKafka` 파티션 수와 같은 컨텍스트의 `NewTopic` 이 어긋나면 토픽이 확장돼 테스트 전제가 깨진다 | 둘을 일치시키고, 파티션에 의존하는 테스트는 같은 키로 보내 스스로 단언 |
 | `src/test/resources/application.yml` 은 main 을 병합하지 않고 대체한다 | `spring.kafka` 블록을 양쪽에 |
@@ -277,6 +277,7 @@ catch 위반      → existsByEventId 로 재확인
 - **본 토픽 선언이 세 곳** — `session`·`token-state`·`audit` 의 파티션 수·replicas 를 함께 맞춰야 한다
 - **감사 레코드 정리 수단 없음** — 무한히 쌓인다
 - **감사 DLT 에 간 편지는 아무도 자동으로 재처리하지 않는다** — 그 이벤트는 감사에서 빠진 채 남는다
+- **`audit` 이 보존 기간보다 늦게 뜨거나 더 오래 내려가 있으면 그 사이 지워진 이벤트는 조용히 빠진다** — Kafka 는 소비 여부와 무관하게 토픽 보존 기간(브로커 기본값 `log.retention.hours=168`, `docker-compose.yml` 에 재정의 없음)이 지난 이벤트를 지운다. 구성원이 없는 그룹의 커밋 오프셋도 `offsets.retention.minutes`(기본 7일) 뒤에 만료되는데, 그러면 `earliest` 가 적용돼 남아 있는 이벤트를 처음부터 다시 읽고 이미 기록된 것은 `eventId` 멱등이 흡수한다
 - **옛 DLT 토픽(`oidc.session.logged-out.v1.dlt`)이 브로커에 남는다** — 볼륨을 지우지 않은 환경에서는 쓰이지 않는 토픽으로 남는다
 
 ---

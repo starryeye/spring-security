@@ -10,7 +10,9 @@
 # 주의. 로그인 폼의 _csrf, 동의 화면의 pending_id·_csrf 는 응답 본문에서 매번 새로 읽는다.
 # 주의. code 교환은 token-state 가 refresh token 을 발급해야 끝난다(offline_access). token-state 가 내려가 있으면
 #      교환이 server_error 로 실패하므로, token-state 를 내린 채 로그아웃하려면 로그인을 먼저 하고 내린다.
+# 주의. curl 연결 실패(gateway 다운)나 _csrf·pending_id 를 못 읽은 grep 실패는 set -e 만으로는 메시지 없이 끝나므로, ERR trap 이 실패한 행 번호를 stderr 에 남긴다.
 set -euo pipefail
+trap 'echo "실패: $LINENO 행" >&2' ERR
 
 BASE=http://localhost:9000
 CMD=${1:?login|logout}

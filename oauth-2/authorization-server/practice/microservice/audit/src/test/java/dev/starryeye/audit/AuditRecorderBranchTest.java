@@ -23,9 +23,10 @@ class AuditRecorderBranchTest {
 	 *      둘 다 선조회를 통과한 뒤 한쪽이 유니크 위반을 맞는 경우뿐이라, 통합 테스트로는 재현하기 어렵다.
 	 *      그래서 선조회 결과와 save 의 예외를 직접 지정해 두 갈래를 각각 고정한다.
 	 *
-	 * 주의. 다시 던짐 갈래는 유니크 위반만이 아니라 not null 같은 다른 제약 위반으로도 들어가므로 AuditRecorderTest 의
-	 *      missingSid·missingEventId 도 그 갈래를 행사한다. 여기서는 위반의 종류와 무관하게 "재확인에 행이 없다"는
-	 *      조건만으로 던지는지를 고정한다.
+	 * 주의. 다시 던짐 갈래는 not null 처럼 유니크가 아닌 위반이 타는 길이다. 재확인에 행이 없기 때문이다 — 유니크
+	 *      위반은 상대 전달이 넣은 행이 있어 흡수 갈래를 탄다. AuditRecorderTest 의 missingSid·missingEventId 도
+	 *      그 갈래를 행사한다. 여기서는 위반의 종류가 아니라 "재확인에 행이 없다"는 조건만으로 받은 예외를 그대로
+	 *      던지는지를 고정한다.
 	 */
 
 	private static final AuditRecord RECORD = new AuditRecord(
@@ -49,9 +50,10 @@ class AuditRecorderBranchTest {
 	void rethrowsWhenRowStillAbsent() {
 		AuditEventEntityRepository repository = mock(AuditEventEntityRepository.class);
 		when(repository.existsByEventId("E-1")).thenReturn(false, false);
-		when(repository.save(any())).thenThrow(new DataIntegrityViolationException("not-null subject_sid"));
+		DataIntegrityViolationException violation = new DataIntegrityViolationException("not-null subject_sid");
+		when(repository.save(any())).thenThrow(violation);
 
 		assertThatThrownBy(() -> new AuditRecorder(repository).record(RECORD))
-				.isInstanceOf(DataIntegrityViolationException.class);
+				.isSameAs(violation);
 	}
 }

@@ -17,10 +17,11 @@ public class KafkaConsumerConfig {
 	/**
 	 * 감사 소비자의 토픽 선언과 실패 처리.
 	 *
-	 * 주의. DLT 이름에 컨슈머 그룹(audit)을 넣는다. 소비자가 하나일 때는 "<토픽>.dlt" 가 모호하지 않았지만,
-	 *      같은 토픽을 두 그룹이 소비하면 한 DLT 에 두 소비자의 실패가 섞여 "이 편지는 누가 처리 못 했나"를
-	 *      알 수 없게 된다 — 재처리할 때 폐기를 다시 돌려야 할지 감사를 다시 돌려야 할지 모르는데, 한쪽은
-	 *      멀쩡히 처리했다. 그래서 token-state 도 같은 슬라이스에서 "...v1.token-state.dlt" 로 이름을 바꾼다.
+	 * 주의. DLT 이름은 소비자의 이름을 리터럴로 넣은 "<토픽>.audit.dlt" 다(운영 컨슈머 그룹 id 와 같은 문자열).
+	 *      my.consumer-group-id 에서 만들지 않으므로 테스트 그룹(audit-test)으로 돌려도 같은 DLT 로 간다 —
+	 *      그룹 id 는 오프셋만 가른다. 소비자 이름이 없는 "<토픽>.dlt" 에는 같은 토픽을 읽는 두 소비자의 실패가
+	 *      섞여 "이 편지는 누가 처리 못 했나"를 알 수 없고, 재처리할 때 폐기를 다시 돌려야 할지 감사를 다시
+	 *      돌려야 할지 모른다 — 한쪽은 멀쩡히 처리했다. 그래서 token-state 의 DLT 도 "...v1.token-state.dlt" 다.
 	 *
 	 * 주의. DLT 목적지를 원래 토픽 이름에서 만든다(dltFor(record.topic())). 지금 구독하는 토픽은 하나지만,
 	 *      후속 슬라이스에서 토픽이 늘면 각 토픽의 실패가 자기 이름의 DLT 로 간다. 상수 하나로 두면 새 토픽의
@@ -28,8 +29,9 @@ public class KafkaConsumerConfig {
 	 *      (docker-compose.yml 의 KAFKA_AUTO_CREATE_TOPICS_ENABLE=false) 토픽을 더할 때는 그 DLT 의 NewTopic 도
 	 *      반드시 함께 선언해야 한다. 없으면 DLT 발행이 실패한다.
 	 *
-	 * 주의. 본 토픽도 선언한다. 슬라이스 7에서 컨슈머가 토픽 생성 전에 구독하면 파티션 0에만 배정되는
-	 *      기동 순서 함정을 겪어 session·token-state 가 둘 다 선언하게 됐고, 감사가 세 번째 선언자다.
+	 * 주의. 본 토픽도 선언한다. 컨슈머가 토픽이 생기기 전에 구독하면 브로커 기본값(num.partitions=1)으로
+	 *      자동 생성된 토픽의 파티션 0에만 배정돼 남을 수 있다(token-state 의 KafkaConsumerConfig 주석).
+	 *      그래서 session·token-state·audit 가 모두 같은 토픽을 선언한다.
 	 *      KafkaAdmin 은 파티션을 늘리기만 하므로 선언이 어긋나도 줄어들지는 않지만, 세 곳(session 의
 	 *      KafkaTopicConfig, token-state·audit 의 KafkaConsumerConfig)의 파티션 수·replicas 를 함께 맞춰야 한다.
 	 *      이 선언의 효력은 기동 시점에 브로커가 응답 가능하다는 전제 위에서만 성립한다 — KafkaAdmin 은

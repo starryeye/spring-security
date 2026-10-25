@@ -149,7 +149,7 @@ flowchart TB
    docker compose -p microservice-as -f docker-compose.yml down -v   # 슬라이스 7부터 필수
    docker compose -p microservice-as -f docker-compose.yml up -d
    ```
-   - **주의. `down -v` 를 빠뜨리면 안 된다.** `mysql-init/01-schemas-and-accounts.sql` 은 MySQL 공식 이미지의 `docker-entrypoint-initdb.d` 규칙대로 **데이터 디렉토리가 비어 있을 때만** 실행된다. 슬라이스 5까지 쓰던 볼륨이 남아 있는 채로 컨테이너만 새로 올리면 스키마 5개·계정 5개가 생기지 않고 예전의 단일 스키마(`microservice_as`, 전 서비스 `root` 공유)로 그대로 뜬다 — 아래 "서비스별 책임과 소유 데이터" 표의 계정 분리가 실제로는 반영되지 않은 채 겉으로만 정상 기동한 것처럼 보인다.
+   - **주의. `down -v` 를 빠뜨리면 안 된다.** `mysql-init/01-schemas-and-accounts.sql` 은 MySQL 공식 이미지의 `docker-entrypoint-initdb.d` 규칙대로 **데이터 디렉토리가 비어 있을 때만** 실행된다. 슬라이스 5까지 쓰던 볼륨이 남아 있는 채로 컨테이너만 새로 올리면 서비스별 스키마 6개·계정 6개가 생기지 않고 예전의 단일 스키마(`microservice_as`, 전 서비스 `root` 공유)로 그대로 뜬다 — 아래 "서비스별 책임과 소유 데이터" 표의 계정 분리가 실제로는 반영되지 않은 채 겉으로만 정상 기동한 것처럼 보인다.
    - kafka 는 `apache/kafka:3.9.2` 를 KRaft 모드(Zookeeper 없음)로 띄운다. 토픽 `oidc.session.logged-out.v1`(파티션 3)은 `session` 서비스가 기동 시 `NewTopic` 빈으로 직접 만들므로 수동 생성이 필요 없다.
 2. 10개 서비스 빌드 (java 21)
    ```bash
@@ -166,11 +166,11 @@ flowchart TB
    java -jar token/build/libs/*.jar             # 8082
    java -jar auth/build/libs/*.jar              # 8081
    java -jar demo-rp/build/libs/*.jar           # 8095 (gateway 라우팅 대상 아님, 브라우저가 직접 접근)
-   java -jar audit/build/libs/*.jar             # 8089 — 언제 띄워도 된다(earliest 로 소급)
+   java -jar audit/build/libs/*.jar             # 8089 — 기동 순서와 무관(earliest 로 보존 기간 안의 이벤트를 소급, 브로커 기본 7일)
    ```
    - seed: user / 1111 (user-directory, profile 포함: name `Star Rye`, email `starryeye@example.com` 등), client `my-client` / `secret` (client-registry, redirectUri `http://127.0.0.1:8080/callback`, scope `openid profile email offline_access`, grantTypes `authorization_code refresh_token`, clientScopes `""` — client_credentials 미등록이라 이 grant 는 `unauthorized_client` 로 거절된다), client `article-api` / `secret`(client-registry, resource server 역할 — scopes/redirectUris 가 비어 있어 인가 흐름(authorization_code)에는 참여할 수 없고, grantTypes `client_credentials` · clientScopes `introspect` 로 **자기 자신 앞으로 `introspect` scope 의 access token 만 받을 수 있다**. 그 토큰을 Bearer 로 실어야 `/oauth2/introspect` 를 호출할 수 있다)
    - 모든 요청은 gateway(http://localhost:9000) 로 보낸다.
-   - 주의. 이 태스크의 최초 콜드 스타트(브리프 예시 순서대로 `token-state` 를 `session` 보다 먼저 올림)에서, 로그아웃해도 refresh 가 조용히 폐기되지 않는 현상을 실제로 관측한 적이 있다 — `token-state` 의 Kafka consumer 가 `session` 이 `oidc.session.logged-out.v1` 토픽을 파티션 3으로 명시 생성하기 전에 먼저 그 토픽을 구독해, 브로커 기본값(파티션 1개)으로 자동 생성된 토픽의 파티션 0번에만 고정 배정됐다(`token-state` 로그: `partitions assigned: [oidc.session.logged-out.v1-0]`, 이후 재조정 없음). `partition_key`(=`sid`)가 파티션 1·2로 해시되는 로그아웃 이벤트는 그 사이 소비되지 않았다(자세한 경위는 아래 "검증된 성공 기준 > 슬라이스 7" 참고). **이제는 `token-state` 도 같은 토픽을 `NewTopic` 빈으로 선언한다**(`KafkaConsumerConfig`, 파티션 3·replicas 1 — `session` 의 `KafkaTopicConfig` 선언과 동일한 값). `KafkaAdmin` 은 `SmartInitializingSingleton` 이라 두 서비스 모두 자기 리스너를 시작하기 전에 먼저 실행되고, 같은 이름의 토픽을 중복 선언해도 멱등(이미 충분하면 아무 일도 안 하고, 모자라면 늘리기만 한다)이므로 **그 서비스가 기동하는 시점에 브로커가 이미 응답 가능하다면, 어느 서비스가 먼저 떠도 파티션 3개가 보장된다** — 실제로 `token-state` 를 `session` 없이 완전히 혼자 띄워 `kafka-topics --describe` 로 파티션 3개가 즉시 만들어지는 것을 확인했다(아래 "검증된 성공 기준" 참고). 그래서 이 순서(`session` 을 `token-state` 보다 먼저)는 이제 정확성의 전제조건이 아니다 — 위 목록의 순서는 다른 이유(REST 호출 준비, 이전 항목들 참고)로 그대로 유지한다. **다만 위 전제(브로커가 이미 떠 있음)가 깨지면 얘기가 다르다.** `KafkaAdmin.initialize()` 는 브로커 미가용 시 에러 로그만 남기고 조용히 포기하며(`fatalIfBrokerNotAvailable` 기본값 false), 스스로 재시도하지 않는다 — `docker compose up -d` 직후처럼 브로커가 뜨기 전에 두 서비스가 함께 기동하면 양쪽 `KafkaAdmin` 이 모두 실패한 채 넘어가고, 재기동 전까지 복구되지 않는다. `docker-compose.yml` 에 `KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"` 를 넣어 그 상태에서 consumer 가 토픽을 1파티션으로 자동 생성해 버리는 경로 자체는 막아 뒀다(대신 토픽이 없으면 consumer 가 대기·에러를 낸다).
+   - 주의. 이 태스크의 최초 콜드 스타트(브리프 예시 순서대로 `token-state` 를 `session` 보다 먼저 올림)에서, 로그아웃해도 refresh 가 조용히 폐기되지 않는 현상을 실제로 관측한 적이 있다 — `token-state` 의 Kafka consumer 가 `session` 이 `oidc.session.logged-out.v1` 토픽을 파티션 3으로 명시 생성하기 전에 먼저 그 토픽을 구독해, 브로커 기본값(파티션 1개)으로 자동 생성된 토픽의 파티션 0번에만 고정 배정됐다(`token-state` 로그: `partitions assigned: [oidc.session.logged-out.v1-0]`, 이후 재조정 없음). `partition_key`(=`sid`)가 파티션 1·2로 해시되는 로그아웃 이벤트는 그 사이 소비되지 않았다(자세한 경위는 아래 "검증된 성공 기준 > 슬라이스 7" 참고). **이제는 `token-state` 와 `audit` 도 같은 토픽을 `NewTopic` 빈으로 선언한다**(각자의 `KafkaConsumerConfig`, 파티션 3·replicas 1 — `session` 의 `KafkaTopicConfig` 선언과 동일한 값). `KafkaAdmin` 은 `SmartInitializingSingleton` 이라 선언하는 세 서비스 모두 자기 리스너를 시작하기 전에 먼저 실행되고, 같은 이름의 토픽을 중복 선언해도 멱등(이미 충분하면 아무 일도 안 하고, 모자라면 늘리기만 한다)이므로 **그 서비스가 기동하는 시점에 브로커가 이미 응답 가능하다면, 어느 서비스가 먼저 떠도 파티션 3개가 보장된다** — 실제로 `token-state` 를 `session` 없이 완전히 혼자 띄워 `kafka-topics --describe` 로 파티션 3개가 즉시 만들어지는 것을 확인했다(아래 "검증된 성공 기준" 참고). 그래서 이 순서(`session` 을 `token-state` 보다 먼저)는 이제 정확성의 전제조건이 아니다 — 위 목록의 순서는 다른 이유(REST 호출 준비, 이전 항목들 참고)로 그대로 유지한다. **다만 위 전제(브로커가 이미 떠 있음)가 깨지면 얘기가 다르다.** `KafkaAdmin.initialize()` 는 브로커 미가용 시 에러 로그만 남기고 조용히 포기하며(`fatalIfBrokerNotAvailable` 기본값 false), 스스로 재시도하지 않는다 — `docker compose up -d` 직후처럼 브로커가 뜨기 전에 이 토픽을 선언하는 서비스들이 함께 기동하면 각 `KafkaAdmin` 이 모두 실패한 채 넘어가고, 재기동 전까지 복구되지 않는다. `docker-compose.yml` 에 `KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"` 를 넣어 그 상태에서 consumer 가 토픽을 1파티션으로 자동 생성해 버리는 경로 자체는 막아 뒀다(대신 토픽이 없으면 consumer 가 대기·에러를 낸다).
    - 주의. `ddl-auto: update` 라 컨테이너/DB 를 재사용하면 seed 는 "이미 행이 있으면 스킵"으로 동작해 **이전 seed 스키마의 값이 남을 수 있다**(예: client 의 `email` scope, user 의 profile 컬럼이 나중에 추가된 경우). seed 코드와 실제 DB 값이 다르면 `UPDATE` 로 맞추거나 볼륨을 새로 만든다.
    - 주의. 슬라이스 1·2 때부터 존재하던 `my-client` 행이 그 예다. 슬라이스 3 seed 는 `scopes` 에 `offline_access`, `grant_types` 에 `refresh_token` 을 기대하지만, 기존 행은 `ddl-auto: update` 때문에 갱신되지 않는다. `scopes='openid,profile,email,offline_access'`, `grant_types='authorization_code,refresh_token'` 로 `UPDATE` 하고(seed 코드가 신규 client 에 실제로 심는 값과 동일하다 — 임의 값이 아니다) client-registry 를 재기동해 Caffeine 캐시(30s)를 비워야 한다.
    - 주의. `ddl-auto: update` 로 **기존 행이 있는 테이블에 not null 컬럼을 추가**하면(Hibernate 가 `alter table clients add column client_scopes varchar(500) not null` 을 낸다) MySQL 은 명시적 `DEFAULT` 절이 없어도 실패하지 않고 컬럼 타입의 암묵적 기본값(문자열이면 빈 문자열)으로 기존 행을 채운 뒤 성공시킨다. 슬라이스 4 의 `client_scopes` 추가가 그 예다 — 이미 있던 `my-client`·`article-api` 행 모두 `client_scopes=''` 로 채워졌다(`my-client` 는 seed 가 원래 `""` 를 의도하므로 문제 없지만, `article-api` 는 `introspect` 를 기대하므로 값이 어긋난다). 게다가 `article-api` 행은 이번 슬라이스 이전부터 `grant_types` 도 빈 문자열이었다(이전 슬라이스에서는 client 인증만 되면 됐으므로) — 이번 slice 의 seed 는 `client_credentials` 를 기대하므로 이 값도 함께 어긋난다. client-registry 로그에서 컬럼 추가 자체가 실패했는지(구버전 MySQL 등에서는 not null 추가가 에러로 끝날 수 있다) 먼저 확인하고, 성공했다면 `UPDATE` 로 seed 가 의도하는 값(`article-api`: `client_scopes='introspect', grant_types='client_credentials'`)으로 보정한 뒤 client-registry 를 재기동해 Caffeine 캐시(30s)를 비워야 한다.
@@ -416,7 +416,7 @@ sequenceDiagram
         T->>S: POST /internal/sign {claims} (access token)
         S-->>T: {jwt}
         opt scope 에 openid 포함
-            Note over T: nonce 는 싣지 않는다(재발급 토큰에 실으면 리플레이 방어가 깨진다).<br/>auth_time 은 최초 인증 시각을 그대로 유지한다(OIDC Core 12.2).<br/>sid 는 rotation 응답의 값을 그대로 싣는다(슬라이스 7 — refresh_tokens 행이 회전 내내 sid 를 승계해 보관한다).<br/>세션이 걸리지 않은 발급 경로(client_credentials 등)에서 온 레코드는 sid 가 null 이고, 그때는 claim 자체를 뺀다.
+            Note over T: nonce 는 싣지 않는다(재발급 토큰에 실으면 리플레이 방어가 깨진다).<br/>auth_time 은 최초 인증 시각을 그대로 유지한다(OIDC Core 12.2).<br/>sid 는 rotation 응답의 값을 그대로 싣는다(슬라이스 7 — refresh_tokens 행이 회전 내내 sid 를 승계해 보관한다).<br/>sid 가 null 인 레코드는 claim 자체를 뺀다. 정상 경로에서는 항상 채워지고 null 은 롤링 배포 중 sid 없는 code 레코드를 교환할 때만 생긴다(RefreshTokenEntity.sid 주석).
             opt profile 또는 email scope 포함
                 T->>U: GET /internal/users/{sub}
                 alt 조회 성공
@@ -1014,7 +1014,9 @@ Topic: oidc.session.logged-out.v1	TopicId: 9FAsiZrYQRuWEK1tikqR2w	PartitionCount
 
 ### 슬라이스 8 (감사 컨슈머)
 
-`down -v` 로 볼륨을 지운 뒤 콜드 스타트해(4개 인프라 컨테이너 + `audit` 을 뺀 8개 Spring 서비스) 검증했다. `audit` 은 성공 기준 3을 보이려고 **일부러 나중에** 띄웠다. 매 측정 전 `docker ps` 로 컨테이너 상태를 확인했다. 시각은 UTC 이고, 로그인·로그아웃은 전부 `http/e2e-login-logout.sh` 로 했다.
+아래 명령은 줄여 적었다 — `docker exec …` 접두는 생략했고, `/tmp/...` 경로는 실제 스크래치 경로를 대신하며, 일부 헤더는 잘랐다. 출력은 측정한 그대로다.
+
+`down -v` 로 볼륨을 지운 뒤 콜드 스타트해(4개 인프라 컨테이너 + `audit`·`demo-rp` 를 뺀 8개 Spring 서비스) 검증했다. `audit` 은 성공 기준 3을 보이려고 **일부러 나중에** 띄웠다. 브로커가 관련된 각 단계 전에는 `docker ps` 로 컨테이너 상태를 확인했다. 시각은 UTC 이고, 로그인·로그아웃은 전부 `http/e2e-login-logout.sh` 로 했다.
 
 ```
 $ docker ps --filter name=microservice-as --format '{{.Names}} {{.Status}}'      # 측정 내내 같았다(Up 시간만 다르다)
@@ -1067,7 +1069,7 @@ $ docker exec -i microservice-as-mysql-1 mysql -usvc_audit -ppw_audit -e \
 event_id	event_type	subject_sid	reported_sub	occurred_at	recorded_at
 f3ef3e65-2305-48e7-9548-b15c6c33807e	oidc.session.logged-out.v1	NRIrEg1MS09rK_fuSMqTxQ	user-sub-0001	2026-10-25 13:35:22.963166	2026-10-25 13:35:34.590867
 ```
-`recorded_at` 이 `occurred_at` 보다 **11.6초** 늦다(`TIMESTAMPDIFF` = 11.6277). 계획은 수십 초를 기대했지만 실제 순서(로그아웃 → 2초 대기 → `audit` 기동 ~3초)에서는 이 값이었다. 소급의 증거는 간격의 크기가 아니라 로그아웃 시점에 `audit` 프로세스도 `audit` 컨슈머 그룹도 없었다는 사실과, 그럼에도 한 줄이 기록됐다는 사실이다. 같은 방식으로 `audit` 을 **세션·토큰 서비스보다 먼저**, 빈 브로커에 혼자 띄우는 콜드 스타트도 확인했다 — `oidc.session.logged-out.v1`(파티션 3)과 `...v1.audit.dlt`(파티션 3)를 `audit` 이 스스로 만들고, 나머지 서비스를 올린 뒤에도 파티션은 3개 그대로였으며, 그 뒤의 로그인·로그아웃은 `audit_events` 에 한 줄로 기록되고 refresh 는 `REVOKED` 가 됐다.
+`recorded_at` 이 `occurred_at` 보다 **11.6초** 늦다(`TIMESTAMPDIFF` = 11.6277). 로그아웃(13:35:22.96)에서 `audit` 기동 요청(13:35:31)까지 약 8초, 기동 요청에서 기록(13:35:34.59)까지 약 3.6초라 합이 11.6초다. 계획은 수십 초를 기대했지만 이 순서에서는 이 값이었다. 소급의 증거는 간격의 크기가 아니라 로그아웃 시점에 `audit` 프로세스도 `audit` 컨슈머 그룹도 없었다는 사실과, 그럼에도 한 줄이 기록됐다는 사실이다. 같은 방식으로 `audit` 을 **세션·토큰 서비스보다 먼저**, 빈 브로커에 혼자 띄우는 콜드 스타트도 확인했다 — `oidc.session.logged-out.v1`(파티션 3)과 `...v1.audit.dlt`(파티션 3)를 `audit` 이 스스로 만들고, 나머지 서비스를 올린 뒤에도 파티션은 3개 그대로였으며, 그 뒤의 로그인·로그아웃은 `audit_events` 에 한 줄로 기록되고 refresh 는 `REVOKED` 가 됐다.
 ```
 $ docker exec microservice-as-kafka-1 /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list      # 새 볼륨, audit 만 기동한 직후
 __consumer_offsets
@@ -1245,7 +1247,7 @@ $ docker exec -i microservice-as-mysql-1 mysql -usvc_token_state -ppw_token_stat
 sid	status	revoked_reason	revoked_at
 iK_EhTp4WXQPVmF1vytECg	REVOKED	SESSION_LOGGED_OUT	2026-10-25 17:16:05.827458
 ```
-`token-state` 를 내려 둔 시간은 13:38:45 → 17:16:02 UTC, **약 3시간 37분**이다. 의도한 값이 아니라 작업이 그 사이 멈췄기 때문이고, refresh token 의 만료(2026-11-08) 안이라 행은 그대로 `ACTIVE` 로 남아 있었다. 결과적으로 "몇 시간 밀린 이벤트도 재기동 몇 초 만에 소비된다"까지 확인된 셈이다.
+`token-state` 를 내려 둔 시간은 13:38:45 → 17:16:02 UTC, **약 3시간 37분**이다. 의도한 값이 아니라 작업이 그 사이 멈췄기 때문이고, refresh token 의 만료(2026-11-08) 안이라 행은 그대로 `ACTIVE` 로 남아 있었다. 이 한 건이 3시간 37분 밀린 뒤 기동 요청 약 4초 만에(`revoked_at` 17:16:05.83) 소비된 것을 한 번 관측한 것이고, 의도한 실험이 아니며 토픽 보존 기간(브로커 기본 7일) 안이었다.
 
 **기준 10 — 한 편지의 실패가 각자의 DLT 로 간다.** JSON 이 아닌 편지 하나를 본 토픽에 넣었다. 넣기 전 두 DLT 는 비어 있었다(`--from-beginning` 으로 읽어 출력 없음).
 ```
@@ -1271,7 +1273,7 @@ oidc.session.logged-out.v1
 oidc.session.logged-out.v1.audit.dlt
 oidc.session.logged-out.v1.token-state.dlt
 ```
-두 DLT 에 `{not json` 이 **한 건씩** 있다. 그룹 이름이 없던 옛 이름 `oidc.session.logged-out.v1.dlt` 는 목록에 없다(`down -v` 로 시작했다).
+두 DLT 에 `{not json` 이 **한 건씩** 있다. 소비자 이름이 없던 옛 이름 `oidc.session.logged-out.v1.dlt` 는 목록에 없다(`down -v` 로 시작했다).
 
 **기준 6 — 발행자 무변경.**
 ```
@@ -1366,6 +1368,7 @@ admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네
 - **`session` 을 다중 인스턴스로 늘리면 발행자끼리 경쟁한다** — 여러 폴러가 같은 outbox 행을 동시에 집어 중복 발행이 늘어난다. 소비자(`token-state`)가 멱등(`WHERE sid = ? AND status = 'ACTIVE'`)이라 피해는 없지만, 정석 해법은 `FOR UPDATE SKIP LOCKED`이고 다른 길은 outbox API 계약을 만들어 전용 relay 를 붙이는 것이다. 지금은 인스턴스가 하나뿐이라 이 문제 자체에 도달하지 않는다.
 - **`sid` 가 `null` 인 옛 `refresh_tokens` 행은 이 폐기에 걸리지 않는다** — `down -v` 로 스키마를 다시 만든 지금은 실제로 도달할 수 없지만, 컬럼이 nullable 인 이상 코드상 가능성은 남아 있다.
 - **이벤트 페이로드의 `sub` 가 `null` 일 수 있다** — 등록된 RP 가 없는 세션(`openid` 없이 `offline_access` 만 받은 경로)은 `oidc_sessions` 행이 없어 소유자를 모른 채 이벤트가 나간다. 소비자(`token-state`)는 폐기 판정에 `sid` 만 쓰므로 동작에는 영향이 없지만, 나중에 `sub` 를 쓰는 소비자가 붙으면 이 nullable 을 반드시 처리해야 한다.
+  - 슬라이스 8 의 `audit` 은 이 `sub` 를 nullable `reported_sub`(발행자가 실은 값을 그대로 받아 적는 미검증 값)로 받는다.
 - **`outbox` 에 정리 수단이 없다** — 발행된 행이 무한히 쌓인다. `oidc_sessions` 에 purge 가 없는 것과 같은 성격의 결손이다.
 - **`session` 이 죽어 있으면 통지도 폐기도 일어나지 않는다(fail-open)** — 슬라이스 5의 결정을 그대로 물려받는다. 로그아웃 자체를 실패시키지 않는 대가다.
 - **`root` 계정이 초기화용으로 컨테이너 안에 남는다** — 애플리케이션 설정에서는 빠졌지만 존재 자체가 없어진 것은 아니다.
@@ -1378,6 +1381,7 @@ admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네
 - **본 토픽 선언이 세 곳** — `session`·`token-state`·`audit` 의 파티션 수·replicas 를 함께 맞춰야 한다
 - **감사 레코드 정리 수단 없음** — 무한히 쌓인다
 - **감사 DLT 에 간 편지는 아무도 자동으로 재처리하지 않는다** — 그 이벤트는 감사에서 빠진 채 남는다
+- **`audit` 이 보존 기간보다 늦게 뜨거나 더 오래 내려가 있으면 그 사이 지워진 이벤트는 조용히 빠진다** — Kafka 는 소비 여부와 무관하게 토픽 보존 기간(브로커 기본값 `log.retention.hours=168`, `docker-compose.yml` 에 재정의 없음)이 지난 이벤트를 지운다. 구성원이 없는 그룹의 커밋 오프셋도 `offsets.retention.minutes`(기본 7일) 뒤에 만료되는데, 그러면 `earliest` 가 적용돼 남아 있는 이벤트를 처음부터 다시 읽고 이미 기록된 것은 `eventId` 멱등이 흡수한다
 - **옛 DLT 토픽(`oidc.session.logged-out.v1.dlt`)이 브로커에 남는다** — 볼륨을 지우지 않은 환경에서는 쓰이지 않는 토픽으로 남는다
 
 ## 추후 별도 인프라 프로젝트로 이관
