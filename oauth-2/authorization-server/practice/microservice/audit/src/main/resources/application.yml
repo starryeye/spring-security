@@ -10,7 +10,25 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: ${my.consumer-group-id}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    listener:
+      ack-mode: record
 
 logging:
   level:
     dev.starryeye: DEBUG
+
+my:
+  consumer-retry-attempts: 2
+  consumer-retry-interval-ms: 200
+  consumer-group-id: audit                # token-state 와 완전히 별개인 그룹. 테스트는 audit-test

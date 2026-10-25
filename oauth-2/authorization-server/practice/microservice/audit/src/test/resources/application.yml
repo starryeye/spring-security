@@ -8,3 +8,32 @@ spring:
     hibernate:
       ddl-auto: create-drop
     show-sql: false
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: ${my.consumer-group-id}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    listener:
+      ack-mode: record
+    # 주의. token-state 의 테스트 yml 에서 옮겨온 설정이다. NewTopic 빈이 있으면 Kafka 를 안 띄운 채 도는
+    #      컨텍스트도 기동 시 KafkaAdmin 이 토픽 생성을 시도해, 이 네 줄이 없으면 컨텍스트마다 수십 초씩
+    #      멈춘다(token-state 에서 실측: 브로커 없이 컨텍스트당 약 40초). spring.kafka.admin.operation-timeout
+    #      한 줄로 줄이는 방법은 session 쪽에서 해보고 되돌렸다 — 브로커가 없을 때 오히려 느려졌다.
+    admin:
+      properties:
+        request.timeout.ms: 2000
+        default.api.timeout.ms: 2000
+        socket.connection.setup.timeout.ms: 1000
+        socket.connection.setup.timeout.max.ms: 1000
+
+my:
+  consumer-retry-attempts: 2
+  consumer-retry-interval-ms: 200
+  consumer-group-id: audit-test           # 운영 그룹("audit")과 분리 — 스택을 띄워 둔 채 테스트를 돌려도
+                                           # 테스트 JVM 이 운영 그룹에 조인해 실제 이벤트를 가져가지 않게
