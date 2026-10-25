@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest(properties = {
 		"spring.datasource.url=jdbc:h2:mem:audit-recorder;DB_CLOSE_DELAY=-1;MODE=MySQL",
-		"spring.kafka.listener.auto-startup=false"   // Kafka 와 무관한 테스트다. 실제 브로커가 떠 있어도 이벤트를 받지 않게
+		"spring.kafka.listener.auto-startup=false"   // 리스너 컨테이너만 끈다. 실제 브로커가 떠 있어도 로그아웃 이벤트를 받아 적지 않게
 })
 class AuditRecorderTest {
 
@@ -34,9 +34,11 @@ class AuditRecorderTest {
 	 *      여러 @SpringBootTest 컨텍스트가 공유하는 함정을 슬라이스 7에서 겪었다(프로퍼티가 달라 컨텍스트
 	 *      캐시가 갈려도 같은 이름이면 같은 테이블이다).
 	 *
-	 * 주의. spring.kafka.listener.auto-startup=false 로 리스너 컨테이너를 띄우지 않는다. 이 테스트는 Kafka 와
-	 *      무관한데, 로컬에 실제 브로커가 떠 있으면 리스너가 localhost:9092 로 붙어 실제 로그아웃 이벤트를 이
-	 *      테스트의 h2 에 기록해 행 수 단언을 깨뜨린다.
+	 * 주의. spring.kafka.listener.auto-startup=false 는 리스너 컨테이너만 띄우지 않게 한다. 이 테스트는 Kafka 로
+	 *      이벤트를 받을 일이 없는데, 로컬에 실제 브로커가 떠 있으면 리스너가 localhost:9092 로 붙어 실제 로그아웃
+	 *      이벤트를 이 테스트의 h2 에 기록할 수 있고, 그러면 경합에 따라 행 수 단언이 깨질 수 있다(리스너를 켠 채
+	 *      돌려 보니 단언은 통과했지만 리스너는 실제 브로커의 그룹에 조인해 이벤트를 소비했다). 이 속성은 토픽
+	 *      선언(NewTopic)에는 영향이 없다 — 브로커가 있으면 이 컨텍스트의 기동 중에도 KafkaAdmin 이 토픽을 적용한다.
 	 */
 
 	private static final String TOPIC = "oidc.session.logged-out.v1";

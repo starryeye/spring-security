@@ -17,9 +17,9 @@ import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -90,7 +90,7 @@ class AuditEventConsumerTest {
 		assertThat(row.getEventType()).isEqualTo(TOPIC);
 		assertThat(row.getSubjectSid()).isEqualTo("SID-A");
 		assertThat(row.getReportedSub()).isEqualTo("user-sub-0001");
-		assertThat(row.getOccurredAt()).isEqualTo(java.time.Instant.parse("2026-09-28T01:02:03.456Z"));
+		assertThat(row.getOccurredAt()).isEqualTo(Instant.parse("2026-09-28T01:02:03.456Z"));
 		assertThat(row.getPayload()).isEqualTo(payload);
 	}
 
@@ -107,16 +107,33 @@ class AuditEventConsumerTest {
 
 		awaitRow(markerId);
 		assertThat(rowsOf(eventId)).hasSize(1);
+		// 한 줄이라는 사실만으로는 "두 번째가 흡수됐다"와 "두 번째가 예외로 재시도 끝에 DLT 로 갔다"를 가를 수 없다.
+		// 표지가 기록됐으므로 앞의 두 편지는 처리가 끝났고(DLT 발행이 있었다면 그것도), 프로브는 보내기 전에 끝에 서 있었다.
+		assertThat(dltConsumer.poll(Duration.ofSeconds(2)).count()).isZero();
 	}
 
 	@Test
-	@DisplayName("sub 가 없는 이벤트도 기록된다 — reported_sub 는 NULL(Review Focus 1)")
+	@DisplayName("sub 가 JSON null 인 이벤트도 기록된다 — reported_sub 는 NULL(Review Focus 1)")
 	void nullSubIsRecorded() throws Exception {
 		String eventId = UUID.randomUUID().toString();
 
 		send("SID-NO-RP", event(eventId, "SID-NO-RP", "null"));
 
 		assertThat(awaitRow(eventId).getReportedSub()).isNull();
+	}
+
+	@Test
+	@DisplayName("sub 키 자체가 없는 이벤트도 기록되고 원문이 그대로 남는다 — reported_sub 는 NULL(Review Focus 1)")
+	void absentSubIsRecorded() throws Exception {
+		String eventId = UUID.randomUUID().toString();
+		String payload = "{\"eventId\":\"" + eventId + "\",\"sid\":\"SID-NO-SUB\","
+				+ "\"occurredAt\":\"2026-09-28T01:02:03.456Z\"}";
+
+		send("SID-NO-SUB", payload);
+
+		AuditEventEntity row = awaitRow(eventId);
+		assertThat(row.getReportedSub()).isNull();
+		assertThat(row.getPayload()).isEqualTo(payload);
 	}
 
 	@Test
