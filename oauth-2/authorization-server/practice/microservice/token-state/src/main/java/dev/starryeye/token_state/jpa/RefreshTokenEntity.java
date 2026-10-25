@@ -81,11 +81,18 @@ public class RefreshTokenEntity {
 	/**
 	 * 이 refresh token 이 속한 OP 세션이다. 로그아웃 폐기의 범위를 세션 단위로 잡기 위해 보관한다.
 	 *
-	 * 주의. nullable 인 이유는 client_credentials 하나뿐이다 — 그 grant 는 애초에 refresh token 을
-	 *      내지 않으므로 이 컬럼을 채울 행 자체가 생기지 않는다(설계 문서 §4 표 참고). openid 없이
-	 *      offline_access 만 받은 경로도 `sid` 를 갖는다 — auth 의 AuthorizeController 가 openid 유무와
-	 *      무관하게 항상 code 에 `sid` 를 싣고, token 의 TokenEndpointController 가 그 값을 그대로
-	 *      token-state 의 issue 요청에 넘긴다. 그래서 그 경로도 세션 단위 폐기에 정상적으로 걸린다.
+	 * 주의. 정상 경로에서는 항상 채워진다. auth 의 AuthorizeController 가 openid 유무와 무관하게 code 에 sid 를
+	 *      싣고, token 의 TokenEndpointController 가 그 값을 token-state 의 issue 요청에 그대로 넘긴다 —
+	 *      openid 없이 offline_access 만 받은 경로도 sid 를 갖고 세션 단위 폐기에 걸린다.
+	 *      client_credentials 는 refresh token 을 내지 않으므로 이 컬럼에 행을 만들지 않는다 — nullable 의
+	 *      이유가 아니다.
+	 *
+	 * 주의. nullable 인 이유는 sid 가 없는 code 레코드다. code 계약에 sid 가 들어가기 전(슬라이스 5 이전)의
+	 *      auth 가 발급한 code 를 롤링 배포 중에 새 token 이 교환하면, TokenEndpointController 는 그 null 을
+	 *      거르지 않고 그대로 넘긴다(같은 메서드에서 RP 세션 등록은 StringUtils.hasText 로 거르지만 refresh 발급은
+	 *      거르지 않는다). 그렇게 생긴 sid = null 행은 WHERE sid = ? 에 걸리지 않아 로그아웃 폐기에서 빠진다.
+	 *      TokenEndpointControllerTest.offlineAccessScopeIssuesRefreshToken 이 이 조합(sid = null 인 code 로
+	 *      offline_access 교환, issue 스텁이 isNull())을 실제로 돈다.
 	 */
 	@Column(name = "sid", length = 64)
 	private String sid;

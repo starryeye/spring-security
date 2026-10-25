@@ -41,7 +41,7 @@ class DeadLetterTopicTest {
 	 *
 	 * 주의. @EmbeddedKafka(partitions = 1) 을 줘도 실제 파티션 수를 1로 믿으면 안 된다.
 	 *      KafkaConsumerConfig 의 NewTopic 빈들이 partitions(3) 을 선언하고 있고, Spring 의 KafkaAdmin 은
-	 *      SmartInitializingSingleton 이라 EmbeddedKafkaKraftBroker(InitializingBean, 토픽을 1개로 먼저
+	 *      SmartInitializingSingleton 이라 EmbeddedKafkaZKBroker(InitializingBean, 토픽을 1개로 먼저
 	 *      만든다)보다 반드시 뒤에 실행돼 그 토픽을 3으로 늘려 버린다(checkPartitions, "모자라면 늘리기만
 	 *      한다"). 그래서 두 편지를 서로 다른 키로 보내면 kafka-clients 의 기본 파티셔너가 둘을 다른
 	 *      파티션에 흩어버릴 수 있다 — 실제로 "SID-POISON"/"SID-GOOD" 키를 썼을 때 murmur2 해시로

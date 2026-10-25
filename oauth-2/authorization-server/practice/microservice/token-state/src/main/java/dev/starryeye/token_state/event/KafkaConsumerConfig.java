@@ -28,13 +28,19 @@ public class KafkaConsumerConfig {
 	 * 주의. 이 빈이 실제로 바꾸는 것은 두 가지뿐이다. (1) 재시도 횟수·간격을 기본값(9회/0ms)에서
 	 *      my.consumer-retry-attempts / my.consumer-retry-interval-ms(2회/200ms)로 명시 제어한다.
 	 *      (2) 재시도가 소진된 레코드의 행선지를 "로그 한 줄"에서 조회·재처리 가능한 DLT 토픽
-	 *      (oidc.session.logged-out.v1.dlt)으로 바꾼다 — 이 관측성이 이 빈의 실질적 가치다.
+	 *      (oidc.session.logged-out.v1.token-state.dlt)으로 바꾼다 — 이 관측성이 이 빈의 실질적 가치다.
 	 *
 	 * 주의. DLT 로 보낸 편지는 아무도 자동으로 다시 처리하지 않는다. 그 세션의 refresh token 은 폐기되지
 	 *      않은 채 남는다. 로그와 DLT 가 그 사실을 남기는 유일한 수단이므로, 운영이라면 DLT 적재를
 	 *      경보 대상으로 삼아야 한다.
+	 *
+	 * 주의. DLT 이름에 컨슈머 그룹(token-state)을 넣는다. 슬라이스 7에서는 이 토픽의 소비자가 하나뿐이라
+	 *      "<토픽>.dlt" 가 모호하지 않았다. 슬라이스 8에서 감사(audit)가 같은 토픽을 두 번째 그룹으로 소비하면서,
+	 *      그룹 없는 DLT 에는 두 소비자의 실패가 섞여 "누가 처리 못 했나"를 알 수 없게 됐다. 그래서 두 소비자
+	 *      모두 "<토픽>.<그룹>.dlt" 를 쓴다. 옛 토픽(oidc.session.logged-out.v1.dlt)은 볼륨을 지우지 않은 환경에서는
+	 *      브로커에 남아 쓰이지 않는다.
 	 */
-	public static final String LOGGED_OUT_DLT = SessionLoggedOutConsumer.LOGGED_OUT_TOPIC + ".dlt";
+	public static final String LOGGED_OUT_DLT = SessionLoggedOutConsumer.LOGGED_OUT_TOPIC + ".token-state.dlt";
 
 	/**
 	 * 본 토픽(oidc.session.logged-out.v1)을 session 뿐 아니라 token-state 도 선언한다.
