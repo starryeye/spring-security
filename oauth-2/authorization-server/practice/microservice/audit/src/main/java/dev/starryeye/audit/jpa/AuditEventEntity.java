@@ -23,7 +23,9 @@ import java.time.Instant;
 public class AuditEventEntity {
 
 	/**
-	 * 감사 레코드 한 줄. append-only 다 — 한 번 쓰면 고치지도 지우지도 않는다.
+	 * 감사 레코드 한 줄. 이 서비스의 운영 코드는 행을 INSERT 만 하고 고치거나 지우지 않는다(append-only 로 쓴다).
+	 *      다만 강제되는 것은 아니다 — JpaRepository 가 delete* 를 노출하고, svc_audit 는 ms_audit.* 에 ALL PRIVILEGES
+	 *      를 가지며, 테스트는 deleteAll() 을 부른다.
 	 *
 	 * 주의. 모든 이벤트가 공유하는 것만 컬럼으로 뽑고 나머지는 payload 원문으로 보관한다. 이벤트 타입이
 	 *      늘어도(후속 슬라이스) 스키마가 바뀌지 않고, 발행자가 필드를 더해도 손실 없이 받아 적는다.
