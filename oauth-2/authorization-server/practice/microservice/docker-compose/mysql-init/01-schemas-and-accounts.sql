@@ -13,6 +13,7 @@ CREATE DATABASE IF NOT EXISTS ms_client_registry CHARACTER SET utf8mb4 COLLATE u
 CREATE DATABASE IF NOT EXISTS ms_consent         CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS ms_token_state     CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS ms_session         CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS ms_audit           CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- 잠금 의미론 검증 전용. 운영 스키마와 격리된 채로 유지한다.
 CREATE DATABASE IF NOT EXISTS token_state_test   CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -22,11 +23,13 @@ CREATE USER IF NOT EXISTS 'svc_client_registry'@'%' IDENTIFIED BY 'pw_client_reg
 CREATE USER IF NOT EXISTS 'svc_consent'@'%'         IDENTIFIED BY 'pw_consent';
 CREATE USER IF NOT EXISTS 'svc_token_state'@'%'     IDENTIFIED BY 'pw_token_state';
 CREATE USER IF NOT EXISTS 'svc_session'@'%'         IDENTIFIED BY 'pw_session';
+CREATE USER IF NOT EXISTS 'svc_audit'@'%'           IDENTIFIED BY 'pw_audit';
 
 GRANT ALL PRIVILEGES ON ms_user_directory.*  TO 'svc_user_directory'@'%';
 GRANT ALL PRIVILEGES ON ms_client_registry.* TO 'svc_client_registry'@'%';
 GRANT ALL PRIVILEGES ON ms_consent.*         TO 'svc_consent'@'%';
 GRANT ALL PRIVILEGES ON ms_token_state.*     TO 'svc_token_state'@'%';
 GRANT ALL PRIVILEGES ON ms_session.*         TO 'svc_session'@'%';
+GRANT ALL PRIVILEGES ON ms_audit.*           TO 'svc_audit'@'%';
 
 FLUSH PRIVILEGES;

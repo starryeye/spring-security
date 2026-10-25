@@ -1,0 +1,16 @@
+server:
+  port: 8089
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/ms_audit?useSSL=false&allowPublicKeyRetrieval=true
+    username: svc_audit
+    password: pw_audit
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+logging:
+  level:
+    dev.starryeye: DEBUG
