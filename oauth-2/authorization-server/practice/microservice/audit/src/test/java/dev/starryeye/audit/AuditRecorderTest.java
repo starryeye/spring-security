@@ -61,6 +61,28 @@ class AuditRecorderTest {
 		assertThat(row.getRecordedAt()).isNotNull();
 	}
 
+	/**
+	 * 100,000바이트는 text(64KB)의 한도를 넘기려고 고른 크기다.
+	 *
+	 * 주의. 이 테스트는 h2 에서는 매핑 회귀를 물지 못한다. AuditEventEntity.payload 의 length 를 기본값으로 되돌려도
+	 *      통과하는 것을 확인했다 — h2 는 두 매핑 모두 payload 를 CHARACTER LARGE OBJECT(최대 길이 Long.MAX_VALUE)로
+	 *      만들어 길이를 강제하지 않는다. 그래서 여기서 확인되는 것은 기록기와 엔티티를 거쳐 큰 값이 잘리지 않고
+	 *      오가는 경로까지다. 컬럼이 실제로 충분히 큰지는 실제 MySQL 에서만 보이고(SHOW CREATE TABLE 의 mediumtext,
+	 *      롤백되는 트랜잭션 안에서 100,000바이트와 1MiB 를 SQL 로 직접 INSERT), 이 테스트는 그 확인을 대신하지 않는다.
+	 */
+	@Test
+	@DisplayName("64KB 를 넘는 payload 도 잘리지 않고 그대로 기록된다")
+	void recordsPayloadLargerThan64KbIntact() {
+		String payload = "{\"eventId\":\"E-5\",\"padding\":\"" + "x".repeat(100_000) + "\"}";
+
+		boolean recorded = recorder.record(new AuditRecord("E-5", TOPIC, Instant.now(), "SID-A", "user-sub-0001", payload));
+
+		assertThat(recorded).isTrue();
+		AuditEventEntity row = repository.findAll().get(0);
+		assertThat(row.getPayload().length()).isEqualTo(payload.length());
+		assertThat(row.getPayload()).isEqualTo(payload);
+	}
+
 	@Test
 	@DisplayName("같은 eventId 를 두 번 받으면 한 줄이다")
 	void sameEventIdIsRecordedOnce() {

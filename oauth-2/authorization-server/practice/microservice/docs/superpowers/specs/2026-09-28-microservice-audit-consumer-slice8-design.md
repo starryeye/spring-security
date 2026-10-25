@@ -71,7 +71,7 @@
 | `recorded_at` | not null | 감사가 받아 적은 시각 |
 | `subject_sid` | not null | 권위 있는 주체 키 |
 | `reported_sub` | nullable | 발행자가 그렇다고 보고한 값. 미검증 |
-| `payload` | `@Lob`, not null | 원문 JSON 통째로 |
+| `payload` | `@Lob` + `length = 16_777_215`(MySQL `mediumtext`), not null | 원문 JSON 통째로. Kafka 가 실어 온 원문을 컬럼이 거부하지 않도록 Kafka 메시지 상한(기본 약 1MB)보다 크게 잡았다. `@Lob` 만으로는 `longtext` 가 되지 않는다 — `length` 를 주지 않으면 MySQL 에서 `tinytext`(255바이트)가 된다(실제 DDL 로 확인) |
 
 ### 공통 머리 + 원문
 
@@ -227,7 +227,7 @@ catch 위반      → existsByEventId 로 재확인
 4. 같은 이벤트를 두 번 받으면 한 줄이다
 5. 다른 제약 위반은 흡수되지 않고 실패 → 재시도 → 감사 DLT 로 간다. 예: `sid` 가 빠진 기형 이벤트는 `subject_sid` not null 위반을 내고, 재확인에서 행이 없으므로 다시 던져진다
 
-   > `payload` 는 `@Lob`(MySQL `longtext`)이라 길이 초과로는 이 경로에 도달할 수 없다. 테스트는 not null 위반으로 한다.
+   > `payload` 의 `@Lob` 은 길이를 정하지 못한다. 기본 매핑은 MySQL `tinytext`(255바이트)였고, 그래서 `length = 16_777_215`(`mediumtext`)로 명시해 Kafka 상한(기본 약 1MB)보다 크게 잡았다. 그 상한에 닿으려면 Kafka 가 싣는 한도를 넘는 값이 필요해 이 경로로는 도달하지 않는 것으로 본다. 길이 초과를 테스트로 만들지 않는 이유는 둘이다: h2 는 `payload` 를 CLOB 으로 만들어 길이를 강제하지 않으므로 그 위반을 재현할 수 없고, 실제 MySQL 에서만 `ERROR 1406` 이 난다. 그래서 이 경로의 테스트는 not null 위반으로 한다.
 
 **계약**
 

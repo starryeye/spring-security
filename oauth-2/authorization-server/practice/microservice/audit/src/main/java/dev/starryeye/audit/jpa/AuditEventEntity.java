@@ -39,12 +39,18 @@ public class AuditEventEntity {
 	 *      받게 되면 그 원천(refresh_tokens.sid)이 nullable 이라 이 제약을 완화해야 한다(스펙 3절). 미리 열어두지
 	 *      않는 것은 도달 불가능한 상태를 허용하지 않기 위해서다.
 	 *
-	 * 주의. payload 는 @Lob 이지만 @Column 에 length 를 주지 않아 MySQL 에서 longtext 가 아니라 tinytext(255바이트)가
-	 *      된다. @Lob String 의 DDL 타입이 length 에 따라 달라지고 기본값이 255 이기 때문이다 — 실제 MySQL 8 에서
-	 *      SHOW CREATE TABLE 로 tinytext 를 확인했고, length 를 10000 으로 주면 text 가 되는 것도 실험으로 확인했다.
-	 *      255바이트를 넘는 값을 SQL 로 직접 INSERT 하면 MySQL 이 ERROR 1406(Data too long)으로 거부한다. 위
-	 *      "손실 없이 받아 적는다"는 payload 가 그 한도 안일 때만 성립한다. 한도를 늘리려면 length 나 columnDefinition 을
-	 *      명시해야 한다.
+	 * 주의. payload 는 원문 JSON 통째라서 @Column 의 length 를 16_777_215 로 명시했고, 실제 MySQL 8 에서 mediumtext
+	 *      (최대 16,777,215바이트)가 되는 것을 SHOW CREATE TABLE 로 확인했다. @Lob 만으로는 이 크기가 나오지 않는다 —
+	 *      length 를 주지 않으면 같은 환경에서 tinytext(255바이트)가 됐고(length 를 10000 으로 주면 text), 한도를 넘는
+	 *      값은 MySQL 이 ERROR 1406(Data too long)으로 거부한다. @Lob String 의 DDL 타입은 length 에 따라 달라진다.
+	 *
+	 *      16_777_215 는 Kafka 가 실어 온 원문을 컬럼이 거부하는 일이 없도록 Kafka 메시지 상한보다 크게 잡은 값이다.
+	 *      이 저장소는 메시지 크기를 따로 설정하지 않아 Kafka 기본 상한(약 1MB)이 적용되고, 그보다 큰 컬럼이면 실제
+	 *      상한이 컬럼이 아니라 Kafka 가 된다. 1MiB payload 를 SQL 로 직접 INSERT 해 들어가는 것을 확인했다. text(64KB)로는
+	 *      이 목적을 못 이룬다.
+	 *
+	 *      h2 단위 테스트는 이 매핑을 지키지 못한다. h2 는 length 기본값일 때와 16_777_215 일 때 모두 payload 를 CLOB
+	 *      으로 만든다. 컬럼 크기는 실제 MySQL 에서만 확인된다.
 	 */
 
 	@Id
@@ -70,7 +76,7 @@ public class AuditEventEntity {
 	private String reportedSub;
 
 	@Lob
-	@Column(nullable = false)
+	@Column(nullable = false, length = 16_777_215)
 	private String payload;
 
 	@Builder
