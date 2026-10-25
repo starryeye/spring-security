@@ -114,9 +114,10 @@ flowchart TB
 | consent | 8086 | 동의 기록 조회/저장 API (내부 전용, 화면은 auth 가 렌더) | `ms_consent` | `svc_consent` | consents (MySQL) |
 | token-state | 8087 | refresh token 계열(family) 발급 · 회전 · 재사용 탐지 · 폐기 · introspection 조회 API (내부 전용, 외부 비노출) · Kafka 로 로그아웃 이벤트를 소비해 해당 `sid` 의 refresh 를 조건부 폐기(멱등) | `ms_token_state` | `svc_token_state` | refresh_tokens (MySQL) |
 | session | 8088 | OP 세션 레지스트리 소유(`sid` ↔ RP) · 등록(token 이 호출) · 로그아웃 통지 시 각 RP 에 logout token 발송(auth 가 호출) · `oidc_sessions` 삭제와 같은 트랜잭션에서 `outbox` 에 이벤트 기록, `@Scheduled` 폴러(운영 기본 500ms)가 Kafka(`oidc.session.logged-out.v1`)로 발행 — 내부 전용, gateway 라우팅 대상 아님 | `ms_session` | `svc_session` | oidc_sessions, outbox (MySQL) |
+| audit | 8089 | 로그아웃 이벤트를 두 번째 컨슈머 그룹(`audit`)으로 소비해 공통 머리 + 원문으로 append-only 기록, `eventId` 멱등, 소비 실패는 `oidc.session.logged-out.v1.audit.dlt` — 발행·REST API 없음 | `ms_audit` | `svc_audit` | audit_events (MySQL) |
 | demo-rp | 8095 | 검증용 실제 RP. `spring-boot-starter-oauth2-client` 로 이 AS 에 `oauth2Login` + RP-Initiated logout(`logout()`) + back-channel logout 수신(`oidcLogout().backChannel()`)을 실제로 구현한다 — 우리가 만든 스텁이 아니라 Spring Security 구현체가 검증자다. gateway 라우팅 대상 아님(브라우저가 8095 로 직접 접근) | — | — | 없음(자체 HTTP 세션) |
 
-각 계정은 **자기 스키마에만** `GRANT` 를 받는다(MySQL 은 스키마가 곧 데이터베이스다). `root` 는 `mysql-init` 초기화·관리용으로만 남고 5개 서비스의 애플리케이션 설정에서는 사라졌다(각자 자기 계정만 쓴다) — 실제로 남의 스키마를 조회하면 권한 오류가 나는 것을 아래 "검증된 성공 기준"에서 확인한다.
+각 계정은 **자기 스키마에만** `GRANT` 를 받는다(MySQL 은 스키마가 곧 데이터베이스다). `root` 는 `mysql-init` 초기화·관리용으로만 남고 6개 서비스의 애플리케이션 설정에서는 사라졌다(각자 자기 계정만 쓴다) — 실제로 남의 스키마를 조회하면 권한 오류가 나는 것을 아래 "검증된 성공 기준"에서 확인한다.
 
 핵심 설계 원칙:
 - **데이터 소유권 분리** — auth 는 사용자/client/동의 DB 를 직접 안 보고 user-directory/client-registry/consent 를 REST 로 호출한다. 마찬가지로 token 은 refresh token 의 상태를 직접 보지 않고 token-state 를 호출한다.
@@ -150,11 +151,11 @@ flowchart TB
    ```
    - **주의. `down -v` 를 빠뜨리면 안 된다.** `mysql-init/01-schemas-and-accounts.sql` 은 MySQL 공식 이미지의 `docker-entrypoint-initdb.d` 규칙대로 **데이터 디렉토리가 비어 있을 때만** 실행된다. 슬라이스 5까지 쓰던 볼륨이 남아 있는 채로 컨테이너만 새로 올리면 스키마 5개·계정 5개가 생기지 않고 예전의 단일 스키마(`microservice_as`, 전 서비스 `root` 공유)로 그대로 뜬다 — 아래 "서비스별 책임과 소유 데이터" 표의 계정 분리가 실제로는 반영되지 않은 채 겉으로만 정상 기동한 것처럼 보인다.
    - kafka 는 `apache/kafka:3.9.2` 를 KRaft 모드(Zookeeper 없음)로 띄운다. 토픽 `oidc.session.logged-out.v1`(파티션 3)은 `session` 서비스가 기동 시 `NewTopic` 빈으로 직접 만들므로 수동 생성이 필요 없다.
-2. 9개 서비스 빌드 (java 21)
+2. 10개 서비스 빌드 (java 21)
    ```bash
-   for s in signing user-directory client-registry consent session token-state token auth demo-rp; do (cd $s && ./gradlew bootJar --no-daemon -q); done
+   for s in signing user-directory client-registry consent session token-state token auth audit demo-rp; do (cd $s && ./gradlew bootJar --no-daemon -q); done
    ```
-3. **의존성 순서로** 기동 (signing → user-directory → client-registry → consent → session → token-state → token → auth → demo-rp)
+3. **의존성 순서로** 기동 (signing → user-directory → client-registry → consent → session → token-state → token → auth → demo-rp, `audit` 은 순서와 무관)
    ```bash
    java -jar signing/build/libs/*.jar           # 8083
    java -jar user-directory/build/libs/*.jar    # 8084
@@ -165,6 +166,7 @@ flowchart TB
    java -jar token/build/libs/*.jar             # 8082
    java -jar auth/build/libs/*.jar              # 8081
    java -jar demo-rp/build/libs/*.jar           # 8095 (gateway 라우팅 대상 아님, 브라우저가 직접 접근)
+   java -jar audit/build/libs/*.jar             # 8089 — 언제 띄워도 된다(earliest 로 소급)
    ```
    - seed: user / 1111 (user-directory, profile 포함: name `Star Rye`, email `starryeye@example.com` 등), client `my-client` / `secret` (client-registry, redirectUri `http://127.0.0.1:8080/callback`, scope `openid profile email offline_access`, grantTypes `authorization_code refresh_token`, clientScopes `""` — client_credentials 미등록이라 이 grant 는 `unauthorized_client` 로 거절된다), client `article-api` / `secret`(client-registry, resource server 역할 — scopes/redirectUris 가 비어 있어 인가 흐름(authorization_code)에는 참여할 수 없고, grantTypes `client_credentials` · clientScopes `introspect` 로 **자기 자신 앞으로 `introspect` scope 의 access token 만 받을 수 있다**. 그 토큰을 Bearer 로 실어야 `/oauth2/introspect` 를 호출할 수 있다)
    - 모든 요청은 gateway(http://localhost:9000) 로 보낸다.
@@ -1010,6 +1012,319 @@ Topic: oidc.session.logged-out.v1	TopicId: 9FAsiZrYQRuWEK1tikqR2w	PartitionCount
    일반화하지는 않는다 — "이 슬라이스가 outbox 를 택한 대가"가 대략 폴링 주기 안쪽의 수백 ms 라는 것만
    실측으로 확인했다.
 
+### 슬라이스 8 (감사 컨슈머)
+
+`down -v` 로 볼륨을 지운 뒤 콜드 스타트해(4개 인프라 컨테이너 + `audit` 을 뺀 8개 Spring 서비스) 검증했다. `audit` 은 성공 기준 3을 보이려고 **일부러 나중에** 띄웠다. 매 측정 전 `docker ps` 로 컨테이너 상태를 확인했다. 시각은 UTC 이고, 로그인·로그아웃은 전부 `http/e2e-login-logout.sh` 로 했다.
+
+```
+$ docker ps --filter name=microservice-as --format '{{.Names}} {{.Status}}'      # 측정 내내 같았다(Up 시간만 다르다)
+microservice-as-nginx-1 Up 2 minutes
+microservice-as-mysql-1 Up 2 minutes
+microservice-as-kafka-1 Up 2 minutes
+microservice-as-redis-1 Up 2 minutes
+
+$ docker exec microservice-as-kafka-1 /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list     # session·token-state 기동 직후, audit 은 아직 없음
+__consumer_offsets
+oidc.session.logged-out.v1
+oidc.session.logged-out.v1.token-state.dlt
+```
+
+**재현 스크립트 `http/e2e-login-logout.sh`.** 슬라이스 7 은 로그인 흐름을 손으로 짠 스크립트로 돌리고 커밋하지 않아 재현하려면 다시 짜야 했다. 이번에는 `login <jar>` / `logout <jar>` 두 동작을 커밋한다. 로그인은 `refresh_token` 과 `sid` 를 출력한다. 처음 돌려서 계획과 달랐던 것은 둘이다.
+- 새 볼륨에서 첫 로그인은 동의 화면을 거친다. 이때 authorize 응답에는 `Location` 이 없는데, `grep` 이 종료 코드 1을 내고 `set -e -o pipefail` 이 스크립트를 **조용히 끝냈다**. `|| true` 를 붙여 고쳤다. 이후 로그인(동의가 이미 기록된 세션)은 authorize 가 바로 302 로 code 를 준다 — 두 경로 모두 이 스크립트로 통과했다.
+- 토큰 교환이 실패하면(아래 성공 기준 8 참고) 파이썬 `KeyError` 가 나왔다. 응답 본문을 찍고 끝나도록 고쳤다.
+
+client(`my-client` / `secret`), redirect URI(`http://127.0.0.1:8080/callback`), 폼 필드(`_csrf`, `pending_id`, `scope`), gateway 경로, user(`user` / `1111`) 는 계획의 값이 그대로 맞았다.
+
+**기준 1 — 분리.** `svc_audit` 는 자기 스키마만 본다.
+```
+$ docker exec -i microservice-as-mysql-1 mysql -usvc_audit -ppw_audit -e "SHOW DATABASES"
+Database
+information_schema
+ms_audit
+performance_schema
+
+$ docker exec -i microservice-as-mysql-1 mysql -usvc_audit -ppw_audit -e "SELECT 1 FROM ms_token_state.refresh_tokens LIMIT 1"
+ERROR 1142 (42000) at line 1: SELECT command denied to user 'svc_audit'@'localhost' for table 'refresh_tokens'
+
+$ docker exec -i microservice-as-mysql-1 mysql -usvc_audit -ppw_audit -e "SELECT 1 FROM ms_session.oidc_sessions LIMIT 1"
+ERROR 1142 (42000) at line 1: SELECT command denied to user 'svc_audit'@'localhost' for table 'oidc_sessions'
+```
+
+**기준 3 — `audit` 이 없을 때 일어난 로그아웃을 소급해 기록한다.** `audit` 을 띄우기 전에 `SID_A` 를 로그인·로그아웃하고, 그 뒤에 `audit` 을 처음 띄웠다.
+```
+$ lsof -nP -iTCP:8089 -sTCP:LISTEN || echo "8089 not listening (audit down)"
+8089 not listening (audit down)
+$ http/e2e-login-logout.sh login /tmp/jar-a
+refresh_token=XRZFCZFpEsS8Np_ObdHTp7nD-MxrsnVq1cn84SqrlW8
+sid=NRIrEg1MS09rK_fuSMqTxQ                                                      # SID_A
+$ http/e2e-login-logout.sh logout /tmp/jar-a        # 13:35:22 UTC
+200
+$ docker exec microservice-as-kafka-1 /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --list
+token-state                                                                       # audit 그룹은 아직 존재하지 않는다
+$ (cd audit && nohup java -jar build/libs/audit-0.0.1-SNAPSHOT.jar > /tmp/audit.log 2>&1 &)    # 13:35:31 UTC 에 기동 요청, 3초 뒤 Started
+$ docker exec -i microservice-as-mysql-1 mysql -usvc_audit -ppw_audit -e \
+    "SELECT event_id, event_type, subject_sid, reported_sub, occurred_at, recorded_at FROM ms_audit.audit_events"
+event_id	event_type	subject_sid	reported_sub	occurred_at	recorded_at
+f3ef3e65-2305-48e7-9548-b15c6c33807e	oidc.session.logged-out.v1	NRIrEg1MS09rK_fuSMqTxQ	user-sub-0001	2026-10-25 13:35:22.963166	2026-10-25 13:35:34.590867
+```
+`recorded_at` 이 `occurred_at` 보다 **11.6초** 늦다(`TIMESTAMPDIFF` = 11.6277). 계획은 수십 초를 기대했지만 실제 순서(로그아웃 → 2초 대기 → `audit` 기동 ~3초)에서는 이 값이었다. 소급의 증거는 간격의 크기가 아니라 로그아웃 시점에 `audit` 프로세스도 `audit` 컨슈머 그룹도 없었다는 사실과, 그럼에도 한 줄이 기록됐다는 사실이다. 같은 방식으로 `audit` 을 **세션·토큰 서비스보다 먼저**, 빈 브로커에 혼자 띄우는 콜드 스타트도 확인했다 — `oidc.session.logged-out.v1`(파티션 3)과 `...v1.audit.dlt`(파티션 3)를 `audit` 이 스스로 만들고, 나머지 서비스를 올린 뒤에도 파티션은 3개 그대로였으며, 그 뒤의 로그인·로그아웃은 `audit_events` 에 한 줄로 기록되고 refresh 는 `REVOKED` 가 됐다.
+```
+$ docker exec microservice-as-kafka-1 /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list      # 새 볼륨, audit 만 기동한 직후
+__consumer_offsets
+oidc.session.logged-out.v1
+oidc.session.logged-out.v1.audit.dlt
+$ kafka-topics.sh ... --describe --topic oidc.session.logged-out.v1        # 나머지 서비스를 모두 올린 뒤
+Topic: oidc.session.logged-out.v1	TopicId: 70IKUBZdS_iDnquCShJWaw	PartitionCount: 3	ReplicationFactor: 1	Configs:
+$ http/e2e-login-logout.sh login /tmp/jar-g  →  sid=Yd7_8OViMrd7ErSZHoPiMQ ; logout  →  200
+$ ... mysql -usvc_audit ... "SELECT event_id, event_type, subject_sid, reported_sub, occurred_at, recorded_at FROM ms_audit.audit_events"
+faf70e3b-2e92-41c4-bebd-05bccd77390d	oidc.session.logged-out.v1	Yd7_8OViMrd7ErSZHoPiMQ	user-sub-0001	2026-10-25 17:20:18.560256	2026-10-25 17:20:19.331387
+$ ... mysql -usvc_token_state ... "SELECT sid, status, revoked_reason FROM ms_token_state.refresh_tokens WHERE sid='Yd7_8OViMrd7ErSZHoPiMQ'"
+Yd7_8OViMrd7ErSZHoPiMQ	REVOKED	SESSION_LOGGED_OUT
+```
+
+`payload` 컬럼이 `tinytext`(255바이트)가 아니라 `mediumtext` 로 만들어졌다(볼륨을 지우고 시작했으므로 이전 빌드의 컬럼이 남아 있지 않다).
+```
+$ docker exec -i microservice-as-mysql-1 mysql -usvc_audit -ppw_audit -e "SHOW CREATE TABLE ms_audit.audit_events\G"
+*************************** 1. row ***************************
+       Table: audit_events
+Create Table: CREATE TABLE `audit_events` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `event_id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `event_type` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `occurred_at` datetime(6) NOT NULL,
+  `payload` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `recorded_at` datetime(6) NOT NULL,
+  `reported_sub` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `subject_sid` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_audit_events_event_id` (`event_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+```
+
+**기준 2 — 여섯 컬럼이 이벤트와 일치한다.** `session` 의 outbox 원문과 감사 레코드를 나란히 놓고, 바이트 단위 비교는 `LENGTH`/`SHA2` 로 했다.
+```
+$ docker exec -i microservice-as-mysql-1 mysql -usvc_session -ppw_session -e "SELECT event_id, partition_key, payload FROM ms_session.outbox ORDER BY id"
+event_id	partition_key	payload
+f3ef3e65-2305-48e7-9548-b15c6c33807e	NRIrEg1MS09rK_fuSMqTxQ	{"eventId":"f3ef3e65-2305-48e7-9548-b15c6c33807e","sid":"NRIrEg1MS09rK_fuSMqTxQ","sub":"user-sub-0001","occurredAt":"2026-10-25T13:35:22.963166Z"}
+
+$ docker exec -i microservice-as-mysql-1 mysql -usvc_audit -ppw_audit -e "SELECT event_id, subject_sid, reported_sub, payload FROM ms_audit.audit_events ORDER BY id"
+event_id	subject_sid	reported_sub	payload
+f3ef3e65-2305-48e7-9548-b15c6c33807e	NRIrEg1MS09rK_fuSMqTxQ	user-sub-0001	{"eventId":"f3ef3e65-2305-48e7-9548-b15c6c33807e","sid":"NRIrEg1MS09rK_fuSMqTxQ","sub":"user-sub-0001","occurredAt":"2026-10-25T13:35:22.963166Z"}
+
+$ ... -e "SELECT event_id, partition_key AS sid, LENGTH(payload) AS bytes, SHA2(payload,256) AS sha256 FROM ms_session.outbox ORDER BY id"
+f3ef3e65-2305-48e7-9548-b15c6c33807e	NRIrEg1MS09rK_fuSMqTxQ	146	e813460f2567734db05063ec8f232cdf6b1b61ad682c3fbff280e3a4d44f8c50
+$ ... -e "SELECT event_id, subject_sid AS sid, LENGTH(payload) AS bytes, SHA2(payload,256) AS sha256 FROM ms_audit.audit_events ORDER BY id"
+f3ef3e65-2305-48e7-9548-b15c6c33807e	NRIrEg1MS09rK_fuSMqTxQ	146	e813460f2567734db05063ec8f232cdf6b1b61ad682c3fbff280e3a4d44f8c50
+```
+`event_id` 가 같고, `payload` 는 146바이트에 SHA-256 이 같으며, `subject_sid` 는 outbox 의 `partition_key` 와 같다. `event_type` 은 수신 토픽 이름(`oidc.session.logged-out.v1`)이고 `occurred_at` 은 payload 의 `occurredAt` 이다.
+
+**기준 7·9 — `audit` 을 내려도 폐기는 되고, 올리면 따라잡는다.** `audit` 을 내리고 `SID_B` 를 로그인·로그아웃했다.
+```
+$ pkill -f 'audit-0.0.1-SNAPSHOT.jar'          # 2초 뒤 8089 listen 없음
+$ http/e2e-login-logout.sh login /tmp/jar-b
+refresh_token=wrtJa4HNLOlW1GdzW9elKDrMrFk2UUlqBMvWW8OnowA
+sid=GNnfNoUYvFJqUyiaB5XXGw                                                      # SID_B
+$ http/e2e-login-logout.sh logout /tmp/jar-b     # 13:36:03 UTC
+200
+$ docker exec -i microservice-as-mysql-1 mysql -usvc_token_state -ppw_token_state -e \
+    "SELECT sid, status, revoked_reason FROM ms_token_state.refresh_tokens WHERE sid='GNnfNoUYvFJqUyiaB5XXGw'"
+sid	status	revoked_reason
+GNnfNoUYvFJqUyiaB5XXGw	REVOKED	SESSION_LOGGED_OUT
+```
+폐기는 `audit` 이 내려가 있어도 일어났다(기준 7 의 앞 절반). 두 그룹의 오프셋을 보면 **계획이 기대한 대로는 나오지 않았다.**
+```
+$ kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group token-state
+GROUP           TOPIC                      PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID ...
+token-state     oidc.session.logged-out.v1 0          1               1               0               consumer-token-state-1-... /192.168.65.1   consumer-token-state-1
+token-state     oidc.session.logged-out.v1 1          1               1               0               consumer-token-state-1-... /192.168.65.1   consumer-token-state-1
+token-state     oidc.session.logged-out.v1 2          -               0               -               consumer-token-state-1-... /192.168.65.1   consumer-token-state-1
+
+$ kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group audit
+Consumer group 'audit' has no active members.
+
+GROUP           TOPIC                      PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID     HOST            CLIENT-ID
+audit           oidc.session.logged-out.v1 1          1               1               0               -               -               -
+
+$ kafka-get-offsets.sh --bootstrap-server localhost:9092 --topic oidc.session.logged-out.v1
+oidc.session.logged-out.v1:0:1
+oidc.session.logged-out.v1:1:1
+oidc.session.logged-out.v1:2:0
+```
+`SID_B` 의 이벤트는 파티션 0에 있는데(`kafka-console-consumer --partition 0` 으로 확인), `audit` 그룹은 그 파티션에 커밋한 적이 없어서 `--describe` 가 **그 파티션을 아예 보여주지 않는다** — 그래서 "`audit` 그룹의 `LAG` 가 0이 아니다"는 이 출력에서는 보이지 않았다. 보이는 것은 `token-state` 가 0이라는 것, `audit` 이 파티션 0을 가져가지 않았다는 것(목록에 없음, 로그 끝 오프셋은 1)뿐이다. 구성원이 없는 그룹의 `--describe` 는 커밋된 오프셋이 있는 파티션만 보여주는 것으로 보인다. `audit` 을 올리면 따라잡는다.
+```
+$ (cd audit && nohup java -jar build/libs/audit-0.0.1-SNAPSHOT.jar > /tmp/audit.log 2>&1 &)    # 13:37:01 UTC 기동 요청, 3초 뒤 Started
+$ docker exec -i microservice-as-mysql-1 mysql -usvc_audit -ppw_audit -e "SELECT subject_sid FROM ms_audit.audit_events WHERE subject_sid='GNnfNoUYvFJqUyiaB5XXGw'"
+subject_sid
+GNnfNoUYvFJqUyiaB5XXGw
+$ kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group audit
+GROUP           TOPIC                      PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID ...
+audit           oidc.session.logged-out.v1 0          1               1               0               consumer-audit-1-... /192.168.65.1   consumer-audit-1
+audit           oidc.session.logged-out.v1 1          1               1               0               consumer-audit-1-... /192.168.65.1   consumer-audit-1
+audit           oidc.session.logged-out.v1 2          -               0               -               consumer-audit-1-... /192.168.65.1   consumer-audit-1
+```
+이제 `audit` 그룹은 두 파티션에 커밋한 이력이 있으므로, 같은 시나리오를 한 번 더 해서 lag 가 **실제로 보이는** 모습을 확인했다(계획에 없는 보강 측정). `audit` 을 다시 내리고 `SID_D` 를 로그인·로그아웃했다.
+```
+$ pkill -f 'audit-0.0.1-SNAPSHOT.jar'
+$ http/e2e-login-logout.sh login /tmp/jar-d
+sid=xX0r1D_ShsuJEU8eZ3TWFA                                                      # SID_D
+$ http/e2e-login-logout.sh logout /tmp/jar-d
+200
+$ kafka-get-offsets.sh --bootstrap-server localhost:9092 --topic oidc.session.logged-out.v1
+oidc.session.logged-out.v1:0:1
+oidc.session.logged-out.v1:1:2
+oidc.session.logged-out.v1:2:0
+$ kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group audit
+Consumer group 'audit' has no active members.
+
+GROUP           TOPIC                      PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID     HOST            CLIENT-ID
+audit           oidc.session.logged-out.v1 0          1               1               0               -               -               -
+audit           oidc.session.logged-out.v1 1          1               2               1               -               -               -
+
+$ kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group token-state
+GROUP           TOPIC                      PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID ...
+token-state     oidc.session.logged-out.v1 0          1               1               0               consumer-token-state-1-... /192.168.65.1   consumer-token-state-1
+token-state     oidc.session.logged-out.v1 1          2               2               0               consumer-token-state-1-... /192.168.65.1   consumer-token-state-1
+token-state     oidc.session.logged-out.v1 2          -               0               -               consumer-token-state-1-... /192.168.65.1   consumer-token-state-1
+
+$ docker exec -i microservice-as-mysql-1 mysql -usvc_token_state -ppw_token_state -e "SELECT sid, status, revoked_reason FROM ms_token_state.refresh_tokens WHERE sid='xX0r1D_ShsuJEU8eZ3TWFA'"
+xX0r1D_ShsuJEU8eZ3TWFA	REVOKED	SESSION_LOGGED_OUT
+$ ... mysql -usvc_audit ... "SELECT COUNT(*) FROM ms_audit.audit_events WHERE subject_sid='xX0r1D_ShsuJEU8eZ3TWFA'"
+0                                                                               # audit 이 내려가 있는 동안에는 없다
+```
+`audit` 그룹은 파티션 1에서 `LAG 1`, `token-state` 그룹은 전부 0 — 두 그룹의 오프셋이 따로 움직인다(기준 9). `SID_D` 는 `REVOKED/SESSION_LOGGED_OUT`(기준 7). `audit` 을 다시 올리자:
+```
+$ (cd audit && nohup java -jar build/libs/audit-0.0.1-SNAPSHOT.jar > /tmp/audit.log 2>&1 &)    # 13:37:43 UTC 에 Started
+$ docker exec -i microservice-as-mysql-1 mysql -usvc_audit -ppw_audit -e "SELECT id, subject_sid, occurred_at, recorded_at FROM ms_audit.audit_events ORDER BY id"
+id	subject_sid	occurred_at	recorded_at
+1	NRIrEg1MS09rK_fuSMqTxQ	2026-10-25 13:35:22.963166	2026-10-25 13:35:34.590867
+2	GNnfNoUYvFJqUyiaB5XXGw	2026-10-25 13:36:03.766807	2026-10-25 13:37:04.070321
+3	xX0r1D_ShsuJEU8eZ3TWFA	2026-10-25 13:37:22.530140	2026-10-25 13:37:43.232971
+$ kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group audit
+audit           oidc.session.logged-out.v1 0          1               1               0               consumer-audit-1-... /192.168.65.1   consumer-audit-1
+audit           oidc.session.logged-out.v1 1          2               2               0               consumer-audit-1-... /192.168.65.1   consumer-audit-1
+audit           oidc.session.logged-out.v1 2          -               0               -               consumer-audit-1-... /192.168.65.1   consumer-audit-1
+```
+`SID_B`(13:36:03 → 13:37:04)와 `SID_D`(13:37:22 → 13:37:43)의 감사 레코드는 `audit` 이 올라온 뒤에야 생겼고(`recorded_at − occurred_at` = 60.3초, 20.7초), 재기동 후 `audit` 의 `LAG` 는 0이 됐다.
+
+**기준 8 — `token-state` 를 내려도 감사는 기록한다.** 계획의 순서(`token-state` 를 내리고 로그인)는 성립하지 않는다. `token-state` 가 내려가 있으면 code 교환이 refresh token 을 발급하지 못해 로그인 자체가 실패한다.
+```
+$ http/e2e-login-logout.sh login /tmp/jar-f        # token-state 가 내려가 있을 때
+토큰 교환 실패: {"error":"server_error","error_description":"unexpected error"}
+```
+그래서 **로그인을 먼저 하고 `token-state` 를 내린 뒤 로그아웃**했다. (이 실패 로그인 두 건의 로그아웃도 `audit_events` 에 기록됐고, 그동안 `token-state` 그룹 파티션 1은 `CURRENT-OFFSET 2 / LOG-END-OFFSET 4 / LAG 2` 였다. 이후 `token-state` 를 올려 비웠다.)
+```
+$ http/e2e-login-logout.sh login /tmp/jar-c                 # 13:38:43 UTC, token-state 가동 중
+refresh_token=Eul284cj7oVdAhuOHclTRf-WkM-WqcFvVvUoMwye3s0
+sid=iK_EhTp4WXQPVmF1vytECg                                                      # SID_C
+$ pkill -f 'token-state-0.0.1-SNAPSHOT.jar'                 # 2초 뒤 8087 listen 없음
+$ http/e2e-login-logout.sh logout /tmp/jar-c                # 13:38:45 UTC
+200
+$ docker exec -i microservice-as-mysql-1 mysql -usvc_audit -ppw_audit -e "SELECT subject_sid FROM ms_audit.audit_events WHERE subject_sid='iK_EhTp4WXQPVmF1vytECg'"
+subject_sid
+iK_EhTp4WXQPVmF1vytECg
+$ docker exec -i microservice-as-mysql-1 mysql -usvc_token_state -ppw_token_state -e "SELECT sid, status FROM ms_token_state.refresh_tokens WHERE sid='iK_EhTp4WXQPVmF1vytECg'"
+sid	status
+iK_EhTp4WXQPVmF1vytECg	ACTIVE
+$ docker exec -i microservice-as-mysql-1 mysql -usvc_audit -ppw_audit -e "SELECT id, subject_sid, occurred_at, recorded_at FROM ms_audit.audit_events ORDER BY id"     # token-state 를 올리기 전에 조회
+id	subject_sid	occurred_at	recorded_at
+1	NRIrEg1MS09rK_fuSMqTxQ	2026-10-25 13:35:22.963166	2026-10-25 13:35:34.590867
+2	GNnfNoUYvFJqUyiaB5XXGw	2026-10-25 13:36:03.766807	2026-10-25 13:37:04.070321
+3	xX0r1D_ShsuJEU8eZ3TWFA	2026-10-25 13:37:22.530140	2026-10-25 13:37:43.232971
+4	bGQ0fZhPd5F2c-cTWAu0Sw	2026-10-25 13:37:53.632887	2026-10-25 13:37:53.745537
+5	l498KviSoABiBkhv8AKv3w	2026-10-25 13:38:19.061909	2026-10-25 13:38:19.510124
+6	iK_EhTp4WXQPVmF1vytECg	2026-10-25 13:38:45.796106	2026-10-25 13:38:46.278120
+```
+`token-state` 가 내려가 있는 동안에도 `SID_C` 의 감사 레코드(id 6)는 0.48초 만에 생겼고, 그 순간 refresh 는 아직 `ACTIVE` 였다. (`token-state` 그룹의 파티션 2 — `SID_C` 의 이벤트가 있는 곳 — 는 이 그룹이 커밋한 적이 없어 `--describe` 에 나오지 않았다. 위 기준 9 와 같은 이유다.) `token-state` 를 올리자 밀린 이벤트를 소비해 `REVOKED` 가 됐다.
+```
+$ docker exec -i microservice-as-kafka-1 /opt/kafka/bin/kafka-get-offsets.sh --bootstrap-server localhost:9092 --topic oidc.session.logged-out.v1
+oidc.session.logged-out.v1:0:1
+oidc.session.logged-out.v1:1:4
+oidc.session.logged-out.v1:2:1
+$ (cd token-state && nohup java -jar build/libs/token-state-0.0.1-SNAPSHOT.jar > /tmp/token-state.log 2>&1 &)    # 17:16:02 UTC 기동 요청
+$ docker exec -i microservice-as-mysql-1 mysql -usvc_token_state -ppw_token_state -e "SELECT sid, status, revoked_reason, revoked_at FROM ms_token_state.refresh_tokens WHERE sid='iK_EhTp4WXQPVmF1vytECg'"
+sid	status	revoked_reason	revoked_at
+iK_EhTp4WXQPVmF1vytECg	REVOKED	SESSION_LOGGED_OUT	2026-10-25 17:16:05.827458
+```
+`token-state` 를 내려 둔 시간은 13:38:45 → 17:16:02 UTC, **약 3시간 37분**이다. 의도한 값이 아니라 작업이 그 사이 멈췄기 때문이고, refresh token 의 만료(2026-11-08) 안이라 행은 그대로 `ACTIVE` 로 남아 있었다. 결과적으로 "몇 시간 밀린 이벤트도 재기동 몇 초 만에 소비된다"까지 확인된 셈이다.
+
+**기준 10 — 한 편지의 실패가 각자의 DLT 로 간다.** JSON 이 아닌 편지 하나를 본 토픽에 넣었다. 넣기 전 두 DLT 는 비어 있었다(`--from-beginning` 으로 읽어 출력 없음).
+```
+$ echo 'e2e-poison:{not json' | docker exec -i microservice-as-kafka-1 /opt/kafka/bin/kafka-console-producer.sh \
+    --bootstrap-server localhost:9092 --topic oidc.session.logged-out.v1 --property parse.key=true --property key.separator=:
+$ for t in oidc.session.logged-out.v1.token-state.dlt oidc.session.logged-out.v1.audit.dlt; do echo "== $t"; docker exec -i microservice-as-kafka-1 /opt/kafka/bin/kafka-console-consumer.sh \
+    --bootstrap-server localhost:9092 --topic "$t" --from-beginning --timeout-ms 5000 2>/dev/null; done
+== oidc.session.logged-out.v1.token-state.dlt
+{not json
+== oidc.session.logged-out.v1.audit.dlt
+{not json
+$ kafka-get-offsets.sh ... --topic oidc.session.logged-out.v1.token-state.dlt
+oidc.session.logged-out.v1.token-state.dlt:0:0
+oidc.session.logged-out.v1.token-state.dlt:1:0
+oidc.session.logged-out.v1.token-state.dlt:2:1
+$ kafka-get-offsets.sh ... --topic oidc.session.logged-out.v1.audit.dlt
+oidc.session.logged-out.v1.audit.dlt:0:0
+oidc.session.logged-out.v1.audit.dlt:1:0
+oidc.session.logged-out.v1.audit.dlt:2:1
+$ kafka-topics.sh --bootstrap-server localhost:9092 --list
+__consumer_offsets
+oidc.session.logged-out.v1
+oidc.session.logged-out.v1.audit.dlt
+oidc.session.logged-out.v1.token-state.dlt
+```
+두 DLT 에 `{not json` 이 **한 건씩** 있다. 그룹 이름이 없던 옛 이름 `oidc.session.logged-out.v1.dlt` 는 목록에 없다(`down -v` 로 시작했다).
+
+**기준 6 — 발행자 무변경.**
+```
+$ git diff --stat 03ded07 -- 'oauth-2/authorization-server/practice/microservice/session/src/*'
+(출력 없음)
+```
+`03ded07` 이후 이 슬라이스의 커밋 전부에서 `session/src` 는 한 줄도 바뀌지 않았다 — 두 번째 소비자가 발행자를 고치지 않고 붙었다.
+
+**기준 4·5 — 테스트로 확인했고 e2e 로는 확인하지 않았다.** 멱등(4)은 같은 이벤트를 중복 전달해야 하고, 흡수하지 않는 위반(5)은 기형 이벤트를 만들어야 해서 e2e 로 재현하지 않았다. 아래 테스트가 증명한다.
+- 멱등(4)
+  - `AuditRecorderTest.sameEventIdIsRecordedOnce` — 같은 `eventId` 를 두 번 받으면 한 줄이다
+  - `AuditEventConsumerTest.duplicateDeliveryIsRecordedOnce` — 같은 이벤트가 두 번 전달돼도 한 줄이다
+  - `AuditRecorderBranchTest.absorbsWhenRowAppearedConcurrently` — 선조회는 통과했는데 저장이 위반을 맞고 재확인하니 행이 있으면 흡수한다
+- 흡수하지 않는 위반(5)
+  - `AuditRecorderTest.missingSidIsNotAbsorbed`, `AuditRecorderTest.missingEventIdIsNotAbsorbed` — `sid`·`eventId` 가 빠진 기록은 `DataIntegrityViolationException` 으로 실패한다
+  - `AuditRecorderBranchTest.rethrowsWhenRowStillAbsent` — 위반을 맞고 재확인해도 행이 없으면 다시 던진다
+  - `AuditEventConsumerTest.missingSidGoesToAuditDlt`, `AuditEventConsumerTest.poisonGoesToAuditDlt` — `sid` 가 빠진 이벤트와 JSON 이 아닌 편지는 감사 DLT 로 간다
+
+이 여덟 테스트는 아래 전체 회귀(compose 를 내린 채 `cleanTest test`)에서 전부 통과했다.
+
+**전체 회귀.** 모든 jar 를 내리고 compose 를 `down`(`-v` 없음) 한 뒤 `docker ps --filter name=microservice-as --format '{{.Names}}'` 가 비어 있는 것을 확인하고, 10개 모듈에서 `cleanTest test` 를 돌렸다. 결과 XML(`build/test-results/test/*.xml`)에서 센 값이다.
+
+| 모듈 | tests | 실패 | 오류 | 건너뜀 |
+|---|---|---|---|---|
+| audit | 15 | 0 | 0 | 0 |
+| auth | 35 | 0 | 0 | 0 |
+| client-registry | 7 | 0 | 0 | 0 |
+| consent | 4 | 0 | 0 | 0 |
+| demo-rp | 3 | 0 | 0 | 0 |
+| session | 30 | 0 | 0 | 0 |
+| signing | 8 | 0 | 0 | 0 |
+| token-state | 52 | 0 | 0 | 1 |
+| token | 124 | 0 | 0 | 0 |
+| user-directory | 6 | 0 | 0 | 0 |
+| **합계** | **284** | **0** | **0** | **1** |
+
+건너뛴 1건은 `RefreshTokenServiceMySqlLockSemanticsTest.siblingRowInsertedWhileWaitingForFamilyLockIsIncludedInRevocation` 이다. MySQL 에 닿지 않으면 `assumeTrue` 로 건너뛰는 테스트인데, 이 회귀는 compose 를 내린 채 돌렸다. (`gradle test` 가 `UP-TO-DATE` 로 건너뛰지 않도록 `cleanTest` 를 함께 썼다.)
+
+**성공 기준 판정.**
+
+| 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 분리 | 성립 | `SHOW DATABASES` 에 `ms_audit` 만, 남의 스키마 `SELECT` 두 건은 ERROR 1142 |
+| 2 여섯 컬럼 일치 | 성립 | `event_id`·`subject_sid` 일치, `payload` 146바이트·SHA-256 동일 |
+| 3 소급 | 성립 | `audit` 없이 일어난 로그아웃이 기동 후 기록됨. 간격은 11.6초(계획의 "수십 초"보다 짧다) |
+| 4 멱등 | 테스트로만 확인 | e2e 미실행 |
+| 5 흡수 안 함 | 테스트로만 확인 | e2e 미실행 |
+| 6 발행자 무변경 | 성립 | `session/src` diff 0줄 |
+| 7 `audit` 다운 시 폐기 + 따라잡기 | 성립 | `SID_B`·`SID_D` `REVOKED`, 재기동 후 기록 |
+| 8 `token-state` 다운 시 감사 기록 | 성립 | `SID_C` 감사 레코드 0.48초, refresh 는 그 순간 `ACTIVE` → 재기동 후 `REVOKED`. 단 순서는 계획과 다르다(로그인 먼저) |
+| 9 두 그룹 오프셋이 따로 움직임 | 성립(보강 측정 후) | 첫 시도에서는 `audit` 의 lag 가 `--describe` 에 보이지 않았다. 보강 측정에서 `audit` `LAG 1` / `token-state` `0` |
+| 10 DLT 분리 | 성립 | 두 DLT 에 한 건씩 |
+
 ## 슬라이스 5에서도 제외 (이후 sub-project)
 
 admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네트워크 가정), jwks 캐시, access token deny-list, Kafka 인증 이벤트 스트림, 관측성/서킷브레이커, resource indicator(RFC 8707, client_credentials 의 `aud` 를 자원별로 좁히는 것).
@@ -1055,6 +1370,16 @@ admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네
 - **`session` 이 죽어 있으면 통지도 폐기도 일어나지 않는다(fail-open)** — 슬라이스 5의 결정을 그대로 물려받는다. 로그아웃 자체를 실패시키지 않는 대가다.
 - **`root` 계정이 초기화용으로 컨테이너 안에 남는다** — 애플리케이션 설정에서는 빠졌지만 존재 자체가 없어진 것은 아니다.
 
+### 슬라이스 8 (감사 컨슈머) 이 남기는 것
+
+- **감사는 로그아웃만 안다** — 세션의 시작(로그인)도, 토큰의 일생도 모른다. 후속 슬라이스가 채운다
+- **`reported_sub` 는 미검증** — 발행자가 첫 행의 값을 실을 뿐이고, 한 `sid` 아래 여러 `sub` 가 섞이는 것을 `session` 이 막지 않는다
+- **같은 `eventId` 에 다른 `payload` 가 오면 조용히 흡수한다** — 발행자 버그를 가린다
+- **본 토픽 선언이 세 곳** — `session`·`token-state`·`audit` 의 파티션 수·replicas 를 함께 맞춰야 한다
+- **감사 레코드 정리 수단 없음** — 무한히 쌓인다
+- **감사 DLT 에 간 편지는 아무도 자동으로 재처리하지 않는다** — 그 이벤트는 감사에서 빠진 채 남는다
+- **옛 DLT 토픽(`oidc.session.logged-out.v1.dlt`)이 브로커에 남는다** — 볼륨을 지우지 않은 환경에서는 쓰이지 않는 토픽으로 남는다
+
 ## 추후 별도 인프라 프로젝트로 이관
 
 이 프로젝트는 **인가 서버를 코드로 어떻게 만드는가**에 집중한다. mTLS·서비스 메시·ingress·네트워크
@@ -1089,3 +1414,5 @@ admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네
 - 슬라이스 6(Istio mTLS) 구현 계획: [docs/superpowers/plans/2026-08-07-microservice-istio-mtls-slice6.md](docs/superpowers/plans/2026-08-07-microservice-istio-mtls-slice6.md)
 - 슬라이스 7(서비스별 DB 분리와 outbox) 설계: [docs/superpowers/specs/2026-08-08-microservice-db-per-service-outbox-slice7-design.md](docs/superpowers/specs/2026-08-08-microservice-db-per-service-outbox-slice7-design.md)
 - 슬라이스 7(서비스별 DB 분리와 outbox) 구현 계획: [docs/superpowers/plans/2026-08-08-microservice-db-per-service-outbox-slice7.md](docs/superpowers/plans/2026-08-08-microservice-db-per-service-outbox-slice7.md)
+- 슬라이스 8(감사 컨슈머) 설계: [docs/superpowers/specs/2026-09-28-microservice-audit-consumer-slice8-design.md](docs/superpowers/specs/2026-09-28-microservice-audit-consumer-slice8-design.md)
+- 슬라이스 8(감사 컨슈머) 구현 계획: [docs/superpowers/plans/2026-09-28-microservice-audit-consumer-slice8.md](docs/superpowers/plans/2026-09-28-microservice-audit-consumer-slice8.md)
