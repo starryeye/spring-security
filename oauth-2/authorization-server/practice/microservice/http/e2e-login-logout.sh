@@ -10,9 +10,11 @@
 # 주의. 로그인 폼의 _csrf, 동의 화면의 pending_id·_csrf 는 응답 본문에서 매번 새로 읽는다.
 # 주의. code 교환은 token-state 가 refresh token 을 발급해야 끝난다(offline_access). token-state 가 내려가 있으면
 #      교환이 server_error 로 실패하므로, token-state 를 내린 채 로그아웃하려면 로그인을 먼저 하고 내린다.
-# 주의. curl 연결 실패(gateway 다운)나 _csrf·pending_id 를 못 읽은 grep 실패는 set -e 만으로는 메시지 없이 끝나므로, ERR trap 이 실패한 행 번호를 stderr 에 남긴다.
+# 주의. curl 연결 실패(gateway 다운)나 _csrf·pending_id 를 못 읽은 grep 실패는 set -e 만으로는 메시지 없이 끝나므로, ERR trap 이
+#      실패한 명령(BASH_COMMAND)과 행 번호를 stderr 에 남긴다. macOS 기본 bash 3.2 에서는 ERR trap 의 $LINENO 가 한두 행 어긋날 수
+#      있어, 실패를 가리키는 것은 행 번호가 아니라 명령 텍스트다. BASH_COMMAND 는 변수를 펼치기 전의 원문이라 자격 증명 값이 찍히지 않는다.
 set -euo pipefail
-trap 'echo "실패: $LINENO 행" >&2' ERR
+trap 'echo "실패: $LINENO 행 ($BASH_COMMAND)" >&2' ERR
 
 BASE=http://localhost:9000
 CMD=${1:?login|logout}
