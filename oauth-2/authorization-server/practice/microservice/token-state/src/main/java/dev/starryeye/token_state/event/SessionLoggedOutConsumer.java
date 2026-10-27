@@ -25,7 +25,7 @@ public class SessionLoggedOutConsumer {
 	 *      보장한다(RefreshTokenService 참고) — 계열 잠금을 쓰지 않으므로, 회전이 동시에 새 ACTIVE 형제
 	 *      행을 만들면 이 호출이 그 행을 놓칠 수 있다. 반환값 0은 실패가 아니다(폐기할 것이 없었거나
 	 *      이미 폐기됨 = 멱등). 그 "놓친 행" 문제는 이 컨슈머가 풀지 않는다 — 재검증·정합성 스윕은
-	 *      이 태스크의 범위 밖이고, outbox(다음 태스크)는 발행 원자성을 다룰 뿐 이 폐기 경쟁을 다루지 않는다.
+	 *      어디에도 없고, session 의 outbox 는 발행 원자성을 다룰 뿐 이 폐기 경쟁을 다루지 않는다.
 	 *
 	 * 주의. groupId 를 하드코딩하지 않고 my.consumer-group-id 프로퍼티로 뺀다. 운영값(application.yml)은
 	 *      "token-state" 그대로지만, 테스트(application.yml, test)는 "token-state-test" 로 갈라 둔다.

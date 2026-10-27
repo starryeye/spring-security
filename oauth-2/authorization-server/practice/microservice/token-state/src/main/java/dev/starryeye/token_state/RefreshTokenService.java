@@ -224,16 +224,15 @@ public class RefreshTokenService {
 	 *      경로와 달리 잠금을 얻지 않으므로, 회전과 동시에 실행되면 이 UPDATE 가 놓치는 행이 생길 수
 	 *      있다: 회전이 새 형제 행(ACTIVE)을 삽입·커밋하는 시점이 이 UPDATE 의 스캔 전이냐 후냐에 따라
 	 *      그 행이 폐기 대상에 들거나 빠진다. `refresh_tokens` 에는 family_id 인덱스만 있고 sid 인덱스는
-	 *      없어 이 UPDATE 자체가 전체 스캔이고, 그 경쟁 창이 실제로 얼마나 열리는지·InnoDB 가 그 상황에서
-	 *      어떤 값을 보여주는지는 이 태스크에서 검증하지 않았다(RefreshTokenServiceMySqlLockSemanticsTest
-	 *      류의 동시성 테스트가 이 경로에는 없다).
+	 *      없어 이 UPDATE 자체가 전체 스캔이다. 그 경쟁 창이 실제로 얼마나 열리는지·InnoDB 가 그 상황에서
+	 *      어떤 값을 보여주는지는 검증되지 않은 부분이다(RefreshTokenServiceMySqlLockSemanticsTest 류의
+	 *      동시성 테스트가 이 경로에는 없다).
 	 *
 	 * 주의. 놓친 행은 이 호출 하나로는 정리되지 않는다. Kafka 의 at-least-once 는 "컨슈머가 오프셋 커밋에
 	 *      실패했을 때 재전달"을 보장할 뿐, 이 호출이 경쟁으로 일부 행을 놓쳤다는 사실 자체를 감지해
 	 *      재전달을 유도해 주지 않는다. 놓친 행을 다시 찾아 폐기하려면 반환값(영향받은 행 수)을 보고
-	 *      재시도하거나 별도로 정합성을 확인하는 절차가 있어야 하는데, 그런 절차는 이 메서드도 이
-	 *      태스크도 제공하지 않는다 — 다음 태스크가 만들 소비자가 그 절차를 반드시 갖춰야 한다는 뜻이지,
-	 *      이미 갖춰져 있다는 뜻이 아니다.
+	 *      재시도하거나 별도로 정합성을 확인하는 절차가 있어야 하는데, 그런 절차는 이 메서드도, 이를 부르는
+	 *      SessionLoggedOutConsumer 도 제공하지 않는다 — 남아 있는 빈틈이다(README 의 "알려진 한계" 참고).
 	 */
 	@Transactional
 	public int revokeBySid(String sid) {

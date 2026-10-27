@@ -47,9 +47,9 @@ class RefreshTokenServiceConcurrentRotateTest {
 	 *
 	 * 주의. "대기 중 다른 트랜잭션이 삽입한 형제 행도 폐기되는가" 는 h2 로는 고정할 수 없는 성질이라 이
 	 *      테스트가 덮지 않는다. 운영 DB(MySQL 8/InnoDB)로는 RefreshTokenServiceMySqlLockSemanticsTest 가
-	 *      같은 barrier 기법으로 별도 검증한다 — 반복 실행(16회 연속) 모두 그 형제 행이 함께 REVOKED 로
-	 *      폐기됨을 확인했다. h2 의 관찰은 그래서 구현 결함의 증거가 아니라 h2 고유의 잠금 재조회 범위
-	 *      한계로 결론 내린다.
+	 *      같은 barrier 기법으로 그 형제 행까지 REVOKED 인지 단언한다(MySQL 이 없으면 그 클래스는 skip 된다.
+	 *      반복 실행 기록은 2026-07-25-microservice-token-lifecycle-slice3-design.md 참고). 그래서 h2 의 관찰은
+	 *      구현 결함의 증거가 아니라 h2 고유의 잠금 재조회 범위 한계다.
 	 */
 
 	@Autowired

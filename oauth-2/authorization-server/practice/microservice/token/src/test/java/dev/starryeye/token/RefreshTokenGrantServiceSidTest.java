@@ -45,8 +45,7 @@ class RefreshTokenGrantServiceSidTest {
 		RefreshTokenGrantService service = new RefreshTokenGrantService(
 				tokenStateClient, accessTokenIssuer, idTokenIssuer, 300L);
 
-		// 실제 ClientInfo 는 (clientId, redirectUris, scopes, clientSecretHash, grantTypes, clientScopes) 6 필드다.
-		// 브리프 초안은 8 개 인자를 가정했는데(생성 시점 추정), 실제 레코드에 맞춰 6 개로 고쳤다.
+		// ClientInfo 는 (clientId, redirectUris, scopes, clientSecretHash, grantTypes, clientScopes) 6 필드다.
 		ClientInfo client = new ClientInfo("my-client", List.of(), List.of("openid", "offline_access"),
 				"{bcrypt}x", List.of("refresh_token"), List.of());
 
