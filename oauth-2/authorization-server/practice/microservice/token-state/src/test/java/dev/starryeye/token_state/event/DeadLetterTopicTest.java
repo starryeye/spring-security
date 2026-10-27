@@ -44,18 +44,18 @@ class DeadLetterTopicTest {
 	 *      SmartInitializingSingleton 이라 EmbeddedKafkaZKBroker(InitializingBean, 토픽을 1개로 먼저
 	 *      만든다)보다 반드시 뒤에 실행돼 그 토픽을 3으로 늘려 버린다(checkPartitions, "모자라면 늘리기만
 	 *      한다"). 그래서 두 편지를 서로 다른 키로 보내면 kafka-clients 의 기본 파티셔너가 둘을 다른
-	 *      파티션에 흩어버릴 수 있다 — 실제로 "SID-POISON"/"SID-GOOD" 키를 썼을 때 murmur2 해시로
-	 *      서로 다른 파티션에 떨어졌고, 그 상태에서는 "뒤가 막히지 않는다" 단언이 애초에 갈라져 있던
-	 *      큐를 우연히 통과한 것일 뿐 아무것도 증명하지 못했다. 그래서 두 편지를 **같은 키**로 보낸다 —
+	 *      파티션에 흩어버릴 수 있다 — 예를 들어 "SID-POISON"/"SID-GOOD" 는 파티션 3개에서 murmur2 해시로
+	 *      각각 0번·1번 파티션에 떨어지고, 그러면 "뒤가 막히지 않는다" 단언은 애초에 갈라져 있던 큐를
+	 *      통과할 뿐 아무것도 증명하지 못한다. 그래서 두 편지를 **같은 키**로 보낸다 —
 	 *      같은 키는 파티션 수와 무관하게 항상 같은 파티션에 떨어지므로(파티셔너는 key 의 해시값만 보고
 	 *      partition 수로 나눈 나머지를 쓴다) 이 전제가 실제 파티션 개수에 좌우되지 않는다. 그리고
 	 *      두 RecordMetadata.partition() 이 실제로 같은지 테스트가 스스로 단언해 그 전제를 재확인한다
 	 *      (아래 poisonMetadata/goodMetadata 비교 단언) — 이 단언이 실패하면 이 테스트 자체가 무의미하다는 뜻이다.
 	 *
 	 * 주의. "뒤가 막히지 않는다" 단언이 통과하는 것을 KafkaConsumerConfig.kafkaErrorHandler 빈의 성과로
-	 *      읽지 마라 — 그 빈을 주석 처리하고 아래 DLT 단언만 뺀 채 돌려도 이 단언은 여전히 통과한다
-	 *      (Spring Boot 기본 에러 핸들러도 유한 재시도 뒤 로그만 남기고 다음 레코드로 넘어가기 때문,
-	 *      KafkaConsumerConfig 주석 참고). 이 클래스가 kafkaErrorHandler 빈에 대해 실제로 검증하는
+	 *      읽지 마라 — 이 단언은 그 빈이 없어도 성립한다. 에러 핸들러 빈이 없으면 리스너 컨테이너가 스스로
+	 *      만들어 쓰는 기본 DefaultErrorHandler 도 유한 재시도 뒤 로그만 남기고 다음 레코드로 넘어가기
+	 *      때문이다(KafkaConsumerConfig 주석 참고). 이 클래스가 kafkaErrorHandler 빈에 대해 실제로 검증하는
 	 *      것은 "DLT 로 간다"는 부분이다 — DLT 토픽은 그 빈 없이는 아무것도 받지 않는다.
 	 */
 

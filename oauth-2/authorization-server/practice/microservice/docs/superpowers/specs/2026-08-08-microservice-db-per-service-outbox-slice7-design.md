@@ -290,12 +290,12 @@ Kafka 를 직접 부르지 않으므로 "유실" 재현은 "Kafka 가 죽어 있
 없다. 이 슬라이스는 그런 영구 실패 행이 생기지 않는다고 가정할 뿐 그 가정을 검증하거나 막지 않는다
 (`OutboxPublisher` javadoc 참고).
 
-**마지막 줄의 "뒷줄이 막히지 않는다"는 이 DLT 설정이 새로 만든 성질이 아니다.** Spring Boot 가
-커스텀 에러 핸들러 빈 없이 쓰는 기본 `DefaultErrorHandler` 도 이미 유한 재시도(`FixedBackOff(0, 9)`
-— 9회, 0ms)라, 소진되면 로그 한 줄을 남기고 다음 레코드로 넘어간다 — head-of-line blocking 은
-기본값에서부터 일어나지 않는다. Task 8 이 통제 실험으로 확인했다: `DeadLetterTopicTest` 에서
-`kafkaErrorHandler` 빈을 주석 처리하고 DLT 단언만 뺀 채 돌려도 "뒤 편지 처리" 단언은 통과했다
-(task-8-report.md 참고). 이 슬라이스의 DLT 설정이 실제로 바꾸는 것은 재시도 횟수·간격의 명시 제어
+**마지막 줄의 "뒷줄이 막히지 않는다"는 이 DLT 설정이 새로 만든 성질이 아니다.** 에러 핸들러 빈이
+없으면 리스너 컨테이너가 스스로 만들어 쓰는 기본 `DefaultErrorHandler` 도 이미 유한 재시도
+(`FixedBackOff(0, 9)` — 9회, 0ms)라, 소진되면 로그 한 줄을 남기고 다음 레코드로 넘어간다 —
+head-of-line blocking 은 기본값에서부터 일어나지 않는다. 그래서 `DeadLetterTopicTest` 의 "뒤 편지 처리"
+단언은 `kafkaErrorHandler` 빈이 없어도 성립하고, 그 빈이 있어야 통과하는 것은 DLT 단언 쪽이다
+(`KafkaConsumerConfig` javadoc 참고). 이 슬라이스의 DLT 설정이 실제로 바꾸는 것은 재시도 횟수·간격의 명시 제어
 (2회/200ms)와, 소진된 레코드의 행선지를 로그에서 조회·재처리 가능한 DLT 토픽으로 바꾸는 관측성이다
 — "안 막힌다"가 아니라 "실패가 안 보이지 않게 된다"가 이 설정의 성과다.
 
