@@ -61,6 +61,11 @@
    를 증명해야 비로소 의미가 있다.
 5. **워크로드 인증서 자동 회전 검증** — 회전이 실제로 일어나는지, 회전 중 연결이 끊기지 않는지.
    `verify.sh` 는 스냅샷만 봤다.
+6. **refresh token 재사용 탐지 알림** — 슬라이스 9 설계에서 token-state 는 재사용을 탐지해 계열을
+   끊을 때 `oidc.refresh-token.lifecycle.v1` 토픽에 `REVOKED`(`reason: REUSE_DETECTED`) 사건을 내고,
+   audit 은 그 사건을 `refresh_token_events` 에 기록하고 조회 API 로 보여 준다. 그 사건을 보고
+   사람을 깨우는 일(Slack·메일·페이저)은 모니터링 플랫폼의 규칙(CloudWatch 알람, Alertmanager 등)이
+   한다. 사건을 지표로 내보낼 경로(로그 기반 지표, 토픽을 읽는 커넥터 등)를 고르는 것부터 시작한다.
 
 ### C. 슬라이스 6 잔여 결함 (복원할 때 같이)
 
@@ -96,3 +101,4 @@
 
 - [슬라이스 6 설계](superpowers/specs/2026-08-07-microservice-istio-mtls-slice6-design.md)
 - [슬라이스 6 구현 계획](superpowers/plans/2026-08-07-microservice-istio-mtls-slice6.md)
+- [슬라이스 9 설계](superpowers/specs/2026-10-27-microservice-refresh-token-audit-slice9-design.md) — B.6 의 출발점
