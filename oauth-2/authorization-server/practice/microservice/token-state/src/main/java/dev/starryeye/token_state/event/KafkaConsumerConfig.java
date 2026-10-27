@@ -59,8 +59,8 @@ public class KafkaConsumerConfig {
 	 * 주의. Spring 의 KafkaAdmin 은 SmartInitializingSingleton 이라 이 토픽을 선언하는 세 서비스(session,
 	 *      token-state, audit) 모두 자기 리스너 컨테이너가 start() 하기 전에 이 빈을 먼저 실행한다.
 	 *      같은 이름의 토픽을 여러 서비스가 각자 선언해도 충돌하지 않는다 — KafkaAdmin 은 대상 토픽이
-	 *      이미 있으면 파티션 수를 비교해 부족한 쪽만 늘리고, 이미
-	 *      충분하면 아무 일도 하지 않는다(멱등). 그래서 어느 서비스가 먼저 떠도, session 이 아직 하나도
+	 *      이미 있으면 파티션 수를 비교해 부족한 쪽만 늘리고,
+	 *      이미 충분하면 아무 일도 하지 않는다(멱등). 그래서 어느 서비스가 먼저 떠도, session 이 아직 하나도
 	 *      뜨지 않은 순간에 token-state 만 먼저 떠도 파티션 3개가 보장된다 — "session 을 먼저 올려라"라는
 	 *      기동 순서 규율이 아니라 코드가 이 창을 닫는다. 파티션 수·replicas 는 세 선언(session 의
 	 *      KafkaTopicConfig, token-state·audit 의 KafkaConsumerConfig)이 모두 같아야 한다(어긋나면 늘어나는

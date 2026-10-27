@@ -1014,7 +1014,7 @@ Topic: oidc.session.logged-out.v1	TopicId: 9FAsiZrYQRuWEK1tikqR2w	PartitionCount
 
 ### 슬라이스 8 (감사 컨슈머)
 
-아래 명령은 줄여 적었다 — `docker exec …` 접두는 생략했고, `/tmp/...` 경로는 실제 스크래치 경로를 대신하며, 일부 헤더는 잘랐다. 출력은 측정한 그대로다.
+아래 명령은 줄여 적었다 — `docker exec …` 접두는 생략했고, `/tmp/...` 경로는 실제 스크래치 경로를 대신하며, 일부 헤더·열과 MySQL 비밀번호 경고 줄은 뺐고, 로그인·로그아웃 한 쌍은 `→` 한 줄로 접었다. 출력의 값은 바꾸지 않았다.
 
 `down -v` 로 볼륨을 지운 뒤 콜드 스타트해(4개 인프라 컨테이너 + `audit`·`demo-rp` 를 뺀 8개 Spring 서비스) 검증했다. `audit` 은 성공 기준 3을 보이려고 **일부러 나중에** 띄웠다. 브로커가 관련된 각 단계 전에는 `docker ps` 로 컨테이너 상태를 확인했다. 시각은 UTC 이고, 로그인·로그아웃은 전부 `http/e2e-login-logout.sh` 로 했다.
 
