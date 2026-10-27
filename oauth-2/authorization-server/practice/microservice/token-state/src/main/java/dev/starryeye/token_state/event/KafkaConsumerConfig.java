@@ -17,13 +17,14 @@ public class KafkaConsumerConfig {
 	 * 소비 실패를 제한 재시도 후 DLT 로 보낸다.
 	 *
 	 * 주의. head-of-line blocking(파티션의 뒷 이벤트가 전부 막히는 것)은 이 빈이 처음 막아주는 문제가
-	 *      아니다. 커스텀 에러 핸들러 빈이 하나도 없어도 Spring Boot 오토컨피그는 기본
-	 *      DefaultErrorHandler(FixedBackOff(0, 9) — 9회, 0ms 간격)를 쓰고, 재시도가 소진되면
+	 *      아니다. 에러 핸들러 빈이 하나도 없으면(그리고 Kafka 트랜잭션 매니저도 없으면) 리스너 컨테이너가
+	 *      스스로 기본 DefaultErrorHandler(FixedBackOff(0, 9) — 9회, 0ms 간격)를 만들어 쓰고
+	 *      (KafkaMessageListenerContainer.ListenerConsumer::determineCommonErrorHandler), 재시도가 소진되면
 	 *      ERROR 로그 한 줄만 남기고 그 레코드를 넘겨 다음 레코드로 진행한다 — 즉 기본값도 이미 유한
-	 *      백오프라 뒷줄이 막히지 않는다. `DeadLetterTopicTest` 에서 이 빈을 주석 처리한 채 DLT 단언만
-	 *      빼고 돌려보면 "뒤 편지 처리" 단언은 여전히 통과한다(직접 통제 실험으로 확인, task-8-report.md
-	 *      참고). 만약 이 빈에 끝없이 재시도하는 백오프를 준다면 그때는 정말로 뒷줄이 막힌다 — 다만
-	 *      그건 기본값 얘기가 아니라 일부러 그렇게 설정했을 때의 이야기다.
+	 *      백오프라 뒷줄이 막히지 않는다. 그래서 `DeadLetterTopicTest` 의 "뒤 편지 처리" 단언은 이 빈이
+	 *      없어도 성립하는 성질이고, 이 빈이 있어야 통과하는 것은 DLT 단언 쪽이다. 이 빈에 끝없이
+	 *      재시도하는 백오프를 주면 그때는 정말로 뒷줄이 막힌다 — 기본값이 아니라 일부러 그렇게 설정했을
+	 *      때의 이야기다.
 	 *
 	 * 주의. 이 빈이 실제로 바꾸는 것은 두 가지뿐이다. (1) 재시도 횟수·간격을 기본값(9회/0ms)에서
 	 *      my.consumer-retry-attempts / my.consumer-retry-interval-ms(2회/200ms)로 명시 제어한다.
@@ -45,8 +46,9 @@ public class KafkaConsumerConfig {
 	/**
 	 * 본 토픽(oidc.session.logged-out.v1)을 session 뿐 아니라 token-state 도 선언한다.
 	 *
-	 * 주의. 이 선언이 없던 상태에서 콜드 스타트 순서가 token-state → session 이면 실제 장애가 재현됐다
-	 *      (task-9-report.md 참고). apache/kafka 이미지의 broker 기본값 num.partitions=1 과 kafka-clients
+	 * 주의. 이 선언이 없으면 콜드 스타트 순서가 token-state → session 일 때 로그아웃 이벤트 일부가 소비되지
+	 *      않는다(실측 기록은 README 의 "검증된 성공 기준 > 슬라이스 7"). 브로커가 토픽 자동 생성을 허용하면
+	 *      (아래 마지막 주의 참고) apache/kafka 이미지의 broker 기본값 num.partitions=1 과 kafka-clients
 	 *      의 allow.auto.create.topics=true 조합 때문에, token-state 의 consumer 가 session 보다 먼저
 	 *      이 토픽을 구독하면 브로커가 그 순간 파티션 1개로 자동 생성해버린다. session 이 나중에
 	 *      KafkaAdmin 으로 파티션을 3개로 늘려도(NewTopic 은 이미 있는 토픽을 만나면 파티션이 모자랄 때만

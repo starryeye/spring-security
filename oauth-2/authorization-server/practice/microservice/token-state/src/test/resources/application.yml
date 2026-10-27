@@ -27,10 +27,12 @@ spring:
     #      기동 시 KafkaAdmin 이 토픽 생성을 시도한다 — 이 네 줄이 없으면 기본 30초
     #      (KafkaAdmin.operationTimeout) 동안 컨텍스트마다 그 자리에서 멈춘다.
     #
-    # 주의. spring.kafka.admin.operation-timeout 한 줄로 단순화하는 시도는 session 쪽에서 이미 해보고
-    #      되돌렸다 — 브로커가 없을 때는 오히려 더 느려졌다(KafkaAdmin.initialize() 안의 여러 AdminClient
-    #      호출이 operationTimeout 하나로 순차로 묶여 그 값만큼씩 쌓인다). 이 네 줄(AdminClient 자체의
-    #      연결·요청 타임아웃)이 broker-less 상태에서 더 빨리 실패한다. 실측 수치는 session 쪽 주석 참고.
+    # 주의. spring.kafka.admin.operation-timeout 한 줄로는 이 네 줄을 대신하지 못한다. operationTimeout 은
+    #      KafkaAdmin 이 AdminClient 호출 결과를 기다리는 상한(KafkaFuture.get)일 뿐이다. 브로커가 없으면
+    #      KafkaAdmin.initialize() 는 첫 호출(updateClusterId 의 describeCluster)에서 실패해 거기서 멈추고
+    #      Admin.close(closeTimeout, 기본 10초)로 넘어가는데, operation-timeout 은 이 closeTimeout 을 바꾸지
+    #      않는다. 이 네 줄은 AdminClient 자체의 연결·요청 타임아웃이라 호출이 AdminClient 안에서 먼저 실패한다.
+    #      broker-less 상태에서 두 방식이 걸리는 시간의 실측 수치는 session 쪽 주석 참고.
     admin:
       properties:
         request.timeout.ms: 2000
