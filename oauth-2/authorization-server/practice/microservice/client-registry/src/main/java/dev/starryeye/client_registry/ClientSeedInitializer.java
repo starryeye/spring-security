@@ -55,6 +55,22 @@ public class ClientSeedInitializer implements ApplicationRunner {
 					.build());
 		}
 
+		// 감사 조회 API(audit:8089)를 부르는 운영자. 사용자 흐름에 참여하지 않고(redirect_uris · scopes 가 비어 있다)
+		// client_credentials 로 audit.read 토큰만 받는다. audit.read 는 운영자 전용 능력이라 discovery 의
+		// scopes_supported(token 의 TokenEndpointController)에 광고하지 않는다.
+		if (!repository.existsById("audit-operator")) {
+			repository.save(ClientEntity.builder()
+					.clientId("audit-operator")
+					.clientSecretHash(encoder.encode("secret"))
+					.redirectUris("")
+					.scopes("")
+					.grantTypes("client_credentials")
+					.clientScopes("audit.read")
+					.backchannelLogoutUri(null) // 사용자 세션이 없는 client 라 로그아웃 통지 대상이 아니다
+					.postLogoutRedirectUris("")
+					.build());
+		}
+
 		// 진짜 Spring Security RP. back-channel logout 상호운용성을 실증하는 client 다.
 		// URI 3개는 Spring Security 의 기본 경로 규약을 따른다 (registrationId = microservice).
 		if (!repository.existsById("demo-rp")) {

@@ -32,3 +32,5 @@ my:
   consumer-retry-attempts: 2
   consumer-retry-interval-ms: 200
   consumer-group-id: audit                # token-state 와 완전히 별개인 그룹. 테스트는 audit-test
+  issuer: http://localhost:9000           # 조회 API 가 받는 access token 의 iss. token 의 my.issuer 와 같은 값
+  jwk-set-uri: http://localhost:8083/oauth2/jwks   # 그 토큰의 서명 키. signing 이 공개한다

@@ -49,7 +49,7 @@ class ClientSeedInitializerTest {
 	void seedsAllClientsOnEmptyDatabase() {
 		initializer.run(mock(ApplicationArguments.class));
 
-		assertThat(repository.count()).isEqualTo(3);
+		assertThat(repository.count()).isEqualTo(4);
 		assertThat(repository.existsById("my-client")).isTrue();
 		assertThat(repository.existsById("article-api")).isTrue();
 		// article-api 는 client_credentials 전용 resource server 다 — clientScopes 로 introspect 능력만
@@ -60,5 +60,14 @@ class ClientSeedInitializerTest {
 		assertThat(repository.findById("demo-rp")).get()
 				.extracting(ClientEntity::getBackchannelLogoutUri)
 				.isEqualTo("http://localhost:8095/logout/connect/back-channel/microservice");
+		// audit-operator 는 감사 조회 API 를 부르는 운영자다 — article-api 와 같은 모양으로 client_credentials 로
+		// audit.read 능력만 받고, 사용자 흐름(redirect_uris · scopes)과 로그아웃 통지에는 참여하지 않는다.
+		assertThat(repository.findById("audit-operator")).get()
+				.extracting(ClientEntity::getClientScopes, ClientEntity::getGrantTypes)
+				.containsExactly("audit.read", "client_credentials");
+		assertThat(repository.findById("audit-operator")).get()
+				.extracting(ClientEntity::getScopes, ClientEntity::getRedirectUris,
+						ClientEntity::getPostLogoutRedirectUris, ClientEntity::getBackchannelLogoutUri)
+				.containsExactly("", "", "", null);
 	}
 }
