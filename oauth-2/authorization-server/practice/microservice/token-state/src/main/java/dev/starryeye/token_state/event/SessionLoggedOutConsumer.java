@@ -21,11 +21,11 @@ public class SessionLoggedOutConsumer {
 	 * 주의. 예외를 잡지 않는다. 삼키면 처리하지 못한 로그아웃이 커밋돼 영원히 사라진다. 전파하면
 	 *      컨테이너가 재시도하고, 제한을 넘으면 DLT 로 간다(KafkaConsumerConfig 참고).
 	 *
-	 * 주의. revokeBySid 는 "이 UPDATE 가 행을 평가하는 순간 ACTIVE 이면서 그 sid 인 행을 폐기한다"만
-	 *      보장한다(RefreshTokenService 참고) — 계열 잠금을 쓰지 않으므로, 회전이 동시에 새 ACTIVE 형제
-	 *      행을 만들면 이 호출이 그 행을 놓칠 수 있다. 반환값 0은 실패가 아니다(폐기할 것이 없었거나
-	 *      이미 폐기됨 = 멱등). 그 "놓친 행" 문제는 이 컨슈머가 풀지 않는다 — 재검증·정합성 스윕은
-	 *      어디에도 없고, session 의 outbox 는 발행 원자성을 다룰 뿐 이 폐기 경쟁을 다루지 않는다.
+	 * 주의. revokeBySid 는 그 세션의 계열마다 rotate 와 같은 계열 잠금(findByFamilyIdForUpdate)을 얻은 뒤 ACTIVE
+	 *      행을 폐기하고, 실제로 바뀐 행이 있는 계열마다 REVOKED 사건을 쓴다(RefreshTokenService 참고). 반환값 0은
+	 *      실패가 아니다(폐기할 것이 없었거나 이미 폐기됨 = 멱등) — 같은 이벤트가 다시 와도 바뀌는 행이 없어 사건도
+	 *      늘지 않는다. 남는 빈틈은 revokeBySid 의 첫 조회 뒤에 같은 sid 로 생긴 새 계열이다. 이 컨슈머는 그 빈틈을
+	 *      풀지 않는다 — 재검증·정합성 스윕은 어디에도 없다.
 	 *
 	 * 주의. groupId 를 하드코딩하지 않고 my.consumer-group-id 프로퍼티로 뺀다. 운영값(application.yml)은
 	 *      "token-state" 그대로지만, 테스트(application.yml, test)는 "token-state-test" 로 갈라 둔다.

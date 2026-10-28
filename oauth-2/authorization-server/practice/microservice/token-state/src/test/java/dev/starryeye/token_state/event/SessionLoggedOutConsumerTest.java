@@ -2,7 +2,9 @@ package dev.starryeye.token_state.event;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.starryeye.token_state.IssueResult;
+import dev.starryeye.token_state.OutboxEvents;
 import dev.starryeye.token_state.RefreshTokenService;
+import dev.starryeye.token_state.jpa.OutboxEntityRepository;
 import dev.starryeye.token_state.jpa.RefreshTokenEntityRepository;
 import dev.starryeye.token_state.jpa.RefreshTokenStatus;
 import org.junit.jupiter.api.DisplayName;
@@ -39,6 +41,9 @@ class SessionLoggedOutConsumerTest {
 	@Autowired
 	private ObjectMapper objectMapper;
 
+	@Autowired
+	private OutboxEntityRepository outboxRepository;
+
 	@Test
 	@DisplayName("로그아웃 이벤트를 받으면 그 세션의 refresh 가 폐기된다")
 	void revokesOnEvent() throws Exception {
@@ -55,5 +60,25 @@ class SessionLoggedOutConsumerTest {
 
 		assertThat(repository.findByFamilyId(other.familyId()).get(0).getStatus())
 				.isEqualTo(RefreshTokenStatus.ACTIVE);
+	}
+
+	@Test
+	@DisplayName("같은 로그아웃 이벤트가 두 번 와도 REVOKED 사건은 하나다")
+	void redeliveredLogoutEventAddsNoEvent() throws Exception {
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid offline_access", 1000L, "SID-R");
+		IssueResult marker = service.issue("my-client", "user-sub-0001", "openid offline_access", 1000L, "SID-M");
+		String payload = objectMapper.writeValueAsString(new SessionLoggedOutEvent(
+				UUID.randomUUID().toString(), "SID-R", "user-sub-0001", Instant.now()));
+
+		kafkaTemplate.send(SessionLoggedOutConsumer.LOGGED_OUT_TOPIC, "SID-R", payload).get(5, TimeUnit.SECONDS);
+		kafkaTemplate.send(SessionLoggedOutConsumer.LOGGED_OUT_TOPIC, "SID-R", payload).get(5, TimeUnit.SECONDS);
+		// 같은 키 → 같은 파티션에서 앞의 둘 뒤에 처리된다. 표지가 끊기면 앞의 둘도 끝났다.
+		String markerPayload = objectMapper.writeValueAsString(new SessionLoggedOutEvent(
+				UUID.randomUUID().toString(), "SID-M", "user-sub-0001", Instant.now()));
+		kafkaTemplate.send(SessionLoggedOutConsumer.LOGGED_OUT_TOPIC, "SID-R", markerPayload).get(5, TimeUnit.SECONDS);
+
+		await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+				assertThat(OutboxEvents.kindsOf(outboxRepository, objectMapper, marker.familyId())).contains("REVOKED"));
+		assertThat(OutboxEvents.kindsOf(outboxRepository, objectMapper, issued.familyId())).containsExactly("ISSUED", "REVOKED");
 	}
 }

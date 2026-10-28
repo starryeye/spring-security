@@ -49,7 +49,11 @@ class RefreshTokenEventOrderTest {
 	 * 주의. 잠금 대기를 그대로 재현하지 않는다. 늦게 처리될 쪽("late" 스레드)을 rotate 입구(첫 hash 호출)에서 세워
 	 *      두고, 그동안 다른 스레드가 회전을 끝까지 커밋한 뒤 풀어 준다. 시각을 입구에서 재는 구현이면 late 의 시각이
 	 *      회전보다 이르고, 잠금 뒤에 재는 구현이면 늦다 — 잠금 의미론과 무관하게 결정적이라 h2 로도 성립한다.
-	 *      대신 InnoDB 에서 실제로 잠금을 기다리는 경우는 이 테스트가 보이지 못한다.
+	 *      대신 InnoDB 에서 실제로 잠금을 기다리는 경우는 이 테스트가 보이지 못한다. 또 late 를 입구에서 세우므로, 시각을
+	 *      스칼라 조회 뒤 · 잠금 앞에서 재는 구현도 가려내지 못한다 — late 는 풀린 뒤에 스칼라 조회를 하므로 그 시각도
+	 *      회전보다 늦다. 이 두 가지는 RefreshTokenServiceMySqlLockSemanticsTest 의
+	 *      reuseWaitingForTheFamilyLockIsRecordedAfterTheRotation 이 InnoDB 의 실제 잠금 대기로 같은 순서를 단언하며
+	 *      보인다(MySQL 이 없으면 그 클래스는 건너뛴다).
 	 */
 	@Test
 	@DisplayName("회전 뒤에 처리된 재사용은 회전보다 늦은 시각으로 기록된다")
@@ -62,7 +66,10 @@ class RefreshTokenEventOrderTest {
 		doAnswer(invocation -> {
 			if ("late".equals(Thread.currentThread().getName()) && lateFirstHash.getAndSet(false)) {
 				lateEntered.countDown();
-				rotationCommitted.await(10, TimeUnit.SECONDS);
+				// 시간이 지나 그냥 넘어가면 세우려던 순서가 풀린 채 실제 경합으로 바뀐다 — 예외로 끝낸다.
+				if (!rotationCommitted.await(10, TimeUnit.SECONDS)) {
+					throw new IllegalStateException("rotationCommitted 를 10초 안에 받지 못했다");
+				}
 			}
 			return invocation.callRealMethod();
 		}).when(tokenGenerator).hash(anyString());
@@ -79,6 +86,9 @@ class RefreshTokenEventOrderTest {
 			assertThat(reuse.get(30, TimeUnit.SECONDS).status()).isEqualTo(RotateStatus.REUSE_DETECTED);
 		} finally {
 			late.shutdownNow();
+			if (!late.awaitTermination(10, TimeUnit.SECONDS)) {
+				throw new IllegalStateException("late 스레드가 10초 안에 끝나지 않았다");
+			}
 		}
 
 		List<JsonNode> events = OutboxEvents.eventsOf(outboxRepository, objectMapper, issued.familyId());

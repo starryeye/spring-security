@@ -238,37 +238,67 @@ public class RefreshTokenService {
 	}
 
 	/**
-	 * OP 세션이 끝났을 때 그 세션의 refresh token 을 폐기한다. 로그아웃 이벤트 소비자가 호출한다.
+	 * OP 세션이 끝났을 때 그 세션의 refresh token 을 폐기한다. 로그아웃 이벤트 소비자가 호출한다. 반환값은 이 호출이
+	 *      실제로 REVOKED 로 바꾼 행 수의 합이다.
 	 *
 	 * 주의. 폐기 범위가 sid 단위다. sub 로 죽이면 같은 사용자가 다른 브라우저에서 만든 세션까지 함께
 	 *      죽고, client_id 까지 묶으면 한 세션에 붙은 다른 RP 가 남는다. oidc_sessions 를 sid 로 지우는
 	 *      범위와 정확히 같아야 두 저장소가 같은 단위로 움직인다.
 	 *
-	 * 주의. 계열(family) 단위로 잠그지 않는다. 이 연산이 보장하는 것은 딱 하나 — "이 UPDATE 문이 행을
-	 *      평가하는 순간 sid 가 일치하고 ACTIVE 인 행을 폐기한다"뿐이다. 회전이 쓰는 PESSIMISTIC_WRITE
-	 *      경로와 달리 잠금을 얻지 않으므로, 회전과 동시에 실행되면 이 UPDATE 가 놓치는 행이 생길 수
-	 *      있다: 회전이 새 형제 행(ACTIVE)을 삽입·커밋하는 시점이 이 UPDATE 의 스캔 전이냐 후냐에 따라
-	 *      그 행이 폐기 대상에 들거나 빠진다. `refresh_tokens` 에는 family_id 인덱스만 있고 sid 인덱스는
-	 *      없어 이 UPDATE 자체가 전체 스캔이다. 그 경쟁 창이 실제로 얼마나 열리는지·InnoDB 가 그 상황에서
-	 *      어떤 값을 보여주는지는 검증되지 않은 부분이다(RefreshTokenServiceMySqlLockSemanticsTest 류의
-	 *      동시성 테스트가 이 경로에는 없다).
+	 * 주의. 잠금 경로가 rotate 와 같다. 이 sid 의 ACTIVE 행을 가진 계열의 id 를 잠금 없는 스칼라 조회
+	 *      (findFamilyIdsBySidAndStatus)로 familyId 순으로 찾고, 계열마다 findByFamilyIdForUpdate 로 계열 전체를
+	 *      잠근 뒤, 그 잠긴 결과 안에서 이 sid 의 ACTIVE 행을 골라 폐기한다. 첫 조회가 스칼라여야 하는 이유는
+	 *      rotate 와 같다 — 엔티티를 먼저 로드하면 그 인스턴스가 영속성 컨텍스트에 남아, 잠근 뒤 다시 읽어도
+	 *      Hibernate 가 잠금 이전 상태를 돌려준다.
 	 *
-	 * 주의. 놓친 행은 이 호출 하나로는 정리되지 않는다. Kafka 의 at-least-once 는 "컨슈머가 오프셋 커밋에
-	 *      실패했을 때 재전달"을 보장할 뿐, 이 호출이 경쟁으로 일부 행을 놓쳤다는 사실 자체를 감지해
-	 *      재전달을 유도해 주지 않는다. 놓친 행을 다시 찾아 폐기하려면 반환값(영향받은 행 수)을 보고
-	 *      재시도하거나 별도로 정합성을 확인하는 절차가 있어야 하는데, 그런 절차는 이 메서드도, 이를 부르는
-	 *      SessionLoggedOutConsumer 도 제공하지 않는다 — 남아 있는 빈틈이다(README 의 "알려진 한계" 참고).
+	 * 주의. sid 로 직접 잠그지 않는다. refresh_tokens 에는 sid 인덱스가 없어 sid 조건의 잠금 조회는 전체 스캔이
+	 *      되고, InnoDB 의 REPEATABLE READ 에서 locking read 는 스캔한 행을 모두 잠근다 — 로그아웃 하나가 다른
+	 *      사용자의 회전까지 멈추게 된다. MySQL 문서의 locking read 규칙에서 나오는 결론이며 측정한 값은 아니다.
+	 *      계열 잠금 하나로 가면 findByFamilyIdForUpdate 주석의 교착 부재 논증(모든 호출부가 같은 잠금 경로를
+	 *      쓴다)도 그대로 선다.
+	 *
+	 * 주의. 시각(now)은 계열마다 그 계열의 잠금을 얻은 뒤에 잰다. 이유는 rotate 와 같다. 다만 이 위치를 가려내는
+	 *      테스트는 없다 — RefreshTokenServiceMySqlLockSemanticsTest 의 로그아웃은 회전이 시각을 잰 뒤에 들어오므로,
+	 *      시각을 메서드 입구에서 재도 그 테스트의 순서 단언이 성립한다.
+	 *
+	 * 주의. 사건은 실제로 바뀐 행만 말한다. 계열마다 바뀐 행이 하나 이상이면 그 계열의 REVOKED(SESSION_LOGGED_OUT)
+	 *      하나를 쓴다. 같은 로그아웃이 다시 오면(Kafka 재전달) 바꿀 ACTIVE 행이 없어 사건도 없다 — 소비자 쪽에
+	 *      별도 중복 처리 표가 필요 없다. CONSUMED 행은 건드리지 않으므로, 그 뒤 옛 토큰이 다시 오면 rotate 의
+	 *      재사용 탐지가 남은 행을 끊고 REVOKED(REUSE_DETECTED) 를 따로 쓴다.
+	 *
+	 * 주의. activeTokensRevoked 는 상태 기준이다. 만료 시각이 지났어도 상태가 ACTIVE 인 행은 ACTIVE 로 센다.
+	 *
+	 * 주의. InnoDB 에서 한 계열을 두고 회전과 겹치는 두 순서는 직렬화된다 — RefreshTokenServiceMySqlLockSemanticsTest 가
+	 *      순서마다 한쪽을 잠금을 쥔 채 세워 두고 다른 쪽의 잠금 대기를 확인한 뒤 결과를 단언한다. 회전이 잠금을 쥔 동안
+	 *      기다린 로그아웃은 깨어난 뒤의 findByFamilyIdForUpdate 에서 회전이 삽입한 새 ACTIVE 행을 보고 그 행을 끊는다
+	 *      (원래 행은 CONSUMED 그대로). 로그아웃이 잠금을 쥔 동안 기다린 회전은 끊긴 계열을 보고 REVOKED 로 거절된다.
+	 *      두 순서 모두 교착 없이 끝난다. 계열을 잠그지 않고 findByFamilyId 로 읽으면 첫 순서에서 로그아웃이 회전 전
+	 *      스냅샷으로 판정해 새 행을 놓친다(새 행은 ACTIVE 로 남는다). 이 성질은 InnoDB 기준이다 — h2 에서는 대기 중
+	 *      삽입된 형제 행이 잠금 재조회에서 빠질 수 있다(RefreshTokenServiceConcurrentRotateTest 주석). 한 로그아웃이
+	 *      여러 계열을 잠그는 동안의 경합과 인접한 계열 사이의 gap lock 상호작용은 이 테스트들이 보이지 않는다.
+	 *
+	 * 주의. 남는 빈틈이 있다. 첫 조회 뒤에 같은 sid 로 새 계열이 생기면(로그아웃 직전에 받은 code 의 교환) 이 호출은
+	 *      그 계열을 모른다 — 계열 목록은 첫 조회에서 이미 정해졌고, 새 계열은 이 호출이 잠그는 어느 계열과도
+	 *      무관하다. 코드 구조에서 나오는 결론이며 이를 재현하는 테스트는 없다.
 	 */
 	@Transactional
 	public int revokeBySid(String sid) {
-		return repository.revokeActiveBySid(sid, RefreshTokenStatus.REVOKED, RefreshTokenStatus.ACTIVE,
-				"SESSION_LOGGED_OUT", Instant.now());
+		int revoked = 0;
+		for (String familyId : repository.findFamilyIdsBySidAndStatus(sid, RefreshTokenStatus.ACTIVE)) {
+			List<RefreshTokenEntity> family = repository.findByFamilyIdForUpdate(familyId);
+			Instant now = Instant.now();
+			List<RefreshTokenEntity> active = family.stream()
+					.filter(member -> member.getStatus() == RefreshTokenStatus.ACTIVE && sid.equals(member.getSid()))
+					.toList();
+			revoked += revokeMembers(active, now, "SESSION_LOGGED_OUT");
+		}
+		return revoked;
 	}
 
 	/**
 	 * members 를 폐기하고, 실제로 바뀐 행이 하나 이상이면 REVOKED 사건을 쓴 뒤 바뀐 행 수를 돌려준다.
 	 *      revokedTokens 는 바뀐 행 수, activeTokensRevoked 는 그중 바뀌기 직전에 ACTIVE 였던 수다.
-	 *      지금은 재사용 탐지와 client 폐기(RFC 7009)가 부른다.
+	 *      재사용 탐지 · client 폐기(RFC 7009) · 로그아웃 폐기(revokeBySid)가 부른다.
 	 *
 	 * 주의. 바뀐 행이 0이면 사건을 쓰지 않는다(members 가 비어 있어도 같다). 이미 전부 끊긴 계열에 폐기가 다시
 	 *      와도 감사 이력에 "끊김"이 한 번 더 남지 않는다. 이 가드는 이 메서드 한 곳에만 있다 — 계열을 끊는
