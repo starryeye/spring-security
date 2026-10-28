@@ -45,5 +45,11 @@ my:
   refresh-family-max-seconds: 300
   consumer-retry-attempts: 2
   consumer-retry-interval-ms: 200
+  # 주의. 500(main 값)이 아니라 크게 잡는다. 이 모듈의 h2(jdbc:h2:mem:token-state)는 이름 있는 인메모리 DB 라
+  #      다른 컨텍스트가 만든 미발행 outbox 행도 같은 테이블에 있어, 짧은 주기의 폴러는 자기 테스트가 만들지 않은
+  #      행까지 집어 간다. 또 이 yml 의 bootstrap-servers 는 localhost:9092 라서 주기가 짧으면 스택을 띄워 둔 채
+  #      테스트를 돌릴 때 테스트의 가짜 사건이 실제 브로커로 나간다. 발행을 보는 테스트는 publishPending() 을
+  #      직접 부르고 EmbeddedKafka 로만 보낸다.
+  outbox-poll-interval-ms: 3600000
   consumer-group-id: token-state-test     # 운영 그룹("token-state")과 분리 — 같이 안 갈라두면 스택을
                                            # 띄워 둔 채 테스트를 돌릴 때 운영 컨슈머 그룹에 조인해 버린다

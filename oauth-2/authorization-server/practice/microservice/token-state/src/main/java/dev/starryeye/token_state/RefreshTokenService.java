@@ -1,5 +1,6 @@
 package dev.starryeye.token_state;
 
+import dev.starryeye.token_state.event.RefreshTokenEventPublisher;
 import dev.starryeye.token_state.jpa.RefreshTokenEntity;
 import dev.starryeye.token_state.jpa.RefreshTokenEntityRepository;
 import dev.starryeye.token_state.jpa.RefreshTokenStatus;
@@ -25,21 +26,28 @@ public class RefreshTokenService {
 
 	private final RefreshTokenEntityRepository repository;
 	private final TokenGenerator tokenGenerator;
+	private final RefreshTokenEventPublisher eventPublisher;
 	private final long ttlSeconds;
 	private final long familyMaxSeconds;
 
 	public RefreshTokenService(
 			RefreshTokenEntityRepository repository,
 			TokenGenerator tokenGenerator,
+			RefreshTokenEventPublisher eventPublisher,
 			@Value("${my.refresh-token-ttl-seconds}") long ttlSeconds,
 			@Value("${my.refresh-family-max-seconds}") long familyMaxSeconds
 	) {
 		this.repository = repository;
 		this.tokenGenerator = tokenGenerator;
+		this.eventPublisher = eventPublisher;
 		this.ttlSeconds = ttlSeconds;
 		this.familyMaxSeconds = familyMaxSeconds;
 	}
 
+	/**
+	 * 새 계열을 만들고 첫 토큰을 발급한다. refresh_tokens INSERT 와 ISSUED 사건의 outbox 기록이 한 트랜잭션이라,
+	 *      사건을 쓰지 못하면 발급도 롤백된다.
+	 */
 	@Transactional
 	public IssueResult issue(String clientId, String sub, String scope, long authTime, String sid) {
 		Instant now = Instant.now();
@@ -59,6 +67,7 @@ public class RefreshTokenService {
 				.sid(sid)
 				.build();
 		repository.save(entity);
+		eventPublisher.issued(entity, now);
 
 		return new IssueResult(token, entity.getExpiresAt().getEpochSecond(), familyId);
 	}
