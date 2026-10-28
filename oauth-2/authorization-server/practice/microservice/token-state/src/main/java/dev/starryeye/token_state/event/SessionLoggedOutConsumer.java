@@ -24,8 +24,9 @@ public class SessionLoggedOutConsumer {
 	 * 주의. revokeBySid 는 그 세션의 계열마다 rotate 와 같은 계열 잠금(findByFamilyIdForUpdate)을 얻은 뒤 ACTIVE
 	 *      행을 폐기하고, 실제로 바뀐 행이 있는 계열마다 REVOKED 사건을 쓴다(RefreshTokenService 참고). 반환값 0은
 	 *      실패가 아니다(폐기할 것이 없었거나 이미 폐기됨 = 멱등) — 같은 이벤트가 다시 와도 바뀌는 행이 없어 사건도
-	 *      늘지 않는다. 남는 빈틈은 revokeBySid 의 첫 조회 뒤에 같은 sid 로 생긴 새 계열이다. 이 컨슈머는 그 빈틈을
-	 *      풀지 않는다 — 재검증·정합성 스윕은 어디에도 없다.
+	 *      늘지 않는다. 남는 빈틈 중 하나는 revokeBySid 의 첫 조회 뒤에 같은 sid 로 생긴 새 계열이다. 또 하나는 sid 가
+	 *      null 인 행이 이 폐기에 걸리지 않는 것이다(RefreshTokenEntityRepository.findFamilyIdsBySidAndStatus 참고).
+	 *      이 컨슈머는 어느 쪽도 풀지 않는다 — 놓친 행을 다시 찾아 폐기하는 재검증·정합성 스윕은 어디에도 없다.
 	 *
 	 * 주의. groupId 를 하드코딩하지 않고 my.consumer-group-id 프로퍼티로 뺀다. 운영값(application.yml)은
 	 *      "token-state" 그대로지만, 테스트(application.yml, test)는 "token-state-test" 로 갈라 둔다.

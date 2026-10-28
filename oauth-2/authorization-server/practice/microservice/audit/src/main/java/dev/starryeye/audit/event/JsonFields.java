@@ -10,9 +10,10 @@ final class JsonFields {
 	 * 감사 소비자가 이벤트 JSON 에서 공통 필드를 읽는 규칙. 값을 바꿔 받지 않고, 모양이 틀리면 예외를 던진다.
 	 *      던진 예외는 컨테이너가 재시도한 뒤 감사 DLT 로 보낸다(KafkaConsumerConfig).
 	 *
-	 * 주의. 키가 없는 것과 JSON null 을 같은 "없음"으로 읽는다. 발행자가 채우지 않은 선택 필드는 키 자체를 뺀다
-	 *      (@JsonInclude(NON_NULL)). 없음이면 required* 는 IllegalArgumentException 을 던지고 optional* 는 null 을
-	 *      돌려준다.
+	 * 주의. 키가 없는 것과 JSON null 을 같은 "없음"으로 읽는다. 발행자마다 채우지 않은 필드를 싣는 모양이 다르다.
+	 *      token-state 의 RefreshTokenLifecycleEvent 는 @JsonInclude(NON_NULL) 이라 키 자체를 빼고, session 의
+	 *      SessionLoggedOutEvent 는 @JsonInclude 도 session 의 Jackson 포함 설정도 없어(코드를 읽은 결과다) null 필드를
+	 *      JSON null 로 싣는다. 없음이면 required* 는 IllegalArgumentException 을 던지고 optional* 는 null 을 돌려준다.
 	 *
 	 * 주의. JsonNode.asText()·asInt() 로 읽지 않는다. 둘 다 값을 조용히 바꿔 준다. jackson-databind 2.18.3 기준으로
 	 *      asText() 는 123 을 "123" 으로, {} 와 [] 를 빈 문자열로 바꾸고, asInt() 는 "3" 을 3 으로, 3.5 를 3 으로,

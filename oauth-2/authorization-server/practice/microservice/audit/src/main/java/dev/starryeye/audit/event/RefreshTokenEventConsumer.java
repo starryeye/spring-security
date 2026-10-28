@@ -31,8 +31,9 @@ public class RefreshTokenEventConsumer {
 	 *      아니거나 비었거나, 정수가 아니거나 int 범위를 넘거나, 시각 형식이 아닌 값)은 JsonFields 가 예외로 거절하고,
 	 *      컨테이너가 재시도한 뒤 감사 DLT 로 보낸다. 값을 문자열로 바꾸거나 기본값으로 채워 기록하지 않는다.
 	 *
-	 * 주의. kind 의 값은 검사하지 않는다. 같은 v1 계약에 종류가 더해져도 모르는 종류를 기록한다. 이 테이블을 읽는 쪽은
-	 *      모르는 kind 를 계열의 상태 판정에 쓰지 말아야 한다.
+	 * 주의. kind 의 값은 검사하지 않는다. 같은 v1 계약에 종류가 더해져도 모르는 종류를 기록한다. 다만 컬럼 길이(30)는
+	 *      넘을 수 없다(RefreshTokenEventEntity 참고). 이 테이블을 읽는 쪽은 모르는 kind 를 계열의 상태 판정에 쓰지
+	 *      말아야 한다.
 	 *
 	 * 주의. 이 토픽의 sub 는 사실이다. 발행자(token-state)가 자기 refresh_tokens 행에서 읽어 싣는다. 로그아웃 토픽에서
 	 *      session 이 보고만 하는 sub(reported_sub)와 다르다.

@@ -38,7 +38,10 @@ public class RefreshTokenEventEntity {
 	 *      값이다. sid 는 null 일 수 있어 nullable 이고, reason · revoked_tokens · active_tokens_revoked 는 REVOKED 만,
 	 *      expires_at 은 ISSUED 와 ROTATED, family_expires_at 은 ISSUED 만 채운다. 채우지 않은 값은 NULL 이다.
 	 *
-	 * 주의. kind 는 문자열 그대로 담고 값을 제한하지 않는다. 같은 v1 계약에 종류가 더해져도 받아 적힌다. 이 테이블을
+	 * 주의. kind 는 문자열 그대로 담고 어떤 값인지는 제한하지 않는다. 같은 v1 계약에 종류가 더해져도 받아 적힌다.
+	 *      길이는 컬럼이 30으로 제한한다(length = 30). 컬럼 길이가 강제되는 환경(strict SQL 모드)에서 더 긴 kind 는
+	 *      INSERT 가 실패하고, 기록기(IdempotentInsert)는 행이 없는 실패를 흡수하지 않고 다시 던지므로 재시도한 뒤 감사
+	 *      DLT 로 간다. 코드에서 나온 결론이고 이를 고정하는 테스트는 없다. 길이가 정해진 다른 컬럼도 같다. 이 테이블을
 	 *      읽는 쪽은 모르는 kind 를 계열의 상태 판정에 쓰지 말아야 한다.
 	 *
 	 * 주의. event_id 의 UNIQUE 가 멱등의 근거다(AuditEventEntity 와 같은 이유). sub 인덱스는 사용자 한 명의 사건을

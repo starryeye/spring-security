@@ -35,7 +35,7 @@
 | 서비스 | 변경 | 비고 |
 |---|---|---|
 | `token-state` | outbox 테이블·폴러 추가, 발급·회전·폐기 경로가 같은 트랜잭션에서 outbox 행을 쓴다. 새 토픽 선언. `revokeBySid` 가 계열별로 무엇을 바꿨는지 알 수 있게 바뀐다(4절). `rotate`·`revoke` 의 `now` 를 잠금 뒤로 옮긴다(3절) | 새 발행자 |
-| `audit` | 새 토픽 소비, 새 테이블 `refresh_token_events`, 운영자 조회 API, Bearer 검증. 기존 로그아웃 이벤트 소비자도 필드를 타입대로 읽게 바뀐다 — `sid` 가 빈 값이거나 `sub` 가 빈 문자열 · 비문자열이면 기록하지 않고 감사 DLT 로 간다(이전에는 그대로 기록) | 소비자 + resource server |
+| `audit` | 새 토픽 소비, 새 테이블 `refresh_token_events`, 운영자 조회 API, Bearer 검증. 기존 로그아웃 이벤트 소비자도 필드를 타입대로 읽게 바뀐다 — `eventId` · `sid` 가 문자열이 아니거나 빈 값(공백뿐인 것 포함)이면, `sub` 가 있는데 문자열이 아니거나 빈 값이면 기록하지 않고 감사 DLT 로 간다(이전에는 `asText()` 로 바꿔 기록) | 소비자 + resource server |
 | `client-registry` | 시드에 운영자 client 하나 추가(`client_credentials`, `client_scopes = audit.read`) | 시드만 |
 | `session` | **변경 없음** | 슬라이스 8 의 0줄 원칙을 이번에도 유지 |
 | `token`, `auth`, `signing`, `consent`, `user-directory`, `demo-rp`, gateway | 변경 없음 | `token` 의 client_credentials 는 `client_scopes` 의 `audit.read` 를 코드 변경 없이 내준다 — 슬라이스 9 e2e 가 실제 토큰(`typ: at+jwt`, `scope: ["audit.read"]`, `sub = aud = audit-operator`)으로 확인했고, `a98d192` 이후 이 일곱 경로의 diff 는 0줄이다(README "검증된 성공 기준 > 슬라이스 9") |
