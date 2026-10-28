@@ -112,9 +112,9 @@ flowchart TB
 | user-directory | 8084 | 사용자 조회 + credential 검증(bcrypt 를 이 안에 가둠) + profile claim | `ms_user_directory` | `svc_user_directory` | users (MySQL) |
 | client-registry | 8085 | client 조회 API + Caffeine 캐시(30s) | `ms_client_registry` | `svc_client_registry` | clients (MySQL) |
 | consent | 8086 | 동의 기록 조회/저장 API (내부 전용, 화면은 auth 가 렌더) | `ms_consent` | `svc_consent` | consents (MySQL) |
-| token-state | 8087 | refresh token 계열(family) 발급 · 회전 · 재사용 탐지 · 폐기 · introspection 조회 API (내부 전용, 외부 비노출) · Kafka 로 로그아웃 이벤트를 소비해 해당 `sid` 의 refresh 를 조건부 폐기(멱등) | `ms_token_state` | `svc_token_state` | refresh_tokens (MySQL) |
+| token-state | 8087 | refresh token 계열(family) 발급 · 회전 · 재사용 탐지 · 폐기 · introspection 조회 API (내부 전용, 외부 비노출) · Kafka 로 로그아웃 이벤트를 소비해 해당 `sid` 의 refresh 를 조건부 폐기(멱등) · 발급 · 회전 · 폐기로 행이 실제로 바뀔 때마다 같은 트랜잭션에서 `outbox` 에 사건(`ISSUED`·`ROTATED`·`REVOKED`)을 쓰고, `@Scheduled` 폴러(운영 기본 500ms)가 Kafka(`oidc.refresh-token.lifecycle.v1`, 키 `familyId`)로 발행 | `ms_token_state` | `svc_token_state` | refresh_tokens, outbox (MySQL) |
 | session | 8088 | OP 세션 레지스트리 소유(`sid` ↔ RP) · 등록(token 이 호출) · 로그아웃 통지 시 각 RP 에 logout token 발송(auth 가 호출) · `oidc_sessions` 삭제와 같은 트랜잭션에서 `outbox` 에 이벤트 기록, `@Scheduled` 폴러(운영 기본 500ms)가 Kafka(`oidc.session.logged-out.v1`)로 발행 — 내부 전용, gateway 라우팅 대상 아님 | `ms_session` | `svc_session` | oidc_sessions, outbox (MySQL) |
-| audit | 8089 | 로그아웃 이벤트를 두 번째 컨슈머 그룹(`audit`)으로 소비해 공통 머리 + 원문으로 append-only 기록, `eventId` 멱등, 소비 실패는 `oidc.session.logged-out.v1.audit.dlt` — 발행·REST API 없음 | `ms_audit` | `svc_audit` | audit_events (MySQL) |
+| audit | 8089 | 로그아웃 이벤트와 refresh 계열 사건(`oidc.refresh-token.lifecycle.v1`)을 두 번째 컨슈머 그룹(`audit`)으로 소비해 공통 머리 + 원문으로 append-only 기록, `eventId` 멱등, 소비 실패는 토픽마다 `<토픽>.audit.dlt` · 운영자 조회 API `GET /audit/users/{sub}/refresh-token-families`(이 AS 가 발급한 `at+jwt` access token + scope `audit.read`, gateway 라우팅 대상 아님) — 발행 없음 | `ms_audit` | `svc_audit` | audit_events, refresh_token_events (MySQL) |
 | demo-rp | 8095 | 검증용 실제 RP. `spring-boot-starter-oauth2-client` 로 이 AS 에 `oauth2Login` + RP-Initiated logout(`logout()`) + back-channel logout 수신(`oidcLogout().backChannel()`)을 실제로 구현한다 — 우리가 만든 스텁이 아니라 Spring Security 구현체가 검증자다. gateway 라우팅 대상 아님(브라우저가 8095 로 직접 접근) | — | — | 없음(자체 HTTP 세션) |
 
 각 계정은 **자기 스키마에만** `GRANT` 를 받는다(MySQL 은 스키마가 곧 데이터베이스다). `root` 는 `mysql-init` 초기화·관리용으로만 남고 6개 서비스의 애플리케이션 설정에서는 사라졌다(각자 자기 계정만 쓴다) — 실제로 남의 스키마를 조회하면 권한 오류가 나는 것을 아래 "검증된 성공 기준"에서 확인한다.
@@ -150,7 +150,7 @@ flowchart TB
    docker compose -p microservice-as -f docker-compose.yml up -d
    ```
    - **주의. `down -v` 를 빠뜨리면 안 된다.** `mysql-init/01-schemas-and-accounts.sql` 은 MySQL 공식 이미지의 `docker-entrypoint-initdb.d` 규칙대로 **데이터 디렉토리가 비어 있을 때만** 실행된다. 슬라이스 5까지 쓰던 볼륨이 남아 있는 채로 컨테이너만 새로 올리면 서비스별 스키마 6개·계정 6개가 생기지 않고 예전의 단일 스키마(`microservice_as`, 전 서비스 `root` 공유)로 그대로 뜬다 — 아래 "서비스별 책임과 소유 데이터" 표의 계정 분리가 실제로는 반영되지 않은 채 겉으로만 정상 기동한 것처럼 보인다.
-   - kafka 는 `apache/kafka:3.9.2` 를 KRaft 모드(Zookeeper 없음)로 띄운다. 토픽 `oidc.session.logged-out.v1`(파티션 3)은 `session` 서비스가 기동 시 `NewTopic` 빈으로 직접 만들므로 수동 생성이 필요 없다.
+   - kafka 는 `apache/kafka:3.9.2` 를 KRaft 모드(Zookeeper 없음)로 띄운다. 토픽 `oidc.session.logged-out.v1`(파티션 3)은 `session` 서비스가 기동 시 `NewTopic` 빈으로 직접 만들므로 수동 생성이 필요 없다. 슬라이스 9 의 `oidc.refresh-token.lifecycle.v1`(파티션 3)은 `token-state` 와 `audit` 이, 그 감사 DLT 는 `audit` 이 같은 방식으로 만든다.
 2. 10개 서비스 빌드 (java 21)
    ```bash
    for s in signing user-directory client-registry consent session token-state token auth audit demo-rp; do (cd $s && ./gradlew bootJar --no-daemon -q); done
@@ -166,10 +166,10 @@ flowchart TB
    java -jar token/build/libs/*.jar             # 8082
    java -jar auth/build/libs/*.jar              # 8081
    java -jar demo-rp/build/libs/*.jar           # 8095 (gateway 라우팅 대상 아님, 브라우저가 직접 접근)
-   java -jar audit/build/libs/*.jar             # 8089 — 기동 순서와 무관(earliest 로 보존 기간 안의 이벤트를 소급, 브로커 기본 7일)
+   java -jar audit/build/libs/*.jar             # 8089 — 기동 순서와 무관(earliest 로 보존 기간 안의 이벤트를 소급, 브로커 기본 7일). 조회 API 의 첫 호출은 signing 의 jwks 가 필요하다
    ```
-   - seed: user / 1111 (user-directory, profile 포함: name `Star Rye`, email `starryeye@example.com` 등), client `my-client` / `secret` (client-registry, redirectUri `http://127.0.0.1:8080/callback`, scope `openid profile email offline_access`, grantTypes `authorization_code refresh_token`, clientScopes `""` — client_credentials 미등록이라 이 grant 는 `unauthorized_client` 로 거절된다), client `article-api` / `secret`(client-registry, resource server 역할 — scopes/redirectUris 가 비어 있어 인가 흐름(authorization_code)에는 참여할 수 없고, grantTypes `client_credentials` · clientScopes `introspect` 로 **자기 자신 앞으로 `introspect` scope 의 access token 만 받을 수 있다**. 그 토큰을 Bearer 로 실어야 `/oauth2/introspect` 를 호출할 수 있다)
-   - 모든 요청은 gateway(http://localhost:9000) 로 보낸다.
+   - seed: user / 1111 (user-directory, profile 포함: name `Star Rye`, email `starryeye@example.com` 등), client `my-client` / `secret` (client-registry, redirectUri `http://127.0.0.1:8080/callback`, scope `openid profile email offline_access`, grantTypes `authorization_code refresh_token`, clientScopes `""` — client_credentials 미등록이라 이 grant 는 `unauthorized_client` 로 거절된다), client `article-api` / `secret`(client-registry, resource server 역할 — scopes/redirectUris 가 비어 있어 인가 흐름(authorization_code)에는 참여할 수 없고, grantTypes `client_credentials` · clientScopes `introspect` 로 **자기 자신 앞으로 `introspect` scope 의 access token 만 받을 수 있다**. 그 토큰을 Bearer 로 실어야 `/oauth2/introspect` 를 호출할 수 있다), client `audit-operator` / `secret`(client-registry, 운영자 — `article-api` 와 같은 모양으로 scopes/redirectUris/postLogoutRedirectUris 가 비어 있고 backchannelLogoutUri 가 없으며, grantTypes `client_credentials` · clientScopes `audit.read` 로 **`audit.read` scope 의 access token 만 받을 수 있다**. 그 토큰을 Bearer 로 실어 `audit:8089` 의 조회 API 를 부른다. `audit.read` 는 discovery 의 `scopes_supported` 에 넣지 않는다)
+   - 모든 요청은 gateway(http://localhost:9000) 로 보낸다. 예외는 `audit` 의 조회 API 다 — gateway 에 노출하지 않으므로 `http://localhost:8089` 로 직접 부른다.
    - 주의. `token-state` 의 Kafka consumer 가 `oidc.session.logged-out.v1` 토픽이 파티션 3개로 만들어지기 전에 먼저 구독을 시작하면, 브로커가 토픽 자동 생성을 허용하는 환경에서는 그 순간 브로커 기본값(파티션 1개)으로 토픽이 자동 생성되고 consumer 는 파티션 0번에만 배정된 채 머문다. 나중에 `session` 이 파티션을 3개로 늘려도 consumer 가 다음 메타데이터 갱신으로 새 파티션을 알아채기 전까지는 `partition_key`(=`sid`)가 파티션 1·2로 해시되는 로그아웃 이벤트가 소비되지 않는다 — 로그아웃은 `200` 을 주고 outbox 의 `published_at` 도 채워지는데 refresh 만 폐기되지 않는 조용한 실패다(실측 기록은 아래 "검증된 성공 기준 > 슬라이스 7" 참고). **그래서 `token-state` 와 `audit` 도 같은 토픽을 `NewTopic` 빈으로 선언한다**(각자의 `KafkaConsumerConfig`, 파티션 3·replicas 1 — `session` 의 `KafkaTopicConfig` 선언과 동일한 값). `KafkaAdmin` 은 `SmartInitializingSingleton` 이라 선언하는 세 서비스 모두 자기 리스너를 시작하기 전에 먼저 실행되고, 같은 이름의 토픽을 중복 선언해도 멱등(이미 충분하면 아무 일도 안 하고, 모자라면 늘리기만 한다)이므로 **그 서비스가 기동하는 시점에 브로커가 이미 응답 가능하다면, 어느 서비스가 먼저 떠도 파티션 3개가 보장된다**(`token-state` 를 `session` 없이 혼자 띄운 실측도 같은 "검증된 성공 기준 > 슬라이스 7" 에 있다). 따라서 이 순서(`session` 을 `token-state` 보다 먼저)는 정확성의 전제조건이 아니다 — 위 목록의 순서는 다른 이유(REST 호출 준비, 이전 항목들 참고)로 그대로 유지한다. **다만 위 전제(브로커가 이미 떠 있음)가 깨지면 얘기가 다르다.** `KafkaAdmin.initialize()` 는 브로커 미가용 시 에러 로그만 남기고 조용히 포기하며(`fatalIfBrokerNotAvailable` 기본값 false), 스스로 재시도하지 않는다 — `docker compose up -d` 직후처럼 브로커가 뜨기 전에 이 토픽을 선언하는 서비스들이 함께 기동하면 각 `KafkaAdmin` 이 모두 실패한 채 넘어가고, 재기동 전까지 복구되지 않는다. `docker-compose.yml` 에 `KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"` 를 넣어 그 상태에서 consumer 가 토픽을 1파티션으로 자동 생성해 버리는 경로 자체는 막아 뒀다(대신 토픽이 없으면 consumer 가 대기·에러를 낸다).
    - 주의. `ddl-auto: update` 라 컨테이너/DB 를 재사용하면 seed 는 "이미 행이 있으면 스킵"으로 동작해 **이전 seed 스키마의 값이 남을 수 있다**(예: client 의 `email` scope, user 의 profile 컬럼이 나중에 추가된 경우). seed 코드와 실제 DB 값이 다르면 `UPDATE` 로 맞추거나 볼륨을 새로 만든다.
    - 주의. 슬라이스 1·2 때부터 존재하던 `my-client` 행이 그 예다. 슬라이스 3 seed 는 `scopes` 에 `offline_access`, `grant_types` 에 `refresh_token` 을 기대하지만, 기존 행은 `ddl-auto: update` 때문에 갱신되지 않는다. `scopes='openid,profile,email,offline_access'`, `grant_types='authorization_code,refresh_token'` 로 `UPDATE` 하고(seed 코드가 신규 client 에 실제로 심는 값과 동일하다 — 임의 값이 아니다) client-registry 를 재기동해 Caffeine 캐시(30s)를 비워야 한다.
@@ -197,6 +197,7 @@ flowchart TB
     - 주의. refresh 회전(`grant_type=refresh_token`)으로 재발급한 id token 에도 `sid` 가 실린다(슬라이스 7부터 refresh 레코드가 `sid` 를 보관한다) — 다만 그 값은 최초 code 교환 때 등록된 세션을 그대로 승계할 뿐, refresh 경로가 `oidc_sessions` 에 새로 등록하지는 않는다(알려진 한계 참고).
     - 주의. session 의 `register()` 는 메서드 레벨 `@Transactional` 을 두지 않는다. `IDENTITY` 채번에서는 `save` 가 즉시 flush 하므로, 그 메서드를 `@Transactional` 로 감싸면 동시 등록 경쟁으로 `DataIntegrityViolationException` 이 나는 순간 그 바깥 트랜잭션 전체가 rollback-only 로 오염된다 — `catch` 로 예외를 잡아 흡수해도 이미 죽은 트랜잭션이라 메서드가 정상 반환된 뒤 commit 시점에 `UnexpectedRollbackException` 이 새로 터진다. 호출자 관점의 멱등(같은 `(sid, client_id)` 로 여러 번 불러도 항상 성공)을 원하면 그 메서드에서 `@Transactional` 을 빼야 한다.
 15. **로그아웃 역추적 경로** — `GET /oauth2/logout`(auth, RP-Initiated Logout 1.0 의 `end_session_endpoint`)가 호출되면 **사용자 식별은 `id_token_hint` 가 아니라 auth 세션 쿠키로 한다**(브라우저가 이미 누구인지 알려주므로). auth 세션에서 `sid` 를 읽어 session 에 `POST /internal/sessions/logout {sid}` 로 통지를 위임한 뒤, 응답을 기다리지 않고 **곧바로** 자신의 세션을 `session.invalidate()` 로 끊는다(Spring Session 이 Redis 에 저장한 세션 행이 실제로 삭제된다 — e2e 실측은 아래 성공 기준 참고). session 은 `sid` 로 걸린 RP(`client_id`) 목록을 `oidc_sessions` 에서 조회하며 **그 자리에서 행을 지우고**(통지 성공 여부와 무관하게 즉시 — 남기면 다음 로그아웃 때 이미 끝난 세션으로 다시 보낸다), 비동기(`@Async`)로 각 RP 의 `backchannel_logout_uri` 에 logout token 을 form POST 한다. `id_token_hint` 는 오직 `post_logout_redirect_uri` 를 어느 client 기준으로 검증할지 정하는 데만 쓰이고(`exp` 는 검사하지 않는다 — 로그아웃 시점에 id token 이 만료돼 있는 것은 정상이다, 이 저장소에서 만료를 일부러 무시하는 유일한 검증), 힌트가 없거나 위조됐거나 `post_logout_redirect_uri` 가 미등록이면 **리다이렉트만 포기하고 세션 종료·통지는 그대로 수행한다**(fail-open 이 이 슬라이스의 원칙이다 — 슬라이스 2·3의 fail-closed 와 정반대다. 로그아웃을 실패시키면 세션이 살아남는 쪽이 더 위험하기 때문이다).
+16. **refresh 이력 감사 경로** (슬라이스 9) — token-state 는 refresh token 의 행을 실제로 바꾼 트랜잭션 안에서 `outbox` 에 사건 한 줄을 함께 쓴다. 발급(`issue`)은 `ISSUED`, 회전은 `ROTATED`, 재사용 탐지 · RFC 7009 폐기 · 로그아웃 폐기(`revokeBySid`, 로그아웃 이벤트 소비)는 사유(`REUSE_DETECTED`·`CLIENT_REVOKED`·`SESSION_LOGGED_OUT`)와 두 개수(`revokedTokens` = 이번에 `REVOKED` 로 바뀐 행 수, `activeTokensRevoked` = 그중 직전까지 `ACTIVE` 였던 행 수)를 실은 `REVOKED` 다. 바뀐 행이 0이면 사건도 없다 — 거절된 회전(`NOT_FOUND`·`CLIENT_MISMATCH`·`REVOKED`·`EXPIRED`·`SCOPE_EXCEEDED`), 이미 전부 끊긴 계열의 폐기, 재전달된 로그아웃은 아무것도 쓰지 않는다. 회전 · 폐기의 시각(`occurredAt`)은 계열 잠금을 얻은 뒤에 잰다. 폴러가 `oidc.refresh-token.lifecycle.v1`(키 `familyId`)로 옮기고, `audit` 이 받아 `refresh_token_events` 에 원문과 함께 적는다(`eventId` 멱등). 운영자는 `audit-operator` 로 client_credentials 토큰(scope `audit.read`)을 받아 `GET http://localhost:8089/audit/users/{sub}/refresh-token-families` 를 부르고, 계열별로 묶인 사건과 **사건으로 재구성한 상태**(`reconstructedState`)를 받는다. 이 상태는 감사 이력에서 다시 계산한 값이라 outbox 폴링과 소비만큼 늦고, 진실의 출처는 token-state 의 `refresh_tokens` 다.
 
 ## API 별 시퀀스 다이어그램
 
@@ -609,6 +610,104 @@ Spring Security 6.4.5 의 `OidcBackChannelLogoutTokenValidator` 바이트코드�
 전송 형식: `POST {backchannel_logout_uri}`, `Content-Type: application/x-www-form-urlencoded`, 파라미터 이름 `logout_token`. Spring Security RP 의 기본 수신 경로는 `/logout/connect/back-channel/{registrationId}` 다.
 
 주의. `iss` 정확 일치가 이 저장소의 기존 한계(ForwardedHeaderFilter 미적용)와 정면으로 만난다. auth 의 리다이렉트가 게이트웨이 포트(:9000)를 잃는 현상 자체는 logout token 발송에 관여하지 않지만(발송은 signing 이 `my.issuer` 설정값을 그대로 서명하므로), 그 설정값이 한 글자라도 discovery 의 `issuer` 와 어긋나면 RP 는 logout token 을 통째로 거부한다. e2e 로 `http://localhost:9000` 문자열 일치를 직접 확인했다(아래 성공 기준 9·10번).
+
+### `GET /audit/users/{sub}/refresh-token-families` — 운영자의 refresh 이력 조회 (슬라이스 9)
+
+사건이 만들어져 감사에 닿는 흐름:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant T as token
+    participant TS as token-state
+    participant DB as MySQL ms_token_state
+    participant K as Kafka
+    participant AU as audit
+    participant ADB as MySQL ms_audit
+
+    T->>TS: POST /internal/refresh-tokens (발급) · /rotate · /revoke
+    Note over TS: rotate · revoke 는 계열 전체를 잠근 뒤(findByFamilyIdForUpdate) now 를 잰다.<br/>그 now 가 occurredAt 이다 — 같은 계열 안에서 occurredAt 순서가 잠금 순서를 따르게 하려는 것이다
+    TS->>DB: 한 트랜잭션 — refresh_tokens 변경 + outbox INSERT (바뀐 행이 0이면 outbox 행도 없다)
+    K-->>TS: oidc.session.logged-out.v1 (그룹 token-state)
+    Note over TS: revokeBySid — sid 의 ACTIVE 계열 id 를 잠금 없이 읽고(familyId 순), 계열마다 잠근 뒤<br/>그 sid 의 ACTIVE 행을 끊는다. 실제로 바뀐 계열마다 REVOKED(SESSION_LOGGED_OUT) 한 줄
+    TS->>DB: 같은 소비 트랜잭션 — refresh_tokens 변경 + outbox INSERT
+    loop @Scheduled (운영 기본 500ms)
+        TS->>DB: 미발행 outbox 행 (최대 100개, id 순)
+        TS->>K: send(oidc.refresh-token.lifecycle.v1, key=familyId, payload)
+        Note over TS: 한 행이 실패하면 그 자리에서 멈추고 다음 주기에 다시 — 같은 계열의 순서를 지킨다
+        TS->>DB: published_at 표시 (TransactionTemplate)
+    end
+    K-->>AU: 그룹 audit
+    Note over AU: 필수 필드(eventId · kind · occurredAt · familyId · sub · clientId)가 있는지와 읽는 필드마다 타입을 본다.<br/>틀리면 재시도 뒤 oidc.refresh-token.lifecycle.v1.audit.dlt (값을 바꿔 받지 않는다). kind 의 값은 보지 않는다
+    AU->>ADB: refresh_token_events INSERT — eventId 선조회 → save → 유니크 위반이면 재확인해 행이 있을 때만 흡수
+```
+
+운영자가 조회하는 흐름:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor OP as 운영자
+    participant G as gateway · nginx
+    participant T as token
+    participant C as client-registry
+    participant S as signing
+    participant AU as audit :8089
+    participant ADB as MySQL ms_audit
+
+    OP->>G: POST /oauth2/token<br/>Basic(audit-operator:secret), grant_type=client_credentials, scope=audit.read
+    G->>T: proxy
+    T->>C: GET /internal/clients/audit-operator
+    C-->>T: 200 {grantTypes=[client_credentials], clientScopes=[audit.read]}
+    T->>S: POST /internal/sign {iss, sub=aud=audit-operator, scope=[audit.read], typ=at+jwt}
+    S-->>T: {jwt}
+    T-->>OP: 200 {access_token, token_type=Bearer, expires_in=300, scope=audit.read}
+
+    OP->>AU: GET /audit/users/{sub}/refresh-token-families<br/>Authorization: Bearer {access_token}
+    Note over OP,AU: gateway 를 거치지 않는다(audit:8089 직접)
+    opt 캐시에 쓸 키가 없다
+        AU->>S: GET /oauth2/jwks
+        alt 받았다
+            S-->>AU: JWKSet (캐시한다)
+        else 못 받았다 (캐시도 없다)
+            Note over AU: 500 — Boot 의 오류 JSON, WWW-Authenticate 없음.<br/>키를 확보하지 못한 것은 우리 쪽 장애라 401 invalid_token 으로 둔갑시키지 않는다
+        end
+    end
+    Note over AU: 서명 · typ=at+jwt · iss=http://localhost:9000 · exp → 하나라도 실패하면 401 invalid_token<br/>scope 에 audit.read 가 없으면 403 insufficient_scope
+    AU->>ADB: SELECT … WHERE sub=? ORDER BY occurred_at, id
+    Note over AU: familyId 로 묶고 계열마다 상태를 재구성한다.<br/>계열끼리는 issuedAt 내림차순(최근 발급이 위), 계열 안의 사건은 occurredAt · id 오름차순
+    AU-->>OP: 200 {sub, asOf, families:[{familyId, clientId, sid, issuedAt, familyExpiresAt,<br/>reconstructedState, revokedReason, reuseDetected, events:[…]}]}
+```
+
+**재구성 규칙** (`RefreshTokenFamilyView.from`, `asOf` = 조회 시각):
+- `REVOKED` 사건이 하나라도 있으면 사건 순서와 무관하게 `REVOKED`. token-state 에서 끊긴 계열은 다시 회전하지 않으므로 종착 상태다 — 서버 사이의 시계 차이로 `REVOKED` 뒤에 `ROTATED` 가 놓여도 "끊긴 계열이 살아 있다"고 보이지 않는다.
+  - `revokedReason` 은 **첫** `REVOKED` 의 사유(그 계열을 쓸 수 없게 된 순간), `reuseDetected` 는 `REUSE_DETECTED` 인 `REVOKED` 가 하나라도 있는가다. 로그아웃으로 먼저 끊긴 뒤 옛 토큰이 다시 와도 도난 신호가 요약에서 가려지지 않는다.
+- 아니면, 마지막 `ISSUED`/`ROTATED` 의 `expiresAt` 이나 `ISSUED` 의 `familyExpiresAt` 이 `asOf` 보다 앞이면 `EXPIRED`(token-state 의 `isExpired` 와 같은 두 조건, 같은 시각은 아직 만료가 아니다). 아니면 `ACTIVE`.
+- `issuedAt`·`familyExpiresAt` 은 `ISSUED` 사건의 값이다. `ISSUED` 가 감사 DLT 로 갔거나 보존 기간 밖이면 둘 다 `null` 이고 계열은 그래도 보인다. 모르는 `kind` 는 `events` 에만 들어가고 판정에 쓰이지 않는다.
+- 사건이 하나도 없는 `sub` 는 `200` 과 빈 `families` 다. 감사는 사용자의 존재 여부를 모른다. 페이지네이션은 없다.
+- 이름이 `status` 가 아니라 `reconstructedState` 인 이유: 감사 이력에서 다시 계산한 값이라 outbox 폴링 · 소비만큼 늦다. 진실의 출처는 token-state 의 `refresh_tokens` 다.
+
+**오류 응답** (RFC 6750). 아래 헤더는 이 슬라이스 e2e 에서 실제 스택으로 받은 값이다(아래 "검증된 성공 기준 > 슬라이스 9" 기준 7).
+
+| 요청 | 응답 |
+|---|---|
+| `Authorization` 없음 | `401`, `WWW-Authenticate: Bearer` |
+| id token(`typ: JWT`) | `401`, `WWW-Authenticate: Bearer error="invalid_token", error_description="An error occurred while attempting to decode the Jwt: JOSE header typ (type) JWT not allowed", …` |
+| `exp` 가 지난 access token(시계 오차 허용 밖) | `401`, `… error_description="An error occurred while attempting to decode the Jwt: Jwt expired at …"` |
+| `audit.read` 가 없는 access token(`article-api` 의 `introspect`) | `403`, `WWW-Authenticate: Bearer error="insufficient_scope", error_description="The request requires higher privileges than provided by the access token.", …` |
+| 유효한 `audit.read` 토큰으로 그 밖의 경로(`GET /nope`, 밖에서 직접 부른 `GET /error`) | `403 insufficient_scope` — `anyRequest().denyAll()` 이 인증된 주체를 거절하면 Spring Security 의 `BearerTokenAccessDeniedHandler` 가 그것을 `insufficient_scope` 로 표현한다. 어떤 scope 로도 열리지 않는 경로인데 문구는 "scope 부족"이다. 토큰이 없으면 같은 경로가 `401 Bearer` |
+| 캐시된 키가 없는데 jwks 를 받지 못함(signing 다운) | `500`, `Content-Type: application/json`, 본문은 Boot 의 오류 JSON(`"status":500,"error":"Internal Server Error"`), `WWW-Authenticate` 없음 |
+
+주의. `500` 이 나오려면 `SecurityConfig` 의 `dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()` 이 필요하다. jwks 실패 예외(`AuthenticationServiceException`)는 spring-security-web 6.4.5 의 `AuthenticationEntryPointFailureHandler` 가 코드상 401 로 바꾸지 않고 다시 던지므로 컨테이너까지 올라가고(e2e 의 `audit.log` 에 남은 `Servlet.service() … threw exception` 이 그 경로다), `/error` 로 ERROR 디스패치되는데 그 디스패치도 보안 필터를 다시 지난다. 이 줄을 지우면 `AuditApiJwksUnavailableTest` 가 `500` 대신 `401`(`WWW-Authenticate: Bearer`, error 파라미터 없음)을 받아 실패한다(구현 단계의 변이 확인, 아래 슬라이스 9 기준 7). 이 줄은 디스패처 종류로만 고르므로 밖에서 `/error` 를 직접 부르는 요청은 열리지 않는다(위 표).
+
+**`typ: at+jwt` 고정.** signing 은 같은 키로 access token(`at+jwt`) · id token(`JWT`) · logout token(`logout+jwt`)을 서명하므로 `typ` 이 셋을 가르는 유일한 표식이다. Spring Security 6.4.5 의 `NimbusJwtDecoder` 빌더는 코드상 type verifier 를 설정하지 않고, nimbus-jose-jwt 9.37.3 의 `DefaultJWTProcessor` 의 코드상 기본값은 `typ` 이 `JWT` 이거나 없는 토큰만 받는다. 그래서 `jwtProcessorCustomizer` 로 `at+jwt` 만 받게 고친다. 그 customizer 를 지우면 이 서버의 access token 이 `401`("JOSE header typ (type) at+jwt not allowed")이 되고 id token 모양(`typ: JWT`)과 `typ` 없는 토큰이 `200` 이 된다 — 구현 단계의 변이 확인(`AuditApiProtectionTest`)이다.
+
+**jwks 캐시 — 코드 읽기 값과 실측 범위는 다르다.**
+- 코드 읽기: `.cache(...)` 를 주지 않은 `NimbusJwtDecoder.withJwkSetUri` 는 코드상 `RemoteJWKSet` 을 만들고, 그 캐시(nimbus-jose-jwt 9.37.3 `DefaultJWKSetCache`)의 코드상 기본값은 수명 15분 · 갱신 시점 5분이다. 코드상으로는 갱신 시점이 지나면 요청마다 다시 받으려 하고, 받기에 실패해도 수명 안의 캐시로 계속하며, 수명이 지나면 예외(→ `500`)다. 그러면 signing 이 내려간 동안 버티는 창은 마지막으로 받은 뒤 최대 15분이다. **이 시간들은 측정하지 않았다.**
+- 실측: `200` 을 받은 직후 signing 을 내리고, 8083 이 닫힌 것을 확인한 직후와 그로부터 약 10초 뒤에 같은 토큰이 `200` 이었다(아래 기준 7). 그 `audit` 프로세스가 조회 API 를 처음 부른 때부터 signing 을 내릴 때까지는 약 3분이었다. `AuditApiJwksCacheTest` 도 "받은 직후 jwks 가 내려가도 `200`"만 본다. 캐시가 없는 채로(재기동한 `audit`) signing 이 내려가 있으면 `500` 이다.
+- 이 캐시는 token 의 `AccessTokenVerifier`(캐시 없음 — 알려진 한계 "jwks 캐시 부재는 성능이 아니라 가용성 한계다")와 다르다. `/userinfo` 는 signing 이 죽으면 바로 `500` 이지만, 조회 API 는 키를 한 번 받은 뒤라면 signing 장애를 얼마간 견딘다.
+
+**시계 오차 60초.** `iss`·`exp` 는 `JwtValidators.createDefaultWithIssuer` 가 보고, 그 안의 `JwtTimestampValidator` 의 코드상 기본 허용 오차는 60초다. e2e 에서는 `exp` 20초 뒤의 토큰이 `200`, 70초 뒤의 같은 토큰이 `401`(`Jwt expired at 2026-10-28T18:15:02Z`)이었다 — 코드상 60초와 어긋나지 않지만 경계(60초) 자체를 잰 것은 아니다.
 
 ## 검증된 성공 기준 (e2e, 게이트웨이 경유)
 
@@ -1327,6 +1426,440 @@ $ git diff --stat 03ded07 -- 'oauth-2/authorization-server/practice/microservice
 | 9 두 그룹 오프셋이 따로 움직임 | 성립(보강 측정 후) | 첫 시도에서는 `audit` 의 lag 가 `--describe` 에 보이지 않았다. 보강 측정에서 `audit` `LAG 1` / `token-state` `0` |
 | 10 DLT 분리 | 성립 | 두 DLT 에 한 건씩 |
 
+### 슬라이스 9 (refresh token 이력 감사)
+
+아래 명령은 줄여 적었다 — `docker exec -i microservice-as-…` 접두는 생략했고(`mysql …`·`kafka-*.sh …` 는 컨테이너 안의 명령이다), `/tmp/...` 경로는 실제 스크래치 경로를 대신하며, MySQL 비밀번호 경고 줄과 일부 줄 · 열(`SHOW CREATE TABLE` 의 나머지 컬럼, 컨슈머 그룹의 `CONSUMER-ID` 이후 열, 로그 줄의 시각 · 스레드 머리)은 뺐고, 한 줄짜리 결과는 명령 뒤 `→` 에 붙였다. access token · id token 원문과 로그의 `eventId` 는 앞부분만 적었다. `families` 출력은 기준 1 만 원문 그대로이고, 그 뒤로는 계열 요약 여섯 필드와 사건마다 null 이 아닌 필드만 추렸다(`eventId`·`expiresAt`·`familyExpiresAt` 은 생략). 출력의 값은 바꾸지 않았다.
+
+2026-10-28 에 `down -v` 로 볼륨을 지운 뒤 콜드 스타트해(4개 인프라 컨테이너 + `audit` 을 포함한 10개 Spring 서비스, 위 "기동 방법" 순서) 검증했다. 시각은 UTC 다. 로그인 · 로그아웃은 `http/e2e-login-logout.sh`, 회전 · 폐기 · client_credentials 토큰 · 조회는 `http/e2e-refresh-audit.sh` 로 했다. 브로커 · MySQL 이 관련된 각 단계 전에 `docker ps` 로 컨테이너 상태를 확인했다.
+
+```
+$ docker ps --filter name=microservice-as --format '{{.Names}} {{.Status}}'      # 측정 내내 같았다(Up 시간만 다르다)
+microservice-as-mysql-1 Up 13 seconds
+microservice-as-nginx-1 Up 12 seconds
+microservice-as-redis-1 Up 13 seconds
+microservice-as-kafka-1 Up 13 seconds
+
+$ kafka-topics.sh --bootstrap-server localhost:9092 --list      # up -d 직후, 서비스 기동 전
+(빈 출력)
+$ kafka-topics.sh --bootstrap-server localhost:9092 --list      # 10개 서비스 기동 뒤
+__consumer_offsets
+oidc.refresh-token.lifecycle.v1
+oidc.refresh-token.lifecycle.v1.audit.dlt
+oidc.session.logged-out.v1
+oidc.session.logged-out.v1.audit.dlt
+oidc.session.logged-out.v1.token-state.dlt
+$ kafka-topics.sh ... --describe --topic oidc.refresh-token.lifecycle.v1
+Topic: oidc.refresh-token.lifecycle.v1	TopicId: O_n2wXAIQXO0zyPC7vd7xA	PartitionCount: 3	ReplicationFactor: 1	Configs:
+$ kafka-topics.sh ... --describe --topic oidc.refresh-token.lifecycle.v1.audit.dlt
+Topic: oidc.refresh-token.lifecycle.v1.audit.dlt	TopicId: Wz1gztI_SjioY1E44zCufA	PartitionCount: 3	ReplicationFactor: 1	Configs:
+```
+새 감사 DLT 는 브로커 자동 생성이 꺼진 채(`KAFKA_AUTO_CREATE_TOPICS_ENABLE=false`) 파티션 3으로 생겼다. 이 이름을 선언하는 곳은 `audit` 의 `KafkaConsumerConfig` 하나다. `audit` 의 소비 테스트는 EmbeddedKafka 가 DLT 를 미리 만들어 두므로 이 선언을 증명하지 못한다 — 실제 브로커에서 생긴 것을 보인 것은 이 목록이다.
+
+```
+$ mysql -usvc_token_state -ppw_token_state -e "SHOW CREATE TABLE ms_token_state.outbox\G"
+  `payload` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `topic` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  KEY `idx_outbox_unpublished` (`published_at`,`id`)
+$ mysql -usvc_audit -ppw_audit -e "SHOW CREATE TABLE ms_audit.refresh_token_events\G"
+  `payload` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sid` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `sub` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  UNIQUE KEY `uk_refresh_token_events_event_id` (`event_id`),
+  KEY `idx_refresh_token_events_sub` (`sub`)
+```
+이 실행에서 쓴 13개 사건의 payload 는 278~325바이트였다 — `tinytext`(255바이트)였다면 들어가지 않는다.
+
+**운영자 토큰은 코드 변경 없이 나온다(설계 8절).** `token` 은 이 슬라이스에서 한 줄도 바뀌지 않았다(아래 기준 10).
+```
+$ OP=$(http/e2e-refresh-audit.sh client-token audit-operator audit.read)      # 18:10:02 — header, payload 를 디코드
+{"kid": "signing-key-2026", "typ": "at+jwt", "alg": "RS256"}
+{"iss": "http://localhost:9000", "sub": "audit-operator", "aud": "audit-operator", "exp": 1793211302, "iat": 1793211002, "scope": ["audit.read"]}
+$ curl -s -u audit-operator:secret -d grant_type=client_credentials -d scope=audit.read http://localhost:9000/oauth2/token
+{"access_token": "eyJraWQiOiJzaWduaW5n...", "token_type": "Bearer", "expires_in": 300, "scope": "audit.read"}
+$ curl -s http://localhost:9000/.well-known/openid-configuration      # scopes_supported 만
+['openid', 'profile', 'email', 'offline_access', 'introspect']
+```
+
+**기준 1 — 평소 이력.** jar A 로 로그인하고(새 볼륨이라 동의 화면을 거쳤다) 두 번 회전했다.
+```
+$ http/e2e-login-logout.sh login /tmp/jar-a                      # 18:10:10
+refresh_token=xwDrt_7zgVlGzWttzQ25-BnVnco8NJ9LjHRa5jhDREw          # A0
+sid=fPqpS6aOYpYkNtM7xKubEw
+sub=user-sub-0001
+id_token=eyJraWQiOiJzaWduaW5n...
+$ http/e2e-refresh-audit.sh refresh <A0>
+refresh_token=PHjqt2EJOkXD-Jw7ppbxCcEmV0CQs1_ETFNRAiwepyQ          # A1
+$ http/e2e-refresh-audit.sh refresh <A1>
+refresh_token=ksqb6lL62PueV-9JzJSQMnv2yl3-2fJeXPHJ220f0ic          # A2
+$ http/e2e-refresh-audit.sh families user-sub-0001 "$OP"         # 18:10:24
+200
+{
+    "sub": "user-sub-0001",
+    "asOf": "2026-10-28T18:10:24.564189Z",
+    "families": [
+        {
+            "familyId": "2c907991-883b-4687-a8dd-defcb7faf6d9",
+            "clientId": "my-client",
+            "sid": "fPqpS6aOYpYkNtM7xKubEw",
+            "issuedAt": "2026-10-28T18:10:12.477095Z",
+            "familyExpiresAt": "2026-11-27T18:10:12.477095Z",
+            "reconstructedState": "ACTIVE",
+            "revokedReason": null,
+            "reuseDetected": false,
+            "events": [
+                {
+                    "eventId": "6ebe803e-600c-4d8c-bc37-35be6bf5e95b",
+                    "kind": "ISSUED",
+                    "occurredAt": "2026-10-28T18:10:12.477095Z",
+                    "recordedAt": "2026-10-28T18:10:13.189457Z",
+                    "expiresAt": "2026-11-11T18:10:12.477095Z",
+                    "familyExpiresAt": "2026-11-27T18:10:12.477095Z",
+                    "reason": null,
+                    "revokedTokens": null,
+                    "activeTokensRevoked": null
+                },
+                {
+                    "eventId": "f7de79b2-5a8c-40a6-856f-536e4d2ce904",
+                    "kind": "ROTATED",
+                    "occurredAt": "2026-10-28T18:10:18.666180Z",
+                    "recordedAt": "2026-10-28T18:10:18.714660Z",
+                    "expiresAt": "2026-11-11T18:10:18.666180Z",
+                    "familyExpiresAt": null,
+                    "reason": null,
+                    "revokedTokens": null,
+                    "activeTokensRevoked": null
+                },
+                {
+                    "eventId": "ca859083-a8e3-4d0e-9912-19322dc9d5e5",
+                    "kind": "ROTATED",
+                    "occurredAt": "2026-10-28T18:10:18.825314Z",
+                    "recordedAt": "2026-10-28T18:10:19.233707Z",
+                    "expiresAt": "2026-11-11T18:10:18.825314Z",
+                    "familyExpiresAt": null,
+                    "reason": null,
+                    "revokedTokens": null,
+                    "activeTokensRevoked": null
+                }
+            ]
+        }
+    ]
+}
+```
+`familyExpiresAt` 은 발급 + 30일, 토큰의 `expiresAt` 은 각 발급 · 회전 + 14일이다(token-state 의 `my.refresh-family-max-seconds`·`my.refresh-token-ttl-seconds`).
+
+**기준 2 — 도난 의심 순간.** 이미 쓴 A0 을 다시 보냈다.
+```
+$ http/e2e-refresh-audit.sh refresh <A0>                         # 18:10:30.552
+{"error":"invalid_grant","error_description":"refresh token is not valid"}
+$ http/e2e-refresh-audit.sh families user-sub-0001 "$OP"         # 18:10:39
+200
+{'familyId': '2c907991-883b-4687-a8dd-defcb7faf6d9', 'clientId': 'my-client', 'sid': 'fPqpS6aOYpYkNtM7xKubEw', 'reconstructedState': 'REVOKED', 'revokedReason': 'REUSE_DETECTED', 'reuseDetected': True}
+   {'kind': 'ISSUED', 'occurredAt': '2026-10-28T18:10:12.477095Z', 'recordedAt': '2026-10-28T18:10:13.189457Z'}
+   {'kind': 'ROTATED', 'occurredAt': '2026-10-28T18:10:18.666180Z', 'recordedAt': '2026-10-28T18:10:18.714660Z'}
+   {'kind': 'ROTATED', 'occurredAt': '2026-10-28T18:10:18.825314Z', 'recordedAt': '2026-10-28T18:10:19.233707Z'}
+   {'kind': 'REVOKED', 'occurredAt': '2026-10-28T18:10:30.669759Z', 'recordedAt': '2026-10-28T18:10:31.096154Z', 'reason': 'REUSE_DETECTED', 'revokedTokens': 3, 'activeTokensRevoked': 1}
+$ mysql -usvc_token_state ... -e "SELECT sub, client_id, status, revoked_reason, COUNT(*) FROM refresh_tokens
+    WHERE family_id = '2c907991-883b-4687-a8dd-defcb7faf6d9' GROUP BY sub, client_id, status, revoked_reason"
+sub	client_id	status	revoked_reason	COUNT(*)
+user-sub-0001	my-client	REVOKED	REUSE_DETECTED	3
+$ mysql -usvc_token_state ... -e "SELECT id, status, revoked_reason, revoked_at, consumed_at FROM refresh_tokens
+    WHERE family_id = '2c907991-883b-4687-a8dd-defcb7faf6d9' ORDER BY id"
+id	status	revoked_reason	revoked_at	consumed_at
+1	REVOKED	REUSE_DETECTED	2026-10-28 18:10:30.669759	2026-10-28 18:10:18.666180
+2	REVOKED	REUSE_DETECTED	2026-10-28 18:10:30.669759	2026-10-28 18:10:18.825314
+3	REVOKED	REUSE_DETECTED	2026-10-28 18:10:30.669759	NULL
+```
+계열의 세 행이 모두 이 사건으로 `REVOKED` 가 됐다(`revokedTokens` 3). 그중 `consumed_at` 이 비어 있는 3번 행 — 직전까지 `ACTIVE` 였던 A2 — 하나가 `activeTokensRevoked` 1 이다. `sub`·`clientId` 는 행의 `sub`·`client_id` 와 같고, `revoked_at` 은 사건의 `occurredAt` 과 마이크로초까지 같다(같은 잠금 뒤 `now`).
+
+**기준 2c · 5 — 로그아웃 사슬과 그 뒤의 재사용.** 같은 사용자로 jar B · jar C 를 로그인하고(다른 `sid`), B 를 한 번 회전한 뒤 B 만 로그아웃했다. (계획의 순서는 "B 로그인 → B 회전 → C 로그인"이지만 C 로그인을 B 회전보다 먼저 했다.)
+```
+$ http/e2e-login-logout.sh login /tmp/jar-b                      # 18:10:51
+refresh_token=AcfHElXiDDdcFwOPV70uVQU6x2RYRfXD_wdM1COzdSM          # B0
+sid=MTitbJArdTtJxYXgPa7ZJw
+$ http/e2e-login-logout.sh login /tmp/jar-c                      # 18:10:52
+refresh_token=eaf44Dob4fUEFFKp-MCs6GnJFBEP6ehQT2M__7Rqb8s          # C0
+sid=EsOHHX_XDy5caqVHkn6BJg
+$ http/e2e-refresh-audit.sh refresh <B0>
+refresh_token=OP6S3EzKGhWK5BOWedo1lzlF20smxZAgPMKCezhTa5Q
+$ http/e2e-login-logout.sh logout /tmp/jar-b                     # 18:11:00.092
+200
+$ mysql -usvc_token_state ... -e "SELECT sid, family_id, status, revoked_reason, revoked_at, COUNT(*) FROM refresh_tokens
+    WHERE sid IN ('MTitbJArdTtJxYXgPa7ZJw','EsOHHX_XDy5caqVHkn6BJg') GROUP BY sid, family_id, status, revoked_reason, revoked_at"     # 18:11:11
+MTitbJArdTtJxYXgPa7ZJw	f8b8ef5e-6020-44db-a219-3a7872383ca3	CONSUMED	NULL	NULL	1
+EsOHHX_XDy5caqVHkn6BJg	3d2a8628-f1b3-4c22-8957-6b6ba1b31e5d	ACTIVE	NULL	NULL	1
+MTitbJArdTtJxYXgPa7ZJw	f8b8ef5e-6020-44db-a219-3a7872383ca3	REVOKED	SESSION_LOGGED_OUT	2026-10-28 18:11:00.542891	1
+$ http/e2e-refresh-audit.sh families user-sub-0001 "$OP2"        # 18:11:12 ($OP2 는 새로 받은 audit-operator 토큰)
+200
+{'familyId': '3d2a8628-f1b3-4c22-8957-6b6ba1b31e5d', 'clientId': 'my-client', 'sid': 'EsOHHX_XDy5caqVHkn6BJg', 'reconstructedState': 'ACTIVE', 'revokedReason': None, 'reuseDetected': False}
+    {'kind': 'ISSUED', 'occurredAt': '2026-10-28T18:10:52.454369Z', 'recordedAt': '2026-10-28T18:10:52.720713Z'}
+{'familyId': 'f8b8ef5e-6020-44db-a219-3a7872383ca3', 'clientId': 'my-client', 'sid': 'MTitbJArdTtJxYXgPa7ZJw', 'reconstructedState': 'REVOKED', 'revokedReason': 'SESSION_LOGGED_OUT', 'reuseDetected': False}
+    {'kind': 'ISSUED', 'occurredAt': '2026-10-28T18:10:52.072106Z', 'recordedAt': '2026-10-28T18:10:52.200565Z'}
+    {'kind': 'ROTATED', 'occurredAt': '2026-10-28T18:10:52.648942Z', 'recordedAt': '2026-10-28T18:10:52.731012Z'}
+    {'kind': 'REVOKED', 'occurredAt': '2026-10-28T18:11:00.542891Z', 'recordedAt': '2026-10-28T18:11:00.951810Z', 'reason': 'SESSION_LOGGED_OUT', 'revokedTokens': 1, 'activeTokensRevoked': 1}
+{'familyId': '2c907991-883b-4687-a8dd-defcb7faf6d9', ... 'reconstructedState': 'REVOKED', 'revokedReason': 'REUSE_DETECTED', 'reuseDetected': True}      # A, 위와 같다
+```
+로그아웃 응답 직후 같은 명령 안에서 한 조회에서는 B 의 최신 행이 아직 `ACTIVE` 였고, `revoked_at`(18:11:00.542891)은 로그아웃 요청 시각(18:11:00.092)보다 약 0.45초 뒤다 — 슬라이스 7 의 "보안 창"이다. B 계열은 `REVOKED(SESSION_LOGGED_OUT, 1, 1)` — 로그아웃은 `ACTIVE` 행 하나만 끊고 `CONSUMED` 행(B0)은 그대로 둔다. C 계열은 `ACTIVE` 다. 계열은 최근 발급(C, 18:10:52.454)이 위다. 이제 B0 을 다시 보냈다.
+```
+$ http/e2e-refresh-audit.sh refresh <B0>                         # 18:11:20.145
+{"error":"invalid_grant","error_description":"refresh token is not valid"}
+$ mysql -usvc_token_state ... -e "SELECT id, status, revoked_reason, revoked_at, consumed_at FROM refresh_tokens
+    WHERE family_id='f8b8ef5e-6020-44db-a219-3a7872383ca3' ORDER BY id"
+id	status	revoked_reason	revoked_at	consumed_at
+4	REVOKED	REUSE_DETECTED	2026-10-28 18:11:20.244746	2026-10-28 18:10:52.648942
+6	REVOKED	SESSION_LOGGED_OUT	2026-10-28 18:11:00.542891	NULL
+$ http/e2e-refresh-audit.sh families user-sub-0001 "$OP2"        # 18:11:26 (B 계열만)
+{'familyId': 'f8b8ef5e-6020-44db-a219-3a7872383ca3', 'clientId': 'my-client', 'sid': 'MTitbJArdTtJxYXgPa7ZJw', 'reconstructedState': 'REVOKED', 'revokedReason': 'SESSION_LOGGED_OUT', 'reuseDetected': True}
+    {'kind': 'ISSUED', 'occurredAt': '2026-10-28T18:10:52.072106Z', 'recordedAt': '2026-10-28T18:10:52.200565Z'}
+    {'kind': 'ROTATED', 'occurredAt': '2026-10-28T18:10:52.648942Z', 'recordedAt': '2026-10-28T18:10:52.731012Z'}
+    {'kind': 'REVOKED', 'occurredAt': '2026-10-28T18:11:00.542891Z', 'recordedAt': '2026-10-28T18:11:00.951810Z', 'reason': 'SESSION_LOGGED_OUT', 'revokedTokens': 1, 'activeTokensRevoked': 1}
+    {'kind': 'REVOKED', 'occurredAt': '2026-10-28T18:11:20.244746Z', 'recordedAt': '2026-10-28T18:11:20.510102Z', 'reason': 'REUSE_DETECTED', 'revokedTokens': 1, 'activeTokensRevoked': 0}
+```
+`REVOKED(REUSE_DETECTED, 1, 0)` 이 더해졌고, 요약 사유는 첫 `REVOKED` 의 `SESSION_LOGGED_OUT` 그대로, `reuseDetected` 는 `true` 다. 행으로 보면 남아 있던 `CONSUMED` 하나(4번)만 바뀌었다 — `revokedTokens` 1, 직전 `ACTIVE` 0. 위 18:11:26 조회보다 앞서, 재사용 직후에 한 번 조회했을 때(`asOf` 18:11:20.356629)는 이 사건이 아직 기록되기 전이라(`recordedAt` 18:11:20.510102) B 계열의 사건이 셋, `reuseDetected` 가 `False` 였다 — 조회 API 의 상태는 감사 이력으로 재구성한 값이라 이만큼 늦는다.
+
+같은 로그아웃 이벤트를 **다시 보내도** 사건이 늘지 않는다(기준 5 의 뒤 절반). `session` 의 outbox 에 있는 B 의 로그아웃 이벤트 원문을 같은 키(`sid`)로 본 토픽에 한 번 더 넣었다.
+```
+$ mysql -usvc_session ... -e "SELECT event_id, partition_key, payload FROM ms_session.outbox"
+b1ff30d9-6d0f-460b-ad31-ce8df7939a75	MTitbJArdTtJxYXgPa7ZJw	{"eventId":"b1ff30d9-6d0f-460b-ad31-ce8df7939a75","sid":"MTitbJArdTtJxYXgPa7ZJw","sub":"user-sub-0001","occurredAt":"2026-10-28T18:11:00.184169Z"}
+$ mysql -usvc_token_state ... -e "SELECT COUNT(*) FROM outbox"   →  9        # 넣기 전
+$ mysql -usvc_audit ... -e "SELECT COUNT(*) FROM audit_events"   →  1
+$ echo 'MTitbJArdTtJxYXgPa7ZJw|<위 payload>' | kafka-console-producer.sh --bootstrap-server localhost:9092 \
+    --topic oidc.session.logged-out.v1 --property parse.key=true --property 'key.separator=|'     # 18:11:47
+$ kafka-get-offsets.sh ... --topic oidc.session.logged-out.v1
+oidc.session.logged-out.v1:0:2
+oidc.session.logged-out.v1:1:0
+oidc.session.logged-out.v1:2:0
+[token-state.log] session logged out: sid=MTitbJArdTtJxYXgPa7ZJw revokedRefreshTokens=1 eventId=b1ff30d9-...   # 18:11:00.552 (처음)
+[token-state.log] session logged out: sid=MTitbJArdTtJxYXgPa7ZJw revokedRefreshTokens=0 eventId=b1ff30d9-...   # 18:11:48.404 (재전달)
+[audit.log]       audit event: type=oidc.session.logged-out.v1 eventId=b1ff30d9-... recorded=true                  # 처음
+[audit.log]       audit event: type=oidc.session.logged-out.v1 eventId=b1ff30d9-... recorded=false                 # 재전달
+$ mysql -usvc_token_state ... -e "SELECT COUNT(*) FROM outbox"   →  9        # 18:11:58, 두 그룹 모두 LAG 0
+$ mysql -usvc_audit ... -e "SELECT COUNT(*) FROM audit_events"   →  1
+```
+재전달된 로그아웃은 바꾼 행이 0이라 token-state 가 사건을 쓰지 않았고, `audit` 은 같은 `eventId` 를 흡수했다.
+
+**기준 6 · 4(일부) — RFC 7009 폐기.**
+```
+$ http/e2e-refresh-audit.sh revoke <C0>                          # 18:12:08.897
+200
+$ mysql -usvc_token_state ... -e "SELECT id, status, revoked_reason, revoked_at FROM refresh_tokens WHERE family_id='3d2a8628-…'"
+5	REVOKED	CLIENT_REVOKED	2026-10-28 18:12:09.054313
+$ http/e2e-refresh-audit.sh families user-sub-0001 "$OP2"        # 18:12:15 (C 계열만)
+{'familyId': '3d2a8628-f1b3-4c22-8957-6b6ba1b31e5d', 'clientId': 'my-client', 'sid': 'EsOHHX_XDy5caqVHkn6BJg', 'reconstructedState': 'REVOKED', 'revokedReason': 'CLIENT_REVOKED', 'reuseDetected': False}
+    {'kind': 'ISSUED', 'occurredAt': '2026-10-28T18:10:52.454369Z', 'recordedAt': '2026-10-28T18:10:52.720713Z'}
+    {'kind': 'REVOKED', 'occurredAt': '2026-10-28T18:12:09.054313Z', 'recordedAt': '2026-10-28T18:12:09.293841Z', 'reason': 'CLIENT_REVOKED', 'revokedTokens': 1, 'activeTokensRevoked': 1}
+$ mysql -usvc_audit ... -e "SELECT COUNT(*) FROM refresh_token_events WHERE family_id='3d2a8628-…'"   →  2
+$ http/e2e-refresh-audit.sh revoke <C0>                          # 18:12:24.012, 이미 전부 끊긴 계열
+200
+$ mysql -usvc_token_state ... -e "SELECT COUNT(*) FROM outbox; SELECT COUNT(*) FROM outbox WHERE published_at IS NULL"   # 18:12:30
+10
+0
+$ mysql -usvc_audit ... -e "SELECT COUNT(*) FROM refresh_token_events WHERE family_id='3d2a8628-…'"   →  2
+```
+두 번째 폐기도 `200` 이지만(RFC 7009 — 응답은 그대로) 바뀐 행이 없어 outbox 행이 늘지 않았고(10), C 의 사건은 2개 그대로다. 아래 기준 8 에서도 로그아웃으로 끊긴 D 의 최신 토큰으로 회전을 다시 시도했는데(`invalid_grant`, 이미 `REVOKED` 인 토큰의 재시도) D 계열의 outbox 행은 3개 그대로였다. 나머지 실패 경로는 테스트로만 보였다(아래 "기준 2b · 3 · 4 · 9").
+
+**기준 7 — API 보호.**
+```
+$ http/e2e-refresh-audit.sh families user-sub-0001                    # 18:12:43, 토큰 없음
+401
+WWW-Authenticate: Bearer
+$ http/e2e-refresh-audit.sh families user-sub-0001 <jar A 의 id_token>   # header {"kid": "signing-key-2026", "typ": "JWT", "alg": "RS256"}, 만료 전
+401
+WWW-Authenticate: Bearer error="invalid_token", error_description="An error occurred while attempting to decode the Jwt: JOSE header typ (type) JWT not allowed", error_uri="https://tools.ietf.org/html/rfc6750#section-3.1"
+$ AR=$(http/e2e-refresh-audit.sh client-token article-api introspect)          # payload 의 scope ["introspect"], sub = aud = article-api
+$ http/e2e-refresh-audit.sh families user-sub-0001 "$AR"
+403
+WWW-Authenticate: Bearer error="insufficient_scope", error_description="The request requires higher privileges than provided by the access token.", error_uri="https://tools.ietf.org/html/rfc6750#section-3.1"
+$ OP3=$(http/e2e-refresh-audit.sh client-token audit-operator audit.read)       # exp 1793211464 (18:17:44)
+$ http/e2e-refresh-audit.sh families user-sub-0001 "$OP3"
+200
+$ http/e2e-refresh-audit.sh families nobody "$OP3"                    # 사건이 없는 sub
+200
+{
+    "sub": "nobody",
+    "asOf": "2026-10-28T18:12:53.092890Z",
+    "families": []
+}
+$ curl -s -o /dev/null -D - http://localhost:8089/nope                              # 18:13:02, 토큰 없음
+HTTP/1.1 401
+WWW-Authenticate: Bearer
+$ curl -s -o /dev/null -D - -H "Authorization: Bearer $OP3" http://localhost:8089/nope
+HTTP/1.1 403
+WWW-Authenticate: Bearer error="insufficient_scope", error_description="The request requires higher privileges than provided by the access token.", error_uri="https://tools.ietf.org/html/rfc6750#section-3.1"
+$ curl -s -o /dev/null -D - http://localhost:8089/error                             # 토큰 없음
+HTTP/1.1 401
+WWW-Authenticate: Bearer
+$ curl -s -o /dev/null -D - -H "Authorization: Bearer $OP3" http://localhost:8089/error
+HTTP/1.1 403
+WWW-Authenticate: Bearer error="insufficient_scope", error_description="The request requires higher privileges than provided by the access token.", error_uri="https://tools.ietf.org/html/rfc6750#section-3.1"
+```
+(`curl` 출력은 상태 줄과 `WWW-Authenticate` 만 추렸다.) `/nope` 과 직접 부른 `/error` 는 `anyRequest().denyAll()` 에 걸린다 — 유효한 토큰이면 `403 insufficient_scope`, 없으면 `401`.
+
+캐시된 키로 버틴다 — `200` 을 받은 직후 signing 을 내렸다.
+```
+$ http/e2e-refresh-audit.sh families user-sub-0001 "$OP3"        # 18:13:31.520
+200
+$ kill $(lsof -nP -tiTCP:8083 -sTCP:LISTEN)                      # 18:13:31.652
+$ lsof -nP -iTCP:8083 -sTCP:LISTEN || echo "8083 not listening"  # 18:13:31.819
+8083 not listening
+$ curl -s -o /dev/null -w '%{http_code}' http://localhost:8083/oauth2/jwks
+000                                                              # curl exit 7 (연결 거부)
+$ http/e2e-refresh-audit.sh families user-sub-0001 "$OP3"        # 18:13:31.829
+200
+$ http/e2e-refresh-audit.sh families user-sub-0001 "$OP3"        # 18:13:42.183
+200
+```
+캐시가 없으면 `500` 이다 — signing 이 내려간 채 `audit` 을 재기동했다.
+```
+$ kill $(lsof -nP -tiTCP:8089 -sTCP:LISTEN)                      # 18:13:51
+$ (cd audit && nohup java -jar build/libs/audit-0.0.1-SNAPSHOT.jar > /tmp/audit.log 2>&1 &)   # 18:13:52.8 기동 요청, 2.4초 뒤 Started
+$ lsof -nP -iTCP:8083 -sTCP:LISTEN || echo "8083 not listening"
+8083 not listening
+$ http/e2e-refresh-audit.sh families user-sub-0001 "$OP3"        # 18:13:56.126, $OP3 만료까지 228초
+500
+{
+    "timestamp": "2026-10-28T18:13:56.233+00:00",
+    "status": 500,
+    "error": "Internal Server Error",
+    "path": "/audit/users/user-sub-0001/refresh-token-families"
+}
+$ curl -s -D - -o /dev/null -H "Authorization: Bearer $OP3" http://localhost:8089/audit/users/user-sub-0001/refresh-token-families
+HTTP/1.1 500
+Content-Type: application/json                                   # WWW-Authenticate 없음
+[audit.log] ERROR ... o.a.c.c.C.[.[.[/].[dispatcherServlet] : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception
+            org.springframework.security.authentication.AuthenticationServiceException: An error occurred while attempting to decode the Jwt: Couldn't retrieve remote JWK set: ...
+            Caused by: com.nimbusds.jose.RemoteKeySourceException: Couldn't retrieve remote JWK set: ... I/O error on GET request for "http://localhost:8083/oauth2/jwks": Connection refused
+$ (cd signing && nohup java -jar build/libs/signing-0.0.1-SNAPSHOT.jar > /tmp/signing.log 2>&1 &)   # 18:14:08.8 기동 요청, 0.8초 뒤 Started
+$ http/e2e-refresh-audit.sh families user-sub-0001 "$OP3"        # 18:14:10.426
+200
+```
+`500` 두 번에 `audit.log` 의 `Servlet.service() … threw exception` ERROR 가 스택 트레이스와 함께 두 번 남았다(요청마다 하나).
+
+시계 오차 — 첫 운영자 토큰(`exp` 1793211302 = 18:15:02)을 만료 뒤에 다시 썼다(signing 가동 중).
+```
+$ http/e2e-refresh-audit.sh families user-sub-0001 "$OP"         # 18:15:22, exp 20초 뒤
+200
+$ http/e2e-refresh-audit.sh families user-sub-0001 "$OP"         # 18:16:12, exp 70초 뒤
+401
+WWW-Authenticate: Bearer error="invalid_token", error_description="An error occurred while attempting to decode the Jwt: Jwt expired at 2026-10-28T18:15:02Z", error_uri="https://tools.ietf.org/html/rfc6750#section-3.1"
+```
+
+**기준 8 — 독립성.** `audit` 을 내리고 jar D 로 로그인 · 회전 · 로그아웃했다.
+```
+$ mysql -usvc_audit ... -e "SELECT COUNT(*) FROM refresh_token_events"   →  10
+$ kill $(lsof -nP -tiTCP:8089 -sTCP:LISTEN)                      # 18:16:27
+$ lsof -nP -iTCP:8089 -sTCP:LISTEN || echo "8089 not listening (audit down)"
+8089 not listening (audit down)
+$ http/e2e-login-logout.sh login /tmp/jar-d                      # 18:16:28
+refresh_token=oLCc5prBA4anW3-MrUCbyuWTloQbIPnjjtpmTDxROhg
+sid=fZPB6g003YqtxIB1Fia16g
+$ http/e2e-refresh-audit.sh refresh <D0>
+refresh_token=URMC9_SqsStRYgVcE1WPoz5XPcnJesV0kRucUb-GXgs         # D1
+$ http/e2e-login-logout.sh logout /tmp/jar-d                     # 18:16:28.865
+200
+$ mysql -usvc_token_state ... -e "SELECT family_id, status, revoked_reason, COUNT(*) FROM refresh_tokens
+    WHERE sid='fZPB6g003YqtxIB1Fia16g' GROUP BY family_id, status, revoked_reason"     # 18:16:41
+d558067d-dc23-4395-9b55-73bf59e051e9	CONSUMED	NULL	1
+d558067d-dc23-4395-9b55-73bf59e051e9	REVOKED	SESSION_LOGGED_OUT	1
+$ http/e2e-refresh-audit.sh refresh <D1>
+{"error":"invalid_grant","error_description":"refresh token is not valid"}
+$ mysql -usvc_token_state ... -e "SELECT o.id, o.created_at, o.published_at, JSON_UNQUOTE(JSON_EXTRACT(o.payload,'$.kind')) kind FROM outbox o
+    WHERE o.partition_key=(SELECT DISTINCT family_id FROM refresh_tokens WHERE sid='fZPB6g003YqtxIB1Fia16g') ORDER BY o.id"
+11	2026-10-28 18:16:28.591427	2026-10-28 18:16:29.068285	ISSUED
+12	2026-10-28 18:16:28.812999	2026-10-28 18:16:29.074404	ROTATED
+13	2026-10-28 18:16:29.064292	2026-10-28 18:16:29.610499	REVOKED
+$ mysql -usvc_audit ... -e "SELECT COUNT(*) FROM refresh_token_events"   →  10      # audit 이 내려가 있는 동안
+$ kafka-consumer-groups.sh ... --describe --group audit
+GROUP  TOPIC                            PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG
+audit  oidc.refresh-token.lifecycle.v1  1          4               7               3
+audit  oidc.refresh-token.lifecycle.v1  2          6               6               0
+audit  oidc.session.logged-out.v1       0          2               3               1
+$ (cd audit && nohup java -jar build/libs/audit-0.0.1-SNAPSHOT.jar > /tmp/audit.log 2>&1 &)   # 18:16:53.6 기동 요청, 2.5초 뒤 Started
+$ mysql -usvc_audit ... -e "SELECT COUNT(*) FROM refresh_token_events"   →  13      # 18:16:59
+$ mysql -usvc_audit ... -e "SELECT id, kind, reason, revoked_tokens, active_tokens_revoked, occurred_at, recorded_at
+    FROM refresh_token_events WHERE family_id='d558067d-dc23-4395-9b55-73bf59e051e9' ORDER BY id"
+11	ISSUED	NULL	NULL	NULL	2026-10-28 18:16:28.591427	2026-10-28 18:16:56.493664
+12	ROTATED	NULL	NULL	NULL	2026-10-28 18:16:28.812999	2026-10-28 18:16:56.524368
+13	REVOKED	SESSION_LOGGED_OUT	1	1	2026-10-28 18:16:29.064292	2026-10-28 18:16:56.533677
+$ kafka-consumer-groups.sh ... --describe --group audit         # 재기동 뒤 LAG 는 전부 0
+```
+로그인 · 회전 · 로그아웃은 `audit` 없이 정상이었고(로그아웃 `200`, D 계열 `REVOKED`), outbox 는 `audit` 과 무관하게 발행됐다. `audit` 이 올라오자 밀린 D 의 사건 3건이 27.5~27.9초 늦게 기록됐다. (`audit` 그룹의 `--describe` 에 lifecycle 파티션 0 이 없는 것은 그 파티션에 커밋한 적이 없어서다 — 슬라이스 8 기준 9 와 같다.)
+
+**사건의 지연과 원문.** 이 실행의 13개 사건 전부에서 outbox 의 `created_at` 은 사건의 `occurredAt` 과 같고, 발행까지(`published_at − created_at`) 0.044~0.575초, `audit` 이 떠 있을 때 기록까지(`recorded_at − occurred_at`, 1~10번 행) 0.048~0.712초였다. 0.5초를 넘은 두 건은 첫 발행(1번, 0.575초)과 D 의 `REVOKED`(13번, 0.546초)다. 표본이 13개라 분포로 일반화하지 않는다. 원문은 그대로 옮겨졌다.
+```
+$ mysql -usvc_token_state ... -N -e "SELECT event_id, LENGTH(payload), SHA2(payload,256) FROM outbox ORDER BY event_id" > outbox.txt
+$ mysql -usvc_audit ... -N -e "SELECT event_id, LENGTH(payload), SHA2(payload,256) FROM refresh_token_events ORDER BY event_id" > rte.txt
+$ wc -l outbox.txt rte.txt; diff outbox.txt rte.txt && echo identical
+      13 outbox.txt
+      13 rte.txt
+identical
+$ mysql -usvc_token_state ... -N -e "SELECT payload FROM outbox WHERE id=4"     # A 의 REVOKED
+{"eventId":"79869e41-fb05-4d8d-9dbb-2f71699c5b62","kind":"REVOKED","occurredAt":"2026-10-28T18:10:30.669759Z","familyId":"2c907991-883b-4687-a8dd-defcb7faf6d9","sub":"user-sub-0001","clientId":"my-client","sid":"fPqpS6aOYpYkNtM7xKubEw","reason":"REUSE_DETECTED","revokedTokens":3,"activeTokensRevoked":1}
+```
+13개 payload 에 나온 키는 `activeTokensRevoked`·`clientId`·`eventId`·`expiresAt`·`familyExpiresAt`·`familyId`·`kind`·`occurredAt`·`reason`·`revokedTokens`·`sid`·`sub` 열둘뿐이다 — 토큰 원문 · 해시는 없다.
+
+**기준 2b · 3 · 4 · 9 — 테스트로 확인했고 e2e 로는 확인하지 않았다**(4 는 위의 두 경로만 e2e 로 봤다). 아래 테스트는 모두 아래 전체 회귀에서 통과했다.
+- 2b 경합 — InnoDB 에서 보였다. `RefreshTokenServiceMySqlLockSemanticsTest` 는 MySQL 에 닿지 않으면 `assumeTrue` 로 건너뛰는데, 이번 회귀는 compose 의 MySQL(8.4.9)을 띄운 채 돌려 실행됐다(`tests="4" skipped="0" failures="0" errors="0"`).
+  - `reuseWaitingForTheFamilyLockIsRecordedAfterTheRotation` — 회전이 계열 잠금을 쥔 동안 같은 토큰의 재사용이 그 잠금을 기다리면, 재사용의 `REVOKED` 는 `ROTATED` 보다 늦거나 같은 `occurredAt` 으로 기록되고(`REVOKED(REUSE_DETECTED, 2, 1)`), 회전이 만든 새 행까지 계열 전체가 `REVOKED` 다.
+  - `logoutWaitingBehindARotationRevokesTheRotatedToken` — 로그아웃(`revokeBySid`)이 회전 뒤에서 기다리면 깨어난 로그아웃이 회전이 만든 새 `ACTIVE` 행을 끊고, 원래 행은 `CONSUMED` 그대로다.
+  - `rotationWaitingBehindALogoutFindsTheFamilyRevoked` — 로그아웃 뒤에서 기다린 회전은 끊긴 계열을 보고 `REVOKED` 로 거절된다(새 행도 `ROTATED` 도 없다).
+  - (슬라이스 3 의 기존) `siblingRowInsertedWhileWaitingForFamilyLockIsIncludedInRevocation`.
+  - h2 판 `RefreshTokenEventOrderTest.reuseProcessedAfterARotationIsRecordedAfterIt` 는 잠금 대기를 재현하지 않는다 — "스칼라 조회 뒤 · 잠금 앞"에서 시각을 재는 구현을 가려내는 것은 위 InnoDB 테스트다.
+  - 구현 단계(2026-10-28)의 기록: 위 새 InnoDB 테스트 셋은 클래스로 5회, 각자 단독으로 5회씩 돌려 모두 통과했다. 기다리는 동안 `performance_schema.data_locks` 의 `LOCK_STATUS='WAITING'` 은 1건(`idx_refresh_tokens_family` 의 X 잠금)이었다. `rotate` 의 `now` 를 잠금 앞(메서드 첫 줄, 또는 스칼라 조회 뒤 · 잠금 앞)으로 되돌리면 첫 테스트가 시각 단언(`Expecting actual: … to be after or equal to: …`)에서 깨지고(메서드 첫 줄 변이에서 나머지 셋은 통과했다), `revokeBySid` 가 계열을 잠그지 않고 `findByFamilyId` 로 읽게 하면 둘째 테스트가 `expected: CONSUMED but was: REVOKED` 로 깨진다 — 그때 회전이 만든 새 토큰은 끝까지 `ACTIVE` 였다. 로그아웃이 계열 잠금을 거쳐야 하는 이유다.
+- 3 원자성 — `RefreshTokenEventAtomicityTest`: `issueRollsBackWhenTheEventCannotBeRecorded`(ISSUED 를 쓰지 못하면 발급도 없던 일), `rotationRollsBackWhenTheEventCannotBeRecorded`, `reuseRevocationRollsBackWhenTheEventCannotBeRecorded`(REVOKED 를 쓰지 못하면 재사용 탐지의 계열 폐기도 롤백).
+- 4 실패 경로는 조용하다 — `RefreshTokenServiceSilentFailureTest` 8개: `notFoundRecordsNothing`, `clientMismatchRecordsNothing`, `scopeExceededRecordsNothing`, `expiredRecordsNothing`, `retryWithRevokedTokenRecordsNothing`, `revokeOfUnknownTokenRecordsNothing`, `revokeByAnotherClientRecordsNothing`, `revokeOfFullyRevokedFamilyRecordsNothing`. 로그아웃 쪽은 `RefreshTokenServiceRevokeBySidTest.redeliveredLogoutRecordsNothing`, `SessionLoggedOutConsumerTest.redeliveredLogoutEventAddsNoEvent`.
+- 9 멱등 — `RefreshTokenEventRecorderTest.sameEventIdIsRecordedOnce`, `RefreshTokenEventConsumerTest.duplicateDeliveryIsRecordedOnce`(같은 사건이 두 번 전달돼도 한 줄이고 감사 DLT 로 가지 않는다).
+- 그 밖에 설계의 Review Focus 를 고정하는 테스트: `RefreshTokenServiceRevokeBySidTest.logoutRecordsOneRevokedEventPerFamily`(한 세션의 두 client — 계열마다 `REVOKED` 하나), `revokeOfPartlyRevokedFamilyCountsOnlyChangedRows`, `RefreshTokenFamilyViewTest.familyWithoutIssuedEventIsStillShown`, `RefreshTokenEventConsumerTest.wrongTypedCountGoesToDlt`(`"revokedTokens":"3"` 은 3 으로 바꿔 적지 않고 감사 DLT), `unknownKindIsRecorded`, `RefreshTokenFamilyViewTest.unknownKindDoesNotChangeTheState`.
+- API 보호의 구현 단계(2026-10-28) 변이 기록: `jwtProcessorCustomizer`(typ `at+jwt` 고정)를 지우면 `AuditApiProtectionTest` 에서 `at+jwt` 토큰이 `401`("JOSE header typ (type) at+jwt not allowed"), `typ: JWT` 와 `typ` 없는 토큰이 `200`, `audit.read` 없는 토큰이 `403` 대신 `401` 이 됐다. `dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()` 을 지우면 `AuditApiJwksUnavailableTest` 가 `500` 대신 `401`(`WWW-Authenticate: Bearer`, error 없음, 본문 없음)을 받았다.
+
+**기준 10 — `session/src` diff 0줄, 그리고 나머지 얼린 모듈.**
+```
+$ git diff --stat a98d192 -- oauth-2/authorization-server/practice/microservice/session/src
+(출력 없음)
+$ for p in token/src auth/src signing/src consent/src user-directory/src demo-rp/src gateway; do
+    git diff --stat a98d192 -- oauth-2/authorization-server/practice/microservice/$p; done
+(출력 없음 — 일곱 경로 모두)
+```
+`a98d192`(이 슬라이스의 설계 커밋) 이후 `session`·`token`·`auth`·`signing`·`consent`·`user-directory`·`demo-rp`·`gateway` 는 한 줄도 바뀌지 않았다. 바뀐 모듈은 `token-state`·`audit`·`client-registry`(시드) 셋이다.
+
+**전체 회귀.** 위 e2e 를 마친 뒤 Spring 서비스를 모두 내리고, 컨테이너 4개(MySQL 포함)는 띄운 채로 10개 모듈에서 `cleanTest test` 를 돌렸다(18:17:49~18:19:52). 결과 XML(`build/test-results/test/*.xml`)에서 센 값이다.
+
+| 모듈 | tests | 실패 | 오류 | 건너뜀 | 슬라이스 8 끝 |
+|---|---|---|---|---|---|
+| audit | 56 | 0 | 0 | 0 | 15 |
+| auth | 35 | 0 | 0 | 0 | 35 |
+| client-registry | 7 | 0 | 0 | 0 | 7 |
+| consent | 4 | 0 | 0 | 0 | 4 |
+| demo-rp | 3 | 0 | 0 | 0 | 3 |
+| session | 30 | 0 | 0 | 0 | 30 |
+| signing | 8 | 0 | 0 | 0 | 8 |
+| token-state | 81 | 0 | 0 | 0 | 52 (1 건너뜀) |
+| token | 124 | 0 | 0 | 0 | 124 |
+| user-directory | 6 | 0 | 0 | 0 | 6 |
+| **합계** | **354** | **0** | **0** | **0** | **284** |
+
+```
+$ grep -o '<testsuite [^>]*>' token-state/build/test-results/test/TEST-dev.starryeye.token_state.RefreshTokenServiceMySqlLockSemanticsTest.xml
+<testsuite name="dev.starryeye.token_state.RefreshTokenServiceMySqlLockSemanticsTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-28T18:19:21.100Z" hostname="starryeyeui-MacBookAir.local" time="0.504">
+```
+`client-registry` 는 테스트 개수가 그대로이고 시드 테스트의 기대값(client 3 → 4, `audit-operator`)만 바뀌었다. 스택(브로커)을 띄운 채 돌렸으므로 테스트가 실제 토픽에 쓰지 않았는지도 봤다 — 회귀 뒤 `oidc.refresh-token.lifecycle.v1`(0/7/6)과 `oidc.session.logged-out.v1`(3/0/0)의 로그 끝 오프셋은 그대로였고 DLT 셋은 비어 있었다(token-state · session 테스트 yml 의 `my.outbox-poll-interval-ms` 는 3600000 이고 발행을 보는 테스트는 EmbeddedKafka 로만 보낸다). 대신 `token-state` 테스트 컨텍스트의 로그아웃 소비자가 실제 브로커에 `token-state-test` 그룹으로 붙어 본 토픽의 이벤트 3건을 읽었다(`CURRENT-OFFSET 3`). 테스트 컨텍스트의 h2 에 적용됐을 뿐 실제 스택의 행 · 토픽에는 변화가 없다 — 운영 그룹(`token-state`)과 이름을 갈라 둔 이유다(테스트 yml 의 `consumer-group-id` 주석).
+
+**성공 기준 판정.**
+
+| 기준 | 판정 | 근거 |
+|---|---|---|
+| 1 평소 이력 | 성립 | `ISSUED, ROTATED, ROTATED`, `ACTIVE` |
+| 2 도난 의심 순간 | 성립 | `invalid_grant`, `REVOKED(REUSE_DETECTED, 3, 1)` 이 행 3개 · 직전 `ACTIVE` 1개 · `sub` · `client_id` 와 일치, `reuseDetected: true` |
+| 2b 경합 | 테스트로 확인(InnoDB) | MySQL 8.4.9 에서 `skipped="0"`, 구현 단계 5회 반복 · 변이 확인 |
+| 2c 로그아웃 뒤 재사용 | 성립 | `REVOKED(REUSE_DETECTED, 1, 0)` 추가, 요약 사유 `SESSION_LOGGED_OUT`, `reuseDetected: true` |
+| 3 원자성 | 테스트로만 확인 | e2e 불필요(설계) |
+| 4 실패 경로는 조용하다 | 테스트로 확인, e2e 는 둘 | 전부 끊긴 계열의 재폐기 · `REVOKED` 토큰 재시도는 outbox 행 없음 |
+| 5 로그아웃 사슬 | 성립 | B 만 `REVOKED(SESSION_LOGGED_OUT, 1, 1)`, C `ACTIVE`. 재전달은 `revokedRefreshTokens=0`, outbox 9 → 9 |
+| 6 RFC 7009 폐기 | 성립 | `REVOKED(CLIENT_REVOKED, 1, 1)` |
+| 7 API 보호 | 성립(캐시는 직후 ~10초만) | 401 / 401 `invalid_token` / 403 `insufficient_scope` / 200 / 캐시 없이 signing 다운 500 / 키를 쓴 뒤 signing 다운 200. 15분 · 5분 창은 코드 읽기 |
+| 8 독립성 | 성립 | `audit` 없이 로그아웃 200 · `REVOKED`, 재기동 뒤 D 의 사건 3건 기록 |
+| 9 멱등 | 테스트로 확인 | 로그아웃 이벤트의 재전달은 e2e 로 `recorded=false` |
+| 10 `session/src` diff 0 | 성립 | 얼린 일곱 경로도 0 |
+
 ## 슬라이스 5에서도 제외 (이후 sub-project)
 
 admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네트워크 가정), jwks 캐시, access token deny-list, Kafka 인증 이벤트 스트림, 관측성/서킷브레이커, resource indicator(RFC 8707, client_credentials 의 `aud` 를 자원별로 좁히는 것).
@@ -1364,7 +1897,7 @@ admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네
 ### 슬라이스 7 (서비스별 DB 분리와 outbox) 이 남기는 것
 
 - **보안 창** — 폐기는 즉시가 아니라 `session` 폴러 주기(운영 기본 500ms)만큼 늦다. 위 "검증된 성공 기준"에서 3회 실측한 값은 대략 0.2~0.4초. 즉시성이 필요하면 동기 호출을 병행하고 이벤트는 보증으로만 쓰는 조합이 있다.
-- **회전-폐기 경쟁으로 일부 refresh 가 로그아웃 뒤에도 살아남을 수 있다** — `RefreshTokenService.revokeBySid`(`token-state`)는 계열(family) 잠금을 쓰지 않는다. "UPDATE 가 행을 평가하는 순간 `sid` 일치·ACTIVE 인 행을 폐기한다"만 보장하므로, 회전이 동시에 새 ACTIVE 형제 행을 삽입·커밋하는 시점이 이 UPDATE 의 스캔 전이냐 후냐에 따라 그 행이 폐기 대상에서 빠질 수 있다. 놓친 행을 다시 찾아 폐기하는 재검증·정합성 스윕은 이 슬라이스에 없다.
+- **회전-폐기 경쟁 — 슬라이스 9 에서 계열 잠금으로 좁혔다. 첫 조회 뒤에 생긴 계열은 여전히 놓친다** — 슬라이스 7 의 `revokeBySid` 는 계열 잠금 없는 벌크 UPDATE 라, 회전이 동시에 새 ACTIVE 형제 행을 삽입 · 커밋하는 시점에 따라 그 행이 폐기 대상에서 빠질 수 있었다. 슬라이스 9 부터는 그 `sid` 의 `ACTIVE` 계열 id 를 잠금 없이 읽은 뒤(familyId 순) 계열마다 `findByFamilyIdForUpdate` 로 잠그고, 잠근 뒤 다시 읽은 행으로 판정한다 — 회전 · 재사용 탐지와 같은 잠금 경로다. InnoDB(MySQL 8.4.9)에서 `RefreshTokenServiceMySqlLockSemanticsTest` 가 보인 것은 두 순서다. 회전이 잠금을 쥔 동안 기다린 로그아웃은 회전이 삽입한 새 `ACTIVE` 행까지 끊고(`logoutWaitingBehindARotationRevokesTheRotatedToken`), 로그아웃이 잠금을 쥔 동안 기다린 회전은 끊긴 계열을 보고 거절된다(`rotationWaitingBehindALogoutFindsTheFamilyRevoked`). 로그아웃이 잠그지 않고 읽게 되돌리면 첫 테스트가 깨지고 회전이 만든 토큰이 `ACTIVE` 로 남는다 — 슬라이스 7 이 적은 경쟁이 InnoDB 에서 그 모습으로 나타난다(위 "검증된 성공 기준 > 슬라이스 9" 기준 2b). 보이지 못한 것은 남는다. 첫 조회 뒤에 같은 `sid` 로 새 계열이 생기면(로그아웃 직전에 받은 code 의 교환) 그 계열은 목록에 없으므로 잠그지도 판정하지도 않는다 — 코드 구조에서 나오는 결론이며 이를 재현하는 테스트는 없다. 그 계열은 같은 `sid` 의 로그아웃이 다시 오지 않는 한 살아 있고, 놓친 행을 다시 찾아 폐기하는 재검증 · 정합성 스윕은 여전히 없다. 한 로그아웃이 여러 계열을 차례로 잠그는 동안의 경합도 테스트하지 않았다.
 - **`session` 을 다중 인스턴스로 늘리면 발행자끼리 경쟁한다** — 여러 폴러가 같은 outbox 행을 동시에 집어 중복 발행이 늘어난다. 소비자(`token-state`)가 멱등(`WHERE sid = ? AND status = 'ACTIVE'`)이라 피해는 없지만, 정석 해법은 `FOR UPDATE SKIP LOCKED`이고 다른 길은 outbox API 계약을 만들어 전용 relay 를 붙이는 것이다. 지금은 인스턴스가 하나뿐이라 이 문제 자체에 도달하지 않는다.
 - **`sid` 가 `null` 인 옛 `refresh_tokens` 행은 이 폐기에 걸리지 않는다** — `down -v` 로 스키마를 다시 만든 지금은 실제로 도달할 수 없지만, 컬럼이 nullable 인 이상 코드상 가능성은 남아 있다.
 - **이벤트 페이로드의 `sub` 가 `null` 일 수 있다** — 등록된 RP 가 없는 세션(`openid` 없이 `offline_access` 만 받은 경로)은 `oidc_sessions` 행이 없어 소유자를 모른 채 이벤트가 나간다. 소비자(`token-state`)는 폐기 판정에 `sid` 만 쓰므로 동작에는 영향이 없지만, 나중에 `sub` 를 쓰는 소비자가 붙으면 이 nullable 을 반드시 처리해야 한다.
@@ -1375,7 +1908,7 @@ admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네
 
 ### 슬라이스 8 (감사 컨슈머) 이 남기는 것
 
-- **감사는 로그아웃만 안다** — 세션의 시작(로그인)도, 토큰의 일생도 모른다. 후속 슬라이스가 채운다
+- **감사는 로그인은 모른다** — 세션의 끝(로그아웃)과, 슬라이스 9 부터는 refresh token 계열의 일생(발급 · 회전 · 폐기)을 기록하지만 세션의 시작(로그인)은 모른다. 후속 슬라이스가 채운다
 - **`reported_sub` 는 미검증** — 발행자가 첫 행의 값을 실을 뿐이고, 한 `sid` 아래 여러 `sub` 가 섞이는 것을 `session` 이 막지 않는다
 - **같은 `eventId` 에 다른 `payload` 가 오면 조용히 흡수한다** — 발행자 버그를 가린다
 - **본 토픽 선언이 세 곳** — `session`·`token-state`·`audit` 의 파티션 수·replicas 를 함께 맞춰야 한다
@@ -1383,6 +1916,28 @@ admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네
 - **감사 DLT 에 간 편지는 아무도 자동으로 재처리하지 않는다** — 그 이벤트는 감사에서 빠진 채 남는다
 - **`audit` 이 보존 기간보다 늦게 뜨거나 더 오래 내려가 있으면 그 사이 지워진 이벤트는 조용히 빠진다** — Kafka 는 소비 여부와 무관하게 토픽 보존 기간(브로커 기본값 `log.retention.hours=168`, `docker-compose.yml` 에 재정의 없음)이 지난 이벤트를 지운다. 구성원이 없는 그룹의 커밋 오프셋도 `offsets.retention.minutes`(기본 7일) 뒤에 만료되는데, 그러면 `earliest` 가 적용돼 남아 있는 이벤트를 처음부터 다시 읽고 이미 기록된 것은 `eventId` 멱등이 흡수한다
 - **옛 DLT 토픽(`oidc.session.logged-out.v1.dlt`)이 브로커에 남는다** — 볼륨을 지우지 않은 환경에서는 쓰이지 않는 토픽으로 남는다
+
+### 슬라이스 9 (refresh token 이력 감사) 이 남기는 것
+
+- **조회 API 의 상태는 감사 이력으로 재구성한 값이다** — outbox 폴링 · 소비만큼 늦고, `token-state` 가 진실의 출처다. 위 e2e 에서 `audit` 이 떠 있을 때의 지연은 0.05~0.71초였고, 재사용 직후의 조회는 그 사건을 아직 보여 주지 않았다. `audit` 이 내려가 있으면 그동안은 얼마든지 늦다
+- **이 기능 이전에 발급된 토큰은 기록이 없다**
+- **상태가 바뀌지 않은 시도(끊긴 계열 토큰의 재시도 포함)는 기록되지 않는다**
+- **감사는 토픽 보존 기간(브로커 기본 7일) 안의 사건만 소급한다**(슬라이스 8 과 같다)
+- **`token-state` 를 다중 인스턴스로 늘리면 outbox 발행자끼리 경쟁한다**(슬라이스 7 의 `session` 과 같은 한계). 중복 발행은 `audit` 의 `eventId` 멱등이 흡수하지만, 정석 해법(`FOR UPDATE SKIP LOCKED` 등)은 없다
+- **계열을 끊어도 이미 발급된 access token 은 만료까지 유효하다** — access token 은 상태 없는 JWT 다(`exp` 300초). 감사 기록은 그 사실을 바꾸지 않는다
+- **페이지네이션 없음** — 한 사용자의 계열 수가 작다는 전제다
+- **조회 API 는 게이트웨이 밖 내부 포트다** — 내부 서비스 간 무인증은 인프라 프로젝트 소관이다([백로그](docs/infra-project-backlog.md))
+- **jwks 캐시 창은 코드 읽기 값이다** — signing 이 내려간 동안 버티는 창은 nimbus-jose-jwt 9.37.3 `DefaultJWKSetCache` 의 코드상 기본값(수명 15분 · 갱신 시점 5분)으로 정해지고, 코드상으로는 갱신 시점이 지난 뒤 요청마다 실패하는 jwks 호출이 하나씩 나간다. 측정한 것은 "`200` 을 받은 직후 signing 을 내려도 약 10초까지 `200`"과 "캐시가 없는 `audit` 에 signing 이 없으면 `500`"뿐이다(위 API 절). 수명이 지나 캐시가 비는 순간부터 같은 `500` 이 되는지는 코드 읽기에서 나온 예상이다
+- **jwks 장애 중에는 요청마다 ERROR 로그가 스택 트레이스와 함께 남는다** — `500` 은 예외가 컨테이너까지 올라가는 경로라 `Servlet.service() … threw exception` 이 요청마다 찍힌다(위 e2e 에서 `500` 두 번에 두 번). 동작은 의도대로지만 장애 중 로그가 그만큼 불어난다
+- **시계 오차 60초** — `JwtTimestampValidator` 의 코드상 기본 허용 오차가 60초라 만료 뒤 60초까지의 토큰은 아직 받는다(e2e: `exp` 20초 뒤 `200`, 70초 뒤 `401`). 같은 클래스는 코드상 `exp` 가 없으면 만료 검사를 건너뛰므로 `exp` 없는 `at+jwt` 도 통과한다 — 실제 발급자 `token` 은 언제나 `exp` 를 넣는다
+- **`aud` 를 검증하지 않는다** — client_credentials 토큰의 `aud` 는 발급받은 client 자신(`audit-operator`)이라 조회 API 를 가리키는 `aud` 가 없다. 위 "client_credentials 토큰의 `sub == aud`", "`aud` 를 검증하지 않는다 — 구조적으로 검증할 수 없다" 와 같은 결손이다. 조회를 여는 것은 `typ` · `iss` · 서명 · `scope` 뿐이고, `audit.read` 를 받을 수 있는 client 를 `client_scopes` 로 좁히는 것이 실제 관문이다
+- **로그아웃 처리 중에 같은 `sid` 로 새로 생긴 계열은 그 로그아웃이 끊지 못한다** — 위 슬라이스 7 의 "회전-폐기 경쟁" 항목. 그 계열에는 `REVOKED` 사건도 생기지 않으므로 조회 API 에서도 `ACTIVE` 로 보인다 — 감사는 token-state 가 실제로 바꾼 것만 받아 적는다(코드 구조에서 나온 결론이며 재현 테스트는 없다)
+- **`revokeBySid` 가 시각을 계열마다 잠금 뒤에 재는지는 어떤 테스트로도 가려내지 못한다** — 메서드 입구에서 재도 모든 테스트가 통과한다(구현 단계 변이 확인). `rotate` 의 잠금 뒤 시각은 InnoDB 테스트(`reuseWaitingForTheFamilyLockIsRecordedAfterTheRotation`)가 고정한다
+- **계열 잠금이 이웃 계열의 삽입 · 회전을 멈출 수 있다** — 잠금 대기 중의 `performance_schema.data_locks` 에서 잠금을 쥔 쪽은 계열 인덱스(`idx_refresh_tokens_family`)의 다음 레코드(그 테스트 DB 에서는 `supremum pseudo-record`)에도 X 잠금을 가졌다. MySQL 문서의 next-key · gap 잠금 규칙대로라면 그 gap 에 들어가는 다른 계열의 INSERT(새 발급 · 회전)는 그 잠금을 기다린다 — 문서에서 나온 추론이고 측정하지 않았다. 로그아웃 하나가 모든 사용자를 멈추는 것보다는 훨씬 좁다(`sid` 로 직접 잠그지 않는 이유 — `RefreshTokenService.revokeBySid` 주석)
+- **슬라이스 8 의 로그아웃 감사가 더 엄격해졌다** — 로그아웃 이벤트(`oidc.session.logged-out.v1`)의 `sub` 가 빈 문자열(공백만 있는 것 포함)이거나 문자열이 아니면, `sid` 가 빈 값이면, 이제 기록하지 않고 감사 DLT 로 간다. 이전에는 `JsonNode.asText()` 로 읽어 그대로(숫자는 문자열로) 또는 빈 값으로 기록했다. 감사 DLT 의 편지는 아무도 재처리하지 않으므로(위 슬라이스 8 항목) 그런 로그아웃은 감사에서 빠진다. `sub` 가 없거나 JSON null 이면 예전처럼 `reported_sub` 를 null 로 기록한다(슬라이스 7 항목 "이벤트 페이로드의 `sub` 가 `null` 일 수 있다")
+- **새 토픽 선언이 두 곳** — `oidc.refresh-token.lifecycle.v1` 은 `token-state` 의 `KafkaTopicConfig` 와 `audit` 의 `KafkaConsumerConfig` 가 같은 값(파티션 3 · replicas 1)으로 선언한다. 함께 맞춰야 한다
+- **같은 `eventId` 에 다른 `payload` 가 오면 조용히 흡수한다** — `refresh_token_events` 도 `audit_events` 와 같은 `IdempotentInsert` 를 쓴다(위 슬라이스 8 항목)
+- **`token-state` 의 `outbox` 와 `refresh_token_events` 에 정리 수단이 없다** — 무한히 쌓인다
 
 ## 추후 별도 인프라 프로젝트로 이관
 
@@ -1420,3 +1975,5 @@ admin 등록 API(현재 seed), **내부 서비스 간 인증**(현재 신뢰 네
 - 슬라이스 7(서비스별 DB 분리와 outbox) 구현 계획: [docs/superpowers/plans/2026-08-08-microservice-db-per-service-outbox-slice7.md](docs/superpowers/plans/2026-08-08-microservice-db-per-service-outbox-slice7.md)
 - 슬라이스 8(감사 컨슈머) 설계: [docs/superpowers/specs/2026-09-28-microservice-audit-consumer-slice8-design.md](docs/superpowers/specs/2026-09-28-microservice-audit-consumer-slice8-design.md)
 - 슬라이스 8(감사 컨슈머) 구현 계획: [docs/superpowers/plans/2026-09-28-microservice-audit-consumer-slice8.md](docs/superpowers/plans/2026-09-28-microservice-audit-consumer-slice8.md)
+- 슬라이스 9(refresh token 이력 감사) 설계: [docs/superpowers/specs/2026-10-27-microservice-refresh-token-audit-slice9-design.md](docs/superpowers/specs/2026-10-27-microservice-refresh-token-audit-slice9-design.md)
+- 슬라이스 9(refresh token 이력 감사) 구현 계획: [docs/superpowers/plans/2026-10-28-microservice-refresh-token-audit-slice9.md](docs/superpowers/plans/2026-10-28-microservice-refresh-token-audit-slice9.md)

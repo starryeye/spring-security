@@ -2,8 +2,11 @@
 # 로그인 → 인가(PKCE) → 동의 → code 교환 → (선택) 로그아웃 을 curl 로 재현한다. 모든 요청은 gateway(:9000).
 #
 # 사용:
-#   ./e2e-login-logout.sh login  <jar>   # 로그인하고 토큰을 받는다. refresh_token 과 sid 를 출력한다
+#   ./e2e-login-logout.sh login  <jar>   # 로그인하고 토큰을 받는다. refresh_token · sid · sub · id_token 을 한 줄씩 출력한다
 #   ./e2e-login-logout.sh logout <jar>   # 그 쿠키 항아리의 세션으로 로그아웃한다
+#
+# sid · sub 는 id token payload 의 claim 이다. sub 는 e2e-refresh-audit.sh families 에, id_token 은 조회 API 에 id token 을
+# 들고 가는 경우(401 invalid_token 이어야 한다)에 쓴다.
 #
 # 주의. 로그인 redirect 의 Location 이 게이트웨이 포트(:9000)를 잃는 알려진 한계(README 참고)가 있어,
 #      redirect 를 따라가지 않고(-L 없음) 매번 절대 URL 로 다음 요청을 보낸다.
@@ -66,8 +69,12 @@ TOKENS=$(curl -s -X POST "$BASE/oauth2/token" -H "Authorization: Basic $BASIC" \
 case "$TOKENS" in *'"refresh_token"'*) ;; *) echo "토큰 교환 실패: $TOKENS" >&2; exit 1;; esac
 REFRESH=$(printf '%s' "$TOKENS" | python3 -c 'import sys,json; print(json.load(sys.stdin)["refresh_token"])')
 ID_TOKEN=$(printf '%s' "$TOKENS" | python3 -c 'import sys,json; print(json.load(sys.stdin)["id_token"])')
-SID=$(printf '%s' "$ID_TOKEN" | cut -d. -f2 | tr '_-' '/+' | python3 -c \
-  'import sys,base64,json; s=sys.stdin.read().strip(); s+="="*(-len(s)%4); print(json.loads(base64.b64decode(s))["sid"])')
+claim() { printf '%s' "$ID_TOKEN" | cut -d. -f2 | tr '_-' '/+' | python3 -c \
+  'import sys,base64,json; s=sys.stdin.read().strip(); s+="="*(-len(s)%4); print(json.loads(base64.b64decode(s))[sys.argv[1]])' "$1"; }
+SID=$(claim sid)
+SUB=$(claim sub)
 
 echo "refresh_token=$REFRESH"
 echo "sid=$SID"
+echo "sub=$SUB"
+echo "id_token=$ID_TOKEN"
