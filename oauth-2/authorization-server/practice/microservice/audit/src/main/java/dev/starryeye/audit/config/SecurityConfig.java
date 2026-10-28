@@ -57,8 +57,14 @@ public class SecurityConfig {
 	 *      보안과 기능이 동시에 거꾸로다. 이 customizer 를 지우면 AuditApiProtectionTest 에서 이 서버의 access
 	 *      token(at+jwt)이 401 invalid_token("JOSE header typ (type) at+jwt not allowed")이 되고, typ 만 JWT 로 바꾼
 	 *      토큰과 typ 이 없는 토큰은 200 이 된다. customizer 는 빌더가 processor 를 다 만든 뒤 마지막에 적용하므로(코드
-	 *      읽기) 이 설정이 기본값을 덮는다. 6.4.5 의 spring-security-oauth2-jose 에는 JwtTypeValidator 가 없어 claim
-	 *      검증기 쪽에서 typ 을 볼 수도 없다.
+	 *      읽기) 이 설정이 기본값을 덮는다.
+	 *
+	 * 주의. typ 을 type verifier 로 고치는 이유 — 검증기(OAuth2TokenValidator<Jwt>)로는 at+jwt 를 받게 할 수 없다.
+	 *      6.4.5 의 spring-security-oauth2-jose 에는 JwtTypeValidator 가 없다. 직접 만든 검증기도 jwt.getHeaders() 로
+	 *      typ 을 읽을 수는 있지만, NimbusJwtDecoder.decode 는 createJwt 안에서 JWTProcessor.process 를 먼저 돌리고 그
+	 *      뒤에 validateJwt 로 검증기를 돌리므로, 기본 type verifier 가 process 안에서 at+jwt 를 이미 거부한 뒤다(코드
+	 *      읽기: NimbusJwtDecoder.decode · createJwt). customizer 를 지웠을 때 at+jwt 를 거부하는 문구("JOSE header typ
+	 *      (type) at+jwt not allowed")도 Nimbus DefaultJOSEObjectTypeVerifier 의 것이다(코드 읽기).
 	 *
 	 * 주의. iss · exp 는 JwtValidators.createDefaultWithIssuer 가 본다. 그 안의 JwtTimestampValidator 는 코드상 기본
 	 *      시계 오차 허용이 60초라, 만료 뒤 60초까지의 토큰은 아직 받는다.

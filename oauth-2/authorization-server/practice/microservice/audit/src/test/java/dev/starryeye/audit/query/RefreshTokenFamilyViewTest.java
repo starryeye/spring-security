@@ -89,8 +89,15 @@ class RefreshTokenFamilyViewTest {
 		assertThat(RefreshTokenFamilyView.from(events, lastExpiresAt).reconstructedState()).isEqualTo("ACTIVE");
 	}
 
+	/**
+	 * 주의. 첫 계열은 token-state 가 지금 설정에서 내는 모양이다 — 회전한 토큰의 expiresAt 이 familyExpiresAt 으로
+	 *      잘려 둘이 같으므로, 마지막 토큰 조건만으로도 EXPIRED 가 된다. 상한 조건 자체를 고정하는 것은 둘째 계열이다.
+	 *      token-state 의 issue 는 발급 토큰의 expiresAt 을 상한으로 자르지 않으므로, 수명 설정이 상한보다 길면 ISSUED
+	 *      하나뿐인 계열의 expiresAt(T0+40d)이 familyExpiresAt(T0+30d)보다 뒤일 수 있다. 그때 상한이 지나면 EXPIRED,
+	 *      상한과 같은 시각은 아직 ACTIVE 다.
+	 */
 	@Test
-	@DisplayName("계열의 절대 상한이 지나면 EXPIRED 다")
+	@DisplayName("계열의 절대 상한이 지나면 EXPIRED 다 — 마지막 토큰의 expiresAt 이 아직 남아 있어도")
 	void expiredWhenTheFamilyCapHasPassed() {
 		List<RefreshTokenEventEntity> events = List.of(
 				issued("E-1", T0, T0.plus(TTL), T0.plus(FAMILY_CAP)),
@@ -99,6 +106,14 @@ class RefreshTokenFamilyViewTest {
 		RefreshTokenFamilyView view = RefreshTokenFamilyView.from(events, T0.plus(FAMILY_CAP).plusSeconds(1));
 
 		assertThat(view.reconstructedState()).isEqualTo("EXPIRED");
+
+		List<RefreshTokenEventEntity> issuedBeyondCap = List.of(
+				issued("E-1", T0, T0.plus(Duration.ofDays(40)), T0.plus(FAMILY_CAP)));
+
+		assertThat(RefreshTokenFamilyView.from(issuedBeyondCap, T0.plus(FAMILY_CAP).plusSeconds(1)).reconstructedState())
+				.isEqualTo("EXPIRED");
+		assertThat(RefreshTokenFamilyView.from(issuedBeyondCap, T0.plus(FAMILY_CAP)).reconstructedState())
+				.isEqualTo("ACTIVE");
 	}
 
 	/**
