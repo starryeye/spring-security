@@ -37,9 +37,9 @@ public class AuditEventEntity {
 	 * 주의. occurred_at 은 발행자가 기록한 사건 시각, recorded_at 은 감사가 받아 적은 시각이다. 둘의 차이가
 	 *      전달 지연이다.
 	 *
-	 * 주의. subject_sid 는 지금 not null 이다 — 로그아웃 이벤트의 sid 는 항상 있다. refresh 계열 이벤트를
-	 *      받게 되면 그 원천(refresh_tokens.sid)이 nullable 이라 이 제약을 완화해야 한다(스펙 3절). 미리 열어두지
-	 *      않는 것은 도달 불가능한 상태를 허용하지 않기 위해서다.
+	 * 주의. subject_sid 는 not null 이다 — 로그아웃 이벤트의 sid 는 항상 있다. refresh 계열 사건은 그 원천
+	 *      (refresh_tokens.sid)이 nullable 이라 이 테이블에 넣지 않고 refresh_token_events 에 따로 받는다
+	 *      (RefreshTokenEventEntity). 도달 불가능한 상태를 허용하지 않기 위해 이 제약은 그대로 둔다.
 	 *
 	 * 주의. payload 는 원문 JSON 통째라서 @Column 의 length 를 16_777_215 로 명시한다. @Lob 만으로는 이 크기가 나오지
 	 *      않는다 — MySQL 에서 @Lob String 의 DDL 타입은 length 로 정해진다. length 를 주지 않으면 tinytext(255바이트),

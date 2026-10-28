@@ -161,6 +161,18 @@ class AuditEventConsumerTest {
 	}
 
 	@Test
+	@DisplayName("sid 가 빈 문자열인 이벤트도 기록되지 않고 감사 DLT 로 간다 — 빈 값이 not null 을 통과해 빈 sid 로 남으면 안 된다")
+	void blankSidGoesToAuditDlt() throws Exception {
+		String eventId = UUID.randomUUID().toString();
+		String payload = "{\"eventId\":\"" + eventId + "\",\"sid\":\"\",\"sub\":\"user-sub-0001\",\"occurredAt\":\"2026-09-28T01:02:03.456Z\"}";
+
+		send("SID-F", payload);
+
+		assertThat(KafkaTestUtils.getSingleRecord(dltConsumer, DLT, Duration.ofSeconds(20)).value()).isEqualTo(payload);
+		assertThat(rowsOf(eventId)).isEmpty();
+	}
+
+	@Test
 	@DisplayName("JSON 이 아닌 편지는 감사 DLT 로 가고, 뒤 편지는 기록된다(Review Focus 3)")
 	void poisonGoesToAuditDlt() throws Exception {
 		String goodId = UUID.randomUUID().toString();

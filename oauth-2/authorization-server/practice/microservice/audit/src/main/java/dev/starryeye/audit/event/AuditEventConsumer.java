@@ -12,8 +12,6 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
-
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -33,9 +31,12 @@ public class AuditEventConsumer {
 	 *      모양을 알 필요가 없고 공통 머리(eventId·sid·sub·occurredAt)만 뽑으면 된다. 원문은 받은 문자열을
 	 *      그대로 저장하므로 발행자가 필드를 더해도 손실이 없다.
 	 *
-	 * 주의. 없는 필드는 null 로 넘긴다. sid 나 eventId 가 빠진 기형 이벤트는 기록기에서 not null 위반을 내고,
-	 *      기록기는 그것을 흡수하지 않고 다시 던진다 — 그러면 컨테이너가 재시도하다 감사 DLT 로 보낸다.
-	 *      여기서 기본값을 채우거나 예외를 삼키면 감사가 기록을 조용히 잃는다.
+	 * 주의. eventId · sid · occurredAt 은 필수이고 sub 는 선택이다. 필수가 없거나(키가 없거나 JSON null), 값이 있는데
+	 *      모양이 틀리면(문자열이 아니거나 비었거나, 시각 형식이 아니면) JsonFields 가 예외를 던지고, 컨테이너가
+	 *      재시도하다 감사 DLT 로 보낸다. sub 는 없으면 null 로 기록하되 있는데 문자열이 아니거나 비었으면 같은 길로 간다.
+	 *      JsonNode.asText() 로 읽으면 {"sid":""} 의 빈 값이 not null 검사를 통과해 빈 sid 로 기록된다(JsonFields 참고).
+	 *      기록기의 not null 위반은 소비자가 거르지 못한 값에 대한 마지막 방어선으로 남고, 기록기는 그것을 흡수하지
+	 *      않고 다시 던진다. 여기서 기본값을 채우거나 예외를 삼키면 감사가 기록을 조용히 잃는다.
 	 *
 	 * 주의. 예외를 잡지 않는다(token-state 의 소비자와 같은 이유). 삼키면 처리하지 못한 이벤트의 오프셋이
 	 *      커밋돼 그 기록이 영원히 사라진다.
@@ -52,20 +53,14 @@ public class AuditEventConsumer {
 	@KafkaListener(topics = LOGGED_OUT_TOPIC, groupId = "${my.consumer-group-id}")
 	public void onEvent(@Payload String payload, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) throws Exception {
 		JsonNode node = objectMapper.readTree(payload);
-		String occurredAt = text(node, "occurredAt");
 		AuditRecord record = new AuditRecord(
-				text(node, "eventId"),
+				JsonFields.requiredText(node, "eventId"),
 				topic,
-				occurredAt == null ? null : Instant.parse(occurredAt),
-				text(node, "sid"),
-				text(node, "sub"),
+				JsonFields.requiredInstant(node, "occurredAt"),
+				JsonFields.requiredText(node, "sid"),
+				JsonFields.optionalText(node, "sub"),
 				payload);
 		boolean recorded = recorder.record(record);
 		log.debug("audit event: type={} eventId={} recorded={}", topic, record.eventId(), recorded);
-	}
-
-	private static String text(JsonNode node, String field) {
-		JsonNode value = node.get(field);
-		return (value == null || value.isNull()) ? null : value.asText();
 	}
 }

@@ -23,9 +23,9 @@ public class KafkaConsumerConfig {
 	 *      섞여 "이 편지는 누가 처리 못 했나"를 알 수 없고, 재처리할 때 폐기를 다시 돌려야 할지 감사를 다시
 	 *      돌려야 할지 모른다 — 한쪽은 멀쩡히 처리했다. 그래서 token-state 의 DLT 도 "...v1.token-state.dlt" 다.
 	 *
-	 * 주의. DLT 목적지를 원래 토픽 이름에서 만든다(dltFor(record.topic())). 지금 구독하는 토픽은 하나지만,
-	 *      후속 슬라이스에서 토픽이 늘면 각 토픽의 실패가 자기 이름의 DLT 로 간다. 상수 하나로 두면 새 토픽의
-	 *      실패가 로그아웃 이름의 DLT 에 섞인다. 다만 브로커의 토픽 자동 생성이 꺼져 있으므로
+	 * 주의. DLT 목적지를 원래 토픽 이름에서 만든다(dltFor(record.topic())). 지금 구독하는 토픽은 둘(로그아웃 이벤트,
+	 *      refresh 계열 사건)이고 각 토픽의 실패가 자기 이름의 DLT 로 간다. 상수 하나로 두면 한 토픽의 실패가 다른
+	 *      토픽 이름의 DLT 에 섞인다. 다만 브로커의 토픽 자동 생성이 꺼져 있으므로
 	 *      (docker-compose.yml 의 KAFKA_AUTO_CREATE_TOPICS_ENABLE=false) 토픽을 더할 때는 그 DLT 의 NewTopic 도
 	 *      반드시 함께 선언해야 한다. 없으면 DLT 발행이 실패한다.
 	 *
@@ -36,6 +36,9 @@ public class KafkaConsumerConfig {
 	 *      KafkaTopicConfig, token-state·audit 의 KafkaConsumerConfig)의 파티션 수·replicas 를 함께 맞춰야 한다.
 	 *      이 선언의 효력은 기동 시점에 브로커가 응답 가능하다는 전제 위에서만 성립한다 — KafkaAdmin 은
 	 *      브로커 미가용이면 로그만 남기고 재시도하지 않는다(token-state 의 KafkaConsumerConfig 주석 참고).
+	 *
+	 *      refresh 계열 토픽(oidc.refresh-token.lifecycle.v1)의 발행자는 token-state 이고 그쪽 KafkaTopicConfig 가 같은
+	 *      토픽을 선언한다. 이 클래스의 refreshTokenLifecycleTopic 은 그 값(파티션 3, replicas 1)과 맞춘다.
 	 *
 	 * 주의. 재시도 2회/200ms 후 DLT. 감사 DLT 에 간 편지는 아무도 자동으로 재처리하지 않는다 — 그 이벤트는
 	 *      감사에서 빠진 채 남는다.
@@ -53,6 +56,16 @@ public class KafkaConsumerConfig {
 	@Bean
 	NewTopic sessionLoggedOutAuditDlt() {
 		return TopicBuilder.name(dltFor(AuditEventConsumer.LOGGED_OUT_TOPIC)).partitions(3).replicas(1).build();
+	}
+
+	@Bean
+	NewTopic refreshTokenLifecycleTopic() {
+		return TopicBuilder.name(RefreshTokenEventConsumer.LIFECYCLE_TOPIC).partitions(3).replicas(1).build();
+	}
+
+	@Bean
+	NewTopic refreshTokenLifecycleAuditDlt() {
+		return TopicBuilder.name(dltFor(RefreshTokenEventConsumer.LIFECYCLE_TOPIC)).partitions(3).replicas(1).build();
 	}
 
 	@Bean
