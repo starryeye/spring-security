@@ -112,11 +112,20 @@ public class RefreshTokenService {
 	 *
 	 * 주의. 축소 요청이 통과해도 저장 scope 는 바꾸지 않는다. 회전으로 만드는 새 행은 원래 scope 를 그대로
 	 *      복사하고, 축소는 호출자가 이번 access token 에만 적용한다. 아니면 한 번의 축소가 영구화된다.
+	 *
+	 * 주의. 시각(now)은 계열 잠금을 얻은 뒤에 잰다. 메서드 입구에서 재면, 잠금을 기다린 요청의 시각이 그 사이
+	 *      커밋된 요청보다 이를 수 있다 — 먼저 도착해 기다리던 재사용의 REVOKED 가 나중에 도착한 회전의 ROTATED 보다
+	 *      이른 occurredAt 으로 남아, 감사 이력의 순서가 뒤집힌다. 사건의 occurredAt 뿐 아니라 만료 판정 ·
+	 *      consumedAt · 새 토큰의 issuedAt 도 이 시각을 쓴다. 해시 계산과 잠금 없는 스칼라 조회는 시각이 필요
+	 *      없어 잠금 앞에 그대로 둔다. 서버가 여럿이면 서버 사이의 시계 차이는 이 규칙이 다루지 않는다.
+	 *
+	 * 주의. 상태를 바꾼 경로만 사건을 쓴다. 회전 성공은 ROTATED, 재사용 탐지는 REVOKED 하나다. 실패 경로
+	 *      (NOT_FOUND · CLIENT_MISMATCH · REVOKED · EXPIRED · SCOPE_EXCEEDED)는 outbox 행도 만들지 않는다 —
+	 *      SCOPE_EXCEEDED 의 "아무 상태도 바꾸지 않는다"는 위의 계약에 outbox 도 포함된다.
 	 */
 	@Transactional
 	public RotateResult rotate(String refreshToken, String clientId, String requestedScope) {
 
-		Instant now = Instant.now();
 		String tokenHash = tokenGenerator.hash(refreshToken);
 
 		Optional<String> familyId = repository.findFamilyIdByTokenHash(tokenHash);
@@ -125,6 +134,7 @@ public class RefreshTokenService {
 		}
 
 		List<RefreshTokenEntity> family = repository.findByFamilyIdForUpdate(familyId.get());
+		Instant now = Instant.now();
 		Optional<RefreshTokenEntity> found = family.stream()
 				.filter(member -> member.getTokenHash().equals(tokenHash))
 				.findFirst();
@@ -140,7 +150,7 @@ public class RefreshTokenService {
 			return RotateResult.failed(RotateStatus.REVOKED);
 		}
 		if (entity.getStatus() == RefreshTokenStatus.CONSUMED) {
-			revokeFamily(family, now, "REUSE_DETECTED");
+			revokeMembers(family, now, "REUSE_DETECTED");
 			return RotateResult.failed(RotateStatus.REUSE_DETECTED);
 		}
 		if (isExpired(entity, now)) {
@@ -171,6 +181,7 @@ public class RefreshTokenService {
 				.sid(entity.getSid()) // 계열 전체가 같은 세션에 속한다
 				.build();
 		repository.save(rotated);
+		eventPublisher.rotated(rotated, now);
 
 		return new RotateResult(
 				RotateStatus.ROTATED,
@@ -194,6 +205,10 @@ public class RefreshTokenService {
 	 *
 	 * 주의. 첫 조회가 스칼라여야 하는 이유는 rotate 와 같다. 엔티티를 먼저 로드하면 그 인스턴스가 영속성
 	 *      컨텍스트에 남아, 잠근 뒤 다시 읽어도 Hibernate 가 잠금 이전 상태를 돌려준다.
+	 *
+	 * 주의. true 는 "이 client 의 토큰을 찾았다"는 뜻이지 "행이 바뀌었다"는 뜻이 아니다. 계열이 이미 전부 끊겨 있어도
+	 *      true 를 돌려주고, 그때는 바뀐 행이 없으므로 REVOKED 사건을 쓰지 않는다. 응답은 사건 기록과 별개다.
+	 *      시각(now)은 rotate 와 같은 이유로 잠금을 얻은 뒤에 잰다.
 	 */
 	@Transactional
 	public boolean revoke(String refreshToken, String clientId) {
@@ -217,7 +232,8 @@ public class RefreshTokenService {
 			return false;
 		}
 
-		revokeFamily(family, Instant.now(), "CLIENT_REVOKED");
+		Instant now = Instant.now();
+		revokeMembers(family, now, "CLIENT_REVOKED");
 		return true;
 	}
 
@@ -249,11 +265,39 @@ public class RefreshTokenService {
 				"SESSION_LOGGED_OUT", Instant.now());
 	}
 
-	private void revokeFamily(List<RefreshTokenEntity> family, Instant at, String reason) {
-		for (RefreshTokenEntity member : family) {
-			member.revoke(at, reason);
+	/**
+	 * members 를 폐기하고, 실제로 바뀐 행이 하나 이상이면 REVOKED 사건을 쓴 뒤 바뀐 행 수를 돌려준다.
+	 *      revokedTokens 는 바뀐 행 수, activeTokensRevoked 는 그중 바뀌기 직전에 ACTIVE 였던 수다.
+	 *      지금은 재사용 탐지와 client 폐기(RFC 7009)가 부른다.
+	 *
+	 * 주의. 바뀐 행이 0이면 사건을 쓰지 않는다(members 가 비어 있어도 같다). 이미 전부 끊긴 계열에 폐기가 다시
+	 *      와도 감사 이력에 "끊김"이 한 번 더 남지 않는다. 이 가드는 이 메서드 한 곳에만 있다 — 계열을 끊는
+	 *      경로가 이 메서드를 거쳐야 같은 규칙이 적용된다.
+	 *
+	 * 주의. 사건의 계열 · 주체 · client · 세션은 members.get(0) 에서 읽는다. 한 계열의 행은 이 값이 모두 같다 —
+	 *      rotate 가 기존 행의 값을 새 행에 복사한다. 서로 다른 계열의 행을 한 목록에 섞어 넘기면 안 된다.
+	 *
+	 * 주의. members 는 계열 잠금(findByFamilyIdForUpdate) 뒤에 읽은 행이어야 한다. 바뀐 행 수가 사건에 실리는
+	 *      수치라서, 잠금 없이 읽은 오래된 상태로 세면 수치가 실제와 달라진다.
+	 */
+	private int revokeMembers(List<RefreshTokenEntity> members, Instant at, String reason) {
+		int revokedTokens = 0;
+		int activeTokensRevoked = 0;
+		for (RefreshTokenEntity member : members) {
+			boolean wasActive = member.getStatus() == RefreshTokenStatus.ACTIVE;
+			if (member.revoke(at, reason)) {
+				revokedTokens++;
+				if (wasActive) {
+					activeTokensRevoked++;
+				}
+			}
 		}
-		repository.saveAll(family);
+		if (revokedTokens == 0) {
+			return 0;
+		}
+		repository.saveAll(members);
+		eventPublisher.revoked(members.get(0), at, reason, revokedTokens, activeTokensRevoked);
+		return revokedTokens;
 	}
 
 	@Transactional(readOnly = true)

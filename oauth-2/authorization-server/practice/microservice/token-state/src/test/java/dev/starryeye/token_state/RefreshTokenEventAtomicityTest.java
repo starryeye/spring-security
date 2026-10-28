@@ -2,6 +2,7 @@ package dev.starryeye.token_state;
 
 import dev.starryeye.token_state.event.RefreshTokenEventPublisher;
 import dev.starryeye.token_state.jpa.RefreshTokenEntityRepository;
+import dev.starryeye.token_state.jpa.RefreshTokenStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +12,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 
 @SpringBootTest
@@ -32,6 +35,9 @@ class RefreshTokenEventAtomicityTest {
 	@Autowired
 	private RefreshTokenEntityRepository repository;
 
+	@Autowired
+	private TokenGenerator tokenGenerator;
+
 	@MockitoSpyBean
 	private RefreshTokenEventPublisher eventPublisher;
 
@@ -45,5 +51,37 @@ class RefreshTokenEventAtomicityTest {
 				.isInstanceOf(IllegalStateException.class);
 
 		assertThat(repository.count()).isEqualTo(refreshRows);
+	}
+
+	@Test
+	@DisplayName("REVOKED 를 쓰지 못하면 재사용 탐지의 계열 폐기도 롤백된다")
+	void reuseRevocationRollsBackWhenTheEventCannotBeRecorded() {
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1000L, "SID-A");
+		RotateResult rotated = service.rotate(issued.refreshToken(), "my-client", null);
+		doThrow(new IllegalStateException("outbox unavailable"))
+				.when(eventPublisher).revoked(any(), any(), anyString(), anyInt(), anyInt());
+
+		assertThatThrownBy(() -> service.rotate(issued.refreshToken(), "my-client", null))
+				.isInstanceOf(IllegalStateException.class);
+
+		assertThat(statusOf(issued.refreshToken())).isEqualTo(RefreshTokenStatus.CONSUMED);
+		assertThat(statusOf(rotated.refreshToken())).isEqualTo(RefreshTokenStatus.ACTIVE);
+	}
+
+	@Test
+	@DisplayName("ROTATED 를 쓰지 못하면 회전도 롤백된다")
+	void rotationRollsBackWhenTheEventCannotBeRecorded() {
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1000L, "SID-A");
+		doThrow(new IllegalStateException("outbox unavailable")).when(eventPublisher).rotated(any(), any());
+
+		assertThatThrownBy(() -> service.rotate(issued.refreshToken(), "my-client", null))
+				.isInstanceOf(IllegalStateException.class);
+
+		assertThat(statusOf(issued.refreshToken())).isEqualTo(RefreshTokenStatus.ACTIVE);
+		assertThat(repository.findByFamilyId(issued.familyId())).hasSize(1);
+	}
+
+	private RefreshTokenStatus statusOf(String token) {
+		return repository.findByTokenHash(tokenGenerator.hash(token)).orElseThrow().getStatus();
 	}
 }

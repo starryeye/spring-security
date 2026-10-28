@@ -62,4 +62,14 @@ class RefreshTokenEntityTest {
 
 		assertThat(entity.getStatus()).isEqualTo(RefreshTokenStatus.REVOKED);
 	}
+
+	@Test
+	void revokeReportsWhetherItChangedTheRow() {
+		RefreshTokenEntity entity = newEntity();
+		Instant at = Instant.parse("2026-07-25T00:01:00Z");
+
+		assertThat(entity.revoke(at, "CLIENT_REVOKED")).isTrue();
+		assertThat(entity.revoke(at.plusSeconds(1), "SESSION_LOGGED_OUT")).isFalse();
+		assertThat(entity.getRevokedReason()).isEqualTo("CLIENT_REVOKED");
+	}
 }

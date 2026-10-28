@@ -121,13 +121,16 @@ public class RefreshTokenEntity {
 	/**
 	 * 이미 REVOKED 면 아무것도 바꾸지 않는다. 최초 폐기 사유가 감사 기록이므로,
 	 *      나중에 온 폐기가 REUSE_DETECTED 를 CLIENT_REVOKED 로 덮어쓰면 탈취 탐지 흔적이 사라진다.
+	 *
+	 * @return 상태를 바꿨으면 true, 이미 REVOKED 라 그대로 뒀으면 false
 	 */
-	public void revoke(Instant at, String reason) {
+	public boolean revoke(Instant at, String reason) {
 		if (this.status == RefreshTokenStatus.REVOKED) {
-			return;
+			return false;
 		}
 		this.status = RefreshTokenStatus.REVOKED;
 		this.revokedAt = at;
 		this.revokedReason = reason;
+		return true;
 	}
 }

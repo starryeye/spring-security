@@ -135,7 +135,7 @@ class RefreshTokenServiceRotateTest {
 		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid", 1700000000L, null);
 		RefreshTokenEntity entity = repository.findByTokenHash(tokenGenerator.hash(issued.refreshToken())).orElseThrow();
 		// 개별 만료만 과거로 옮긴다. family_expires_at 은 그대로 미래다.
-		repository.save(expireIndividualToken(entity));
+		RefreshTokenFixtures.expireIndividualToken(repository, entity);
 
 		RotateResult result = service.rotate(issued.refreshToken(), "my-client", null);
 
@@ -231,24 +231,6 @@ class RefreshTokenServiceRotateTest {
 				.issuedAt(entity.getIssuedAt())
 				.expiresAt(entity.getExpiresAt())
 				.familyExpiresAt(entity.getIssuedAt().minusSeconds(1))
-				.sid(entity.getSid())
-				.build();
-		repository.delete(entity);
-		repository.flush();
-		return replaced;
-	}
-
-	private RefreshTokenEntity expireIndividualToken(RefreshTokenEntity entity) {
-		RefreshTokenEntity replaced = RefreshTokenEntity.builder()
-				.tokenHash(entity.getTokenHash())
-				.familyId(entity.getFamilyId())
-				.clientId(entity.getClientId())
-				.sub(entity.getSub())
-				.scopes(entity.getScopes())
-				.authTime(entity.getAuthTime())
-				.issuedAt(entity.getIssuedAt())
-				.expiresAt(entity.getIssuedAt().minusSeconds(1))
-				.familyExpiresAt(entity.getFamilyExpiresAt())
 				.sid(entity.getSid())
 				.build();
 		repository.delete(entity);

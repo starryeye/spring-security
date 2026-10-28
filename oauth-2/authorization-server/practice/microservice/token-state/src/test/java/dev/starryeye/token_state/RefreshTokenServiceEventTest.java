@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.starryeye.token_state.jpa.OutboxEntity;
 import dev.starryeye.token_state.jpa.OutboxEntityRepository;
+import dev.starryeye.token_state.jpa.RefreshTokenEntityRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,9 @@ class RefreshTokenServiceEventTest {
 
 	@Autowired
 	private TokenGenerator tokenGenerator;
+
+	@Autowired
+	private RefreshTokenEntityRepository repository;
 
 	@Test
 	@DisplayName("발급하면 같은 트랜잭션에서 ISSUED 사건을 outbox 에 쓴다")
@@ -75,5 +79,58 @@ class RefreshTokenServiceEventTest {
 		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid offline_access", 1000L, null);
 
 		assertThat(OutboxEvents.eventsOf(outboxRepository, objectMapper, issued.familyId()).get(0).has("sid")).isFalse();
+	}
+
+	@Test
+	@DisplayName("회전하면 새 토큰의 만료를 실은 ROTATED 를 쓴다")
+	void rotateRecordsRotatedEvent() throws Exception {
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid offline_access", 1000L, "SID-A");
+
+		RotateResult rotated = service.rotate(issued.refreshToken(), "my-client", null);
+
+		List<JsonNode> events = OutboxEvents.eventsOf(outboxRepository, objectMapper, issued.familyId());
+		assertThat(events).extracting(e -> e.get("kind").asText()).containsExactly("ISSUED", "ROTATED");
+		JsonNode event = events.get(1);
+		assertThat(Instant.parse(event.get("expiresAt").asText()).getEpochSecond()).isEqualTo(rotated.expiresAt());
+		assertThat(event.get("sub").asText()).isEqualTo("user-sub-0001");
+		assertThat(event.get("clientId").asText()).isEqualTo("my-client");
+		assertThat(event.get("sid").asText()).isEqualTo("SID-A");
+		assertThat(event.has("familyExpiresAt")).isFalse();
+		assertThat(event.has("reason")).isFalse();
+	}
+
+	@Test
+	@DisplayName("재사용이 탐지되면 실제로 바뀐 행 수를 실은 REVOKED(REUSE_DETECTED) 하나를 쓴다")
+	void reuseRecordsOneRevokedEventWithCounts() throws Exception {
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid offline_access", 1000L, "SID-A");
+		RotateResult first = service.rotate(issued.refreshToken(), "my-client", null);
+		service.rotate(first.refreshToken(), "my-client", null);                 // CONSUMED 2, ACTIVE 1
+
+		RotateResult reuse = service.rotate(issued.refreshToken(), "my-client", null);
+
+		assertThat(reuse.status()).isEqualTo(RotateStatus.REUSE_DETECTED);
+		List<JsonNode> events = OutboxEvents.eventsOf(outboxRepository, objectMapper, issued.familyId());
+		assertThat(events).extracting(e -> e.get("kind").asText()).containsExactly("ISSUED", "ROTATED", "ROTATED", "REVOKED");
+		JsonNode revoked = events.get(3);
+		assertThat(revoked.get("reason").asText()).isEqualTo("REUSE_DETECTED");
+		assertThat(revoked.get("revokedTokens").asInt()).isEqualTo(3);
+		assertThat(revoked.get("activeTokensRevoked").asInt()).isEqualTo(1);
+		assertThat(repository.findByFamilyId(issued.familyId()))
+				.allSatisfy(row -> assertThat(row.getRevokedReason()).isEqualTo("REUSE_DETECTED"))
+				.hasSize(3);
+	}
+
+	@Test
+	@DisplayName("client 가 폐기하면 REVOKED(CLIENT_REVOKED) 를 쓴다")
+	void clientRevokeRecordsRevokedEvent() throws Exception {
+		IssueResult issued = service.issue("my-client", "user-sub-0001", "openid offline_access", 1000L, "SID-A");
+		RotateResult rotated = service.rotate(issued.refreshToken(), "my-client", null);
+
+		assertThat(service.revoke(rotated.refreshToken(), "my-client")).isTrue();
+
+		JsonNode revoked = OutboxEvents.eventsOf(outboxRepository, objectMapper, issued.familyId()).get(2);
+		assertThat(revoked.get("reason").asText()).isEqualTo("CLIENT_REVOKED");
+		assertThat(revoked.get("revokedTokens").asInt()).isEqualTo(2);
+		assertThat(revoked.get("activeTokensRevoked").asInt()).isEqualTo(1);
 	}
 }
